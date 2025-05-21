@@ -1,0 +1,16 @@
+{
+  "name": "BLACKINPAY",
+  "short_name": "BLACKINPAY",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "description": "Automatize o acesso e pagamentos dos seus grupos VIP no Telegram.",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ]
+} 

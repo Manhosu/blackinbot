@@ -1,0 +1,257 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@keyframes gradient {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+  100% { transform: translateY(0px); }
+}
+
+@keyframes pulse {
+  0% { opacity: 0.6; }
+  50% { opacity: 1; }
+  100% { opacity: 0.6; }
+}
+
+:root {
+  --background: #000000;
+  --foreground: #ffffff;
+  
+  --primary: #0a0f20;
+  --primary-foreground: #ffffff;
+  --primary-hover: #131c3a;
+  
+  --secondary: #141620;
+  --secondary-rgb: 20, 22, 32;
+  --secondary-foreground: #ffffff;
+  --secondary-hover: #1c1f2c;
+  
+  --border: #2a2d3e;
+  --border-light: rgba(42, 45, 62, 0.3);
+  --ring: #3f4765;
+  
+  --muted: #191b25;
+  --muted-foreground: #8a8eab;
+  
+  --accent: #3b5aef;
+  --accent-rgb: 59, 90, 239;
+  --accent-hover: #2a48d4;
+  --accent-foreground: #ffffff;
+  
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  
+  --card: #0c0e16;
+  --card-foreground: #ffffff;
+  
+  --popover: rgba(15, 15, 20, 0.95);
+  --popover-foreground: #ffffff;
+  
+  --success: #22c55e;
+  --success-foreground: #ffffff;
+  
+  --warning: #f59e0b;
+  --warning-foreground: #ffffff;
+  
+  --info: #3b82f6;
+  --info-foreground: #ffffff;
+  
+  /* Glassmorphism */
+  --glass: rgba(15, 20, 40, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-highlight: rgba(255, 255, 255, 0.05);
+  --glass-shadow: rgba(0, 0, 0, 0.5);
+  
+  /* Gradients */
+  --gradient-primary: linear-gradient(135deg, #1e3a8a 0%, #3b5aef 100%);
+  --gradient-dark: linear-gradient(135deg, #060714 0%, #141932 100%);
+  --gradient-accent: linear-gradient(135deg, #1a365d 0%, #3b5aef 100%);
+  
+  /* Shadows */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.4);
+  --shadow-glow: 0 0 20px rgba(59, 90, 239, 0.3);
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-feature-settings: "rlig" 1, "calt" 1;
+}
+
+/* Glassmorphism */
+.glass {
+  @apply backdrop-blur-md bg-opacity-70 border;
+  background-color: var(--glass);
+  border-color: var(--glass-border);
+  box-shadow: 0 8px 32px var(--glass-shadow);
+}
+
+.glass-card {
+  @apply glass rounded-2xl p-6;
+}
+
+.glass-navbar {
+  @apply glass z-50 backdrop-blur-lg bg-opacity-80;
+}
+
+/* Animated elements */
+.animate-float {
+  animation: float 4s ease-in-out infinite;
+}
+
+.animate-pulse-slow {
+  animation: pulse 3s ease-in-out infinite;
+}
+
+.animate-gradient-bg {
+  background: var(--gradient-primary);
+  background-size: 200% 200%;
+  animation: gradient 8s ease infinite;
+}
+
+/* Interactive elements */
+.sidebar-icon {
+  @apply text-white transition-all duration-200 hover:text-white hover:scale-110;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.sidebar-link {
+  @apply flex items-center gap-3 p-3 rounded-xl text-sm font-medium text-white hover:text-white transition-all duration-200;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.sidebar-link:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.sidebar-link.active {
+  background-color: rgba(255, 255, 255, 0.1);
+  @apply text-white;
+}
+
+.card {
+  @apply bg-card rounded-2xl p-6 shadow-md transition-all duration-300 hover:shadow-lg border;
+  border-color: var(--border-light);
+}
+
+.button-primary {
+  @apply bg-accent text-white rounded-full py-2.5 px-6 font-medium transition-all duration-300 
+         hover:bg-accent-hover shadow-sm 
+         active:scale-95 active:shadow-inner;
+}
+
+.button-primary:hover {
+  box-shadow: 0 4px 12px rgba(var(--accent-rgb), 0.2);
+}
+
+.button-secondary {
+  @apply bg-secondary border text-white rounded-full py-2.5 px-6 font-medium 
+         transition-all duration-300 hover:bg-secondary-hover
+         shadow-sm active:scale-95;
+  border-color: var(--border-light);
+}
+
+.button-secondary:hover {
+  border-color: var(--border);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+.button-outline {
+  @apply border bg-transparent text-white rounded-full py-2.5 px-6 font-medium 
+         transition-all duration-300
+         shadow-sm active:scale-95;
+  border-color: var(--border-light);
+}
+
+.button-outline:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+  border-color: var(--border);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+.input {
+  @apply bg-secondary border rounded-xl px-4 py-3 text-white w-full 
+         focus:outline-none focus:ring-1 transition-all duration-200;
+  background-color: rgba(var(--secondary-rgb), 0.8);
+  border-color: var(--border-light);
+}
+
+.input:focus {
+  border-color: rgba(var(--accent-rgb), 0.5);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.select {
+  @apply bg-secondary border rounded-xl px-4 py-3 text-white w-full 
+         focus:outline-none focus:ring-1 transition-all duration-200;
+  background-color: rgba(var(--secondary-rgb), 0.8);
+  border-color: var(--border-light);
+}
+
+.select:focus {
+  border-color: rgba(var(--accent-rgb), 0.5);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.heading-1 {
+  @apply text-4xl font-bold tracking-tight;
+}
+
+.heading-2 {
+  @apply text-3xl font-bold tracking-tight;
+}
+
+.heading-3 {
+  @apply text-2xl font-bold;
+}
+
+.card-stat {
+  @apply flex flex-col bg-card rounded-2xl p-6 border
+         transition-all duration-300 hover:shadow-md;
+  border-color: var(--border-light);
+}
+
+.card-stat-title {
+  @apply text-sm mb-1 font-medium;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.card-stat-value {
+  @apply text-3xl font-bold tracking-tight;
+}
+
+/* Text gradients */
+.text-gradient {
+  @apply text-transparent bg-clip-text;
+  background-image: var(--gradient-primary);
+}
+
+/* Form inputs */
+.input-auth {
+  @apply bg-secondary border border-border rounded-md px-4 py-3 text-white w-full 
+         focus:border-accent focus:ring-1 focus:ring-accent focus:outline-none transition-all duration-200;
+  background-color: rgba(20, 22, 32, 0.7);
+}
+
+.input-auth::placeholder {
+  @apply text-white text-opacity-50;
+}
+
+.button-auth {
+  @apply w-full bg-accent hover:bg-accent hover:bg-opacity-90 text-white font-medium rounded-md 
+         py-3 transition-colors duration-200 shadow-sm hover:shadow-md;
+}
+
+/* Adicionar classe para o card do formulário */
+.auth-card {
+  @apply bg-card bg-opacity-90 backdrop-blur-md border border-border rounded-lg p-6 shadow-xl;
+}

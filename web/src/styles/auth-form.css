@@ -1,0 +1,249 @@
+/* Formulário de autenticação */
+.auth-wrapper {
+  --input-focus: var(--accent);
+  --font-color: var(--foreground);
+  --font-color-sub: var(--muted-foreground);
+  --bg-color: transparent;
+  --bg-color-alt: var(--secondary);
+  --main-color: var(--border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: auto;
+  background-color: transparent;
+  margin-top: 0;
+  position: relative;
+  z-index: 50;
+}
+
+/* Switch do card */
+.auth-card-switch {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 340px;
+  margin: 0 auto;
+}
+
+.auth-switch {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  margin-bottom: 20px;
+}
+
+.auth-card-side {
+  position: relative;
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 60;
+  margin-bottom: 20px;
+  padding: 0 20px;
+  height: 30px;
+}
+
+.auth-tab-label {
+  color: var(--font-color);
+  font-weight: 600;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  opacity: 0.7;
+  user-select: none;
+  position: relative;
+  z-index: 65;
+}
+
+.auth-tab-label.active {
+  opacity: 1;
+  color: var(--accent);
+}
+
+.login-label {
+  margin-right: auto;
+}
+
+.signup-label {
+  margin-left: auto;
+}
+
+.auth-toggle {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+}
+
+.auth-slider {
+  box-sizing: border-box;
+  border-radius: 20px;
+  border: 2px solid var(--accent);
+  position: absolute;
+  cursor: pointer;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  background-color: var(--card);
+  transition: 0.3s;
+  z-index: 45;
+  width: 60px;
+  height: 30px;
+}
+
+.auth-slider:before {
+  box-sizing: border-box;
+  position: absolute;
+  content: "";
+  height: 22px;
+  width: 22px;
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+  left: 2px;
+  bottom: 2px;
+  background-color: var(--accent);
+  transition: 0.3s;
+}
+
+.auth-toggle:checked + .auth-slider:before {
+  transform: translateX(30px);
+}
+
+/* Card */ 
+.auth-flip-card__inner {
+  width: 100%;
+  position: relative;
+  background-color: transparent;
+  perspective: 1000px;
+  text-align: center;
+  z-index: 40;
+  margin-top: 20px;
+}
+
+.auth-flip-card__front, .auth-flip-card__back {
+  padding: 30px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  background: var(--card);
+  backdrop-filter: blur(16px);
+  background-color: rgba(12, 14, 22, 0.7);
+  gap: 20px;
+  border-radius: 15px;
+  border: 1px solid var(--border);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  width: 100%;
+  z-index: 50;
+  min-height: 300px;
+}
+
+.auth-flip-card__form {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  position: relative;
+  z-index: 55;
+  width: 100%;
+}
+
+.auth-flip-card__input {
+  width: 100%;
+  height: 50px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background-color: rgba(255, 255, 255, 0.03);
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--foreground);
+  padding: 5px 15px;
+  outline: none;
+  transition: all 0.2s ease;
+  position: relative;
+  z-index: 55;
+}
+
+.auth-flip-card__input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-foreground);
+}
+
+.auth-flip-card__input::placeholder {
+  color: var(--font-color-sub);
+  opacity: 0.7;
+}
+
+.auth-flip-card__btn {
+  width: 100%;
+  height: 50px;
+  border-radius: 10px;
+  border: none;
+  background-color: var(--accent);
+  color: white;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  z-index: 55;
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.auth-flip-card__btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.auth-flip-card__btn:not(:disabled):hover {
+  background-color: var(--accent-foreground);
+  transform: translateY(-2px);
+}
+
+/* Responsividade */
+@media (max-width: 640px) {
+  .auth-flip-card__front, .auth-flip-card__back {
+    padding: 20px;
+  }
+  
+  .auth-flip-card__input {
+    height: 45px;
+    font-size: 14px;
+  }
+  
+  .auth-flip-card__btn {
+    height: 45px;
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 768px) {
+  .auth-card-switch {
+    width: 90%;
+  }
+  
+  .auth-flip-card__inner {
+    width: 100%;
+  }
+}
+
+/* Container do label do switch */
+label {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60px;
+  height: 30px;
+  z-index: 50;
+} 
