@@ -2,6 +2,14 @@ import type { Metadata } from "next";
 import { Inter, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import Providers from "@/components/Providers";
+import { metadata as sharedMetadata, viewport as sharedViewport } from "./metadata";
+
+// Add preload directive
+// @ts-ignore
+export const preload = true;
+// Avoid static regeneration issues
+// @ts-ignore
+export const dynamic = 'force-dynamic';
 
 const inter = Inter({
   subsets: ["latin"],
@@ -15,41 +23,8 @@ const spaceGrotesk = Space_Grotesk({
   display: "swap",
 });
 
-export const metadata: Metadata = {
-  title: "BLACKINPAY | Automatize o acesso aos seus grupos no Telegram",
-  description: "Configure o BLACKINPAY em apenas 5 passos e comece a faturar ainda hoje com seu grupo de acesso VIP!",
-  keywords: ["telegram", "bot", "grupos vip", "automatização", "acesso", "controle", "faturamento", "pix", "pagamentos", "BLACKINPAY"],
-  authors: [{ name: "BLACKINPAY Team" }],
-  viewport: "width=device-width, initial-scale=1, maximum-scale=1",
-  themeColor: "#0a0f20",
-  robots: "index, follow",
-  metadataBase: new URL("https://blackinpay.com.br"),
-  alternates: {
-    canonical: "/",
-  },
-  openGraph: {
-    type: "website",
-    locale: "pt_BR",
-    url: "https://blackinpay.com.br",
-    title: "BLACKINPAY | Automatize o acesso aos seus grupos no Telegram",
-    description: "Configure o BLACKINPAY em apenas 5 passos e comece a faturar ainda hoje com seu grupo de acesso VIP!",
-    siteName: "BLACKINPAY",
-    images: [
-      {
-        url: "/og-image.jpg",
-        width: 1200,
-        height: 630,
-        alt: "BLACKINPAY Preview",
-      },
-    ],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "BLACKINPAY | Automatize o acesso aos seus grupos no Telegram",
-    description: "Configure o BLACKINPAY em apenas 5 passos e comece a faturar ainda hoje com seu grupo de acesso VIP!",
-    images: ["/og-image.jpg"],
-  },
-};
+export const metadata: Metadata = sharedMetadata;
+export const viewport = sharedViewport;
 
 export default function RootLayout({
   children,

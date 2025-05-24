@@ -215,13 +215,13 @@
 @media (max-width: 640px) {
   .auth-flip-card__front, .auth-flip-card__back {
     padding: 20px;
-  }
-  
+}
+
   .auth-flip-card__input {
     height: 45px;
     font-size: 14px;
-  }
-  
+}
+
   .auth-flip-card__btn {
     height: 45px;
     font-size: 14px;

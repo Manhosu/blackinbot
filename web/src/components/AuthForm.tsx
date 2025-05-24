@@ -1,9 +1,9 @@
+// Componente descontinuado. Use LoginForm.tsx e RegisterForm.tsx separados para cada página.
+
 "use client";
 
 import { useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { IMaskInput } from "react-imask";
-import { motion, AnimatePresence } from "framer-motion";
 import "../styles/auth-form.css";
 
 interface AuthFormProps {
@@ -12,213 +12,118 @@ interface AuthFormProps {
 
 export function AuthForm({ initialMode = 'login' }: AuthFormProps) {
   const [isSignUp, setIsSignUp] = useState(initialMode === 'signup');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
-    phone: '',
-    cpf: ''
-  });
   const pathname = usePathname();
   const router = useRouter();
 
   useEffect(() => {
+    // Atualiza o modo com base na página atual
     if (pathname === '/register') {
       setIsSignUp(true);
     } else if (pathname === '/login') {
       setIsSignUp(false);
     }
-  }, [pathname]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
+    // Corrigir o erro de preload CSS removendo os links preload problemáticos
+    const removeIncorrectPreloadLinks = () => {
+      document.querySelectorAll('link[rel="preload"][as=""]').forEach(link => {
+        link.setAttribute('as', 'style');
+      });
+      
+      // Também remover links específicos que estão causando problemas
+      document.querySelectorAll('link[rel="preload"][href*="app/login/page.css"], link[rel="preload"][href*="app/register/page.css"]').forEach(link => {
+        if (!link.hasAttribute('as') || link.getAttribute('as') === '') {
+          link.setAttribute('as', 'style');
+        }
+      });
+    };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    setLoading(true);
+    // Executar a correção após um breve delay para garantir que os links foram carregados
+    setTimeout(removeIncorrectPreloadLinks, 100);
     
-    try {
-      if (isSignUp) {
-        const response = await fetch('/api/auth/register', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(formData),
-        });
-
-        if (response.ok) {
-          router.push('/dashboard');
-        } else {
-          const error = await response.json();
-          throw new Error(error.message || 'Erro no registro');
-        }
-      } else {
-        const response = await fetch('/api/auth/login', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            email: formData.email,
-            password: formData.password,
-          }),
-        });
-
-        if (response.ok) {
-          router.push('/dashboard');
-        } else {
-          const error = await response.json();
-          throw new Error(error.message || 'Erro no login');
-        }
-      }
-    } catch (error: any) {
-      console.error('Erro:', error);
-      setError(error.message || 'Ocorreu um erro. Tente novamente.');
-    } finally {
-      setLoading(false);
-    }
-  };
+    // Executar novamente se houver uma mudança no pathname
+  }, [pathname]);
 
   const handleToggle = () => {
     const newMode = !isSignUp;
     setIsSignUp(newMode);
-    setFormData({
-      name: '',
-      email: '',
-      password: '',
-      phone: '',
-      cpf: ''
-    });
     
+    // Redireciona para a página correta com base na seleção
     if (newMode) {
-      router.push('/register', { scroll: false });
+      // Se está mudando para cadastro
+      router.push('/register');
     } else {
-      router.push('/login', { scroll: false });
+      // Se está mudando para login
+      router.push('/login');
     }
   };
 
-  return (
-    <div className="auth-wrapper">
-      <div className="auth-card-switch">
-        <div className="auth-switch">
-          <div className="auth-card-side">
-            <span className={`auth-tab-label login-label ${!isSignUp ? 'active' : ''}`}>
-              Login
-            </span>
-            <label>
-              <input 
-                type="checkbox" 
-                className="auth-toggle" 
-                checked={isSignUp}
-                onChange={handleToggle}
-              />
-              <span className="auth-slider"></span>
-            </label>
-            <span className={`auth-tab-label signup-label ${isSignUp ? 'active' : ''}`}>
-              Cadastro
-            </span>
-          </div>
-        </div>
+  // Adaptar o estilo conforme a página atual
+  const wrapperStyle = {
+    position: 'relative',
+    zIndex: 100,
+    marginTop: '-30px'
+  } as React.CSSProperties;
 
-        <div className="auth-flip-card__inner">
-          <AnimatePresence mode="wait">
-            <motion.div 
-              key={isSignUp ? 'signup' : 'login'}
-              className={isSignUp ? 'auth-flip-card__back' : 'auth-flip-card__front'}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.2 }}
-            >
-              <form className="auth-flip-card__form" onSubmit={handleSubmit}>
-                {error && (
-                  <div className="w-full p-3 mb-2 rounded-md bg-red-500/10 border border-red-500/20 text-red-500">
-                    {error}
-                  </div>
-                )}
-                {isSignUp && (
-                  <>
-                    <input
-                      type="text"
-                      name="name"
-                      value={formData.name}
-                      onChange={handleInputChange}
-                      placeholder="Nome completo"
-                      className="auth-flip-card__input"
-                      required
-                    />
-                    <IMaskInput
-                      mask="(00) 00000-0000"
-                      type="tel"
-                      name="phone"
-                      value={formData.phone}
-                      onChange={handleInputChange}
-                      placeholder="Celular"
-                      className="auth-flip-card__input"
-                      required
-                    />
-                    <IMaskInput
-                      mask="000.000.000-00"
-                      type="text"
-                      name="cpf"
-                      value={formData.cpf}
-                      onChange={handleInputChange}
-                      placeholder="CPF"
-                      className="auth-flip-card__input"
-                      required
-                    />
-                  </>
-                )}
-                <input
+  return (
+    <div className="auth-wrapper" style={wrapperStyle}>
+      <div className="auth-card-switch">
+        <label className="auth-switch">
+          <input 
+            type="checkbox" 
+            className="auth-toggle" 
+            checked={isSignUp}
+            onChange={handleToggle}
+          />
+          <span className="auth-slider"></span>
+          <span className="auth-card-side">
+            <span className={`auth-tab-label login-label ${!isSignUp ? 'active' : ''}`}>Login</span>
+            <span className={`auth-tab-label signup-label ${isSignUp ? 'active' : ''}`}>Cadastro</span>
+          </span>
+          <div className="auth-flip-card__inner">
+            <div className="auth-flip-card__front">
+              <div className="auth-title">Login</div>
+              <form className="auth-flip-card__form" action="">
+                <input 
+                  className="auth-flip-card__input" 
+                  name="email" 
+                  placeholder="Email" 
                   type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  placeholder="Email"
-                  className="auth-flip-card__input"
-                  required
                 />
-                <input
+                <input 
+                  className="auth-flip-card__input" 
+                  name="password" 
+                  placeholder="Senha" 
                   type="password"
-                  name="password"
-                  value={formData.password}
-                  onChange={handleInputChange}
-                  placeholder="Senha"
-                  className="auth-flip-card__input"
-                  required
                 />
-                <motion.button
-                  type="submit"
-                  className="auth-flip-card__btn"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  disabled={loading}
-                >
-                  {loading ? (
-                    <span className="flex items-center justify-center gap-2">
-                      <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                      </svg>
-                      {isSignUp ? 'Criando conta...' : 'Entrando...'}
-                    </span>
-                  ) : (
-                    isSignUp ? 'Criar conta' : 'Entrar'
-                  )}
-                </motion.button>
+                <button className="auth-flip-card__btn">Entrar</button>
               </form>
-            </motion.div>
-          </AnimatePresence>
-        </div>
+            </div>
+            <div className="auth-flip-card__back">
+              <div className="auth-title">Cadastro</div>
+              <form className="auth-flip-card__form" action="">
+                <input 
+                  className="auth-flip-card__input" 
+                  placeholder="Nome" 
+                  type="text"
+                  name="name"
+                />
+                <input 
+                  className="auth-flip-card__input" 
+                  name="email" 
+                  placeholder="Email" 
+                  type="email"
+                />
+                <input 
+                  className="auth-flip-card__input" 
+                  name="password" 
+                  placeholder="Senha" 
+                  type="password"
+                />
+                <button className="auth-flip-card__btn">Confirmar</button>
+              </form>
+            </div>
+          </div>
+        </label>
       </div>
     </div>
   );

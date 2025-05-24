@@ -15,6 +15,16 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
+// Add prefetch directive
+// @ts-ignore
+export const prefetch = true;
+// Add dynamic directive for dynamic rendering 
+// @ts-ignore
+export const dynamic = 'force-dynamic';
+// Add preload directive for important assets
+// @ts-ignore
+export const preload = ['font', 'script', 'style'];
+
 export default function HomePage() {
   const [isScrolled, setIsScrolled] = useState(false);
   const router = useRouter();
@@ -64,7 +74,7 @@ export default function HomePage() {
           </div>
           <div className="flex items-center gap-6">
             <Link href="/login" className="text-white/80 hover:text-white transition-all">
-              Login
+                Login
             </Link>
             <Link href="/register">
               <Button size="sm" variant="gradient" className="rounded-full px-6">
@@ -84,7 +94,7 @@ export default function HomePage() {
           </div>
         </div>
         
-        <div className="container mx-auto px-4 flex flex-col md:flex-row items-center">
+        <div className="container mx-auto px-4 flex flex-col md:flex-row items-center gap-12">
           <div className="md:w-1/2 mb-12 md:mb-0">
             <div className="inline-block px-4 py-1.5 mb-6 rounded-full bg-white/5 border border-white/10 text-sm font-medium">
               <span className="bg-clip-text text-transparent bg-gradient-primary">Novo</span> – Controle automático de acessos 
@@ -450,7 +460,7 @@ export default function HomePage() {
               <div className="glass-card transition-all hover:shadow-glow cursor-pointer">
                 <h3 className="text-xl font-bold mb-3 font-heading">Qual a taxa da plataforma?</h3>
                 <p className="text-white/70">
-                  Nossa taxa é de apenas 10% sobre cada transação realizada, sem custos fixos ou mensalidades. Você só paga quando recebe.
+                  Nossa taxa é de apenas R$1,48 + 5% sobre cada transação realizada, sem custos fixos ou mensalidades. Você só paga quando recebe.
                 </p>
               </div>
             </div>

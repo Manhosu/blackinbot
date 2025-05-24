@@ -7,5 +7,20 @@
     "build": "cd web && npm run build",
     "start": "cd web && npm run start"
   },
-  "private": true
-} 
+  "private": true,
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.8",
+    "class-variance-authority": "^0.7.1",
+    "critters": "^0.0.23",
+    "framer-motion": "^12.12.1",
+    "lucide-react": "^0.511.0",
+    "react-imask": "^7.6.1",
+    "tailwind-merge": "^3.3.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/nesting": "^0.0.0-insiders.565cd3e",
+    "@tailwindcss/postcss": "^4.1.7",
+    "@types/react": "19.1.5",
+    "typescript": "5.8.3"
+  }
+}

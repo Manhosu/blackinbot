@@ -34,7 +34,7 @@ export function Sidebar() {
     <div className="w-64 h-screen bg-primary flex flex-col fixed left-0 top-0 border-r border-border">
       <div className="p-6">
         <Link href="/dashboard" className="flex items-center gap-2">
-          <Image src="/logo.svg" alt="Black-in-Bot" width={36} height={36} />
+          <Image src={`/logo.png?v=${new Date().getTime()}`} alt="Black-in-Bot" width={36} height={36} />
           <span className="text-white text-xl font-bold">Black-in-Bot</span>
         </Link>
       </div>

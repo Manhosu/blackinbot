@@ -2,7 +2,6 @@
 const nextConfig = {
   reactStrictMode: true,
   experimental: {
-    appDir: true,
     optimizeCss: true,
     optimizePackageImports: ['lucide-react'],
     scrollRestoration: true,
@@ -12,6 +11,12 @@ const nextConfig = {
   images: {
     formats: ['image/avif', 'image/webp'],
     minimumCacheTTL: 60,
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '**',
+      },
+    ],
   },
   
   poweredByHeader: false,
@@ -21,6 +26,11 @@ const nextConfig = {
   },
   
   webpack(config) {
+    config.watchOptions = {
+      ...config.watchOptions,
+      aggregateTimeout: 300,
+      poll: 1000,
+    };
     return config;
   },
   

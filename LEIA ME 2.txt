@@ -1,0 +1,106 @@
+Você está trabalhando em um projeto web já iniciado, com painel administrativo em Next.js 14 (React), TailwindCSS, Supabase (Auth, DB, Storage), e um bot em Python com python-telegram-bot. O sistema é um clone aprimorado do MadBot, onde o cliente pode criar bots que gerenciam grupos pagos no Telegram.
+
+A missão agora é implementar o fluxo completo de criação de bots personalizados pelo site, incluindo personalização de mensagens automáticas e integração com grupos Telegram.
+
+# 🔧 Contexto de estrutura já feita:
+- Supabase com tabelas: `users`, `bots`, `groups`, `plans`, `payments`, `sales`, `reminders`
+- RLS habilitado por usuário
+- Painel administrativo com rotas /dashboard, /dashboard/bots, etc.
+- Integração do backend já preparada para receber e enviar dados entre bot Python e frontend Next.js via API
+- Usuário faz login no site, vai em **Dashboard > Meus Bots**, e lá pode criar e gerenciar bots
+
+# 🧠 Agora você precisa implementar:
+
+## 1. Fluxo de Criação de Bot via Painel
+Crie um modal ou formulário em `/dashboard/bots` com os seguintes campos obrigatórios:
+- **Nome do Bot**
+- **Token do Bot** (gerado via BotFather)
+- **Imagem do Bot** (upload para o Supabase Storage)
+- **Grupo VIP do Telegram** (campo onde o usuário cola o link de convite privado ou @username do grupo)
+- **Plano de Cobrança**:
+  - Nome do plano (ex: "Mensal VIP Carros")
+  - Preço
+  - Período (7 dias, 15 dias, 30 dias, 3 meses, 6 meses, 1 ano, vitalício) — dropdown fixo
+- **Mensagem de Boas-Vindas** (campo de texto livre com suporte a Markdown/HTML básico)
+- **Mídia de Boas-Vindas** (upload opcional de imagem ou vídeo demonstrativo do grupo, exibido junto à mensagem)
+
+### 💾 O que fazer ao enviar:
+- Criar entrada na tabela `bots` com status `active: false`
+- Armazenar no Supabase Storage:
+  - Imagem do bot
+  - Mídia de boas-vindas
+- Criar entrada em `groups` associada ao `bot_id`
+- Criar plano em `plans` com os dados fornecidos
+- Enviar o token para API/backend para:
+  - Definir webhook automático
+  - Configurar mensagem inicial personalizada (bem-vindo + mídia)
+  - Associar o grupo informado ao bot
+  - Validar token com o Telegram
+  - Retornar se deu certo ou não
+
+## 2. Backend (Next.js API Route)
+Crie rota em `/api/bots/create` para:
+- Validar token com Telegram (GET https://api.telegram.org/bot<TOKEN>/getMe)
+- Setar webhook (POST para backend Python que chama Telegram webhook)
+- Retornar sucesso ou erro para frontend
+- Usar Supabase Admin para armazenar dados
+- Retornar o `bot_id` e URL do bot para o cliente
+
+## 3. Bot Python (Webhook)
+No bot Python:
+- Quando um usuário inicia com `/start`:
+  - Buscar dados do bot no banco via ID do token (GET `/api/bots/by-token`)
+  - Enviar mensagem personalizada com a mídia configurada (texto + vídeo ou imagem, se houver)
+  - Enviar opções de planos como botões com preço e duração
+- Quando o usuário clicar num plano:
+  - Gerar cobrança via API de pagamento (Pix ou mock, já pronto)
+  - Enviar link de pagamento
+  - Aguardar confirmação (mock ou real)
+  - Ao confirmar, adicionar o usuário ao grupo VIP (via invite link privado)
+- Comando `/ajuda` deve listar comandos disponíveis
+
+## 4. Frontend — UI/UX
+- Interface visual bonita, como já vem sendo feita (Tailwind)
+- Mostrar lista de bots cadastrados do usuário
+- Mostrar botão "Criar Novo Bot"
+- Após criar, mostrar status do webhook e link do bot no Telegram
+- Mostrar prévia da mensagem de boas-vindas configurada
+
+## 5. Supabase (automatizado via MCP)
+Garanta que as seguintes tabelas tenham as colunas necessárias:
+
+**Tabela `bots`:**
+- id
+- owner (FK para users)
+- name
+- token
+- avatar_url
+- welcome_message
+- welcome_media_url
+- status
+- created_at
+
+**Tabela `groups`:**
+- id
+- bot_id
+- telegram_group_link
+
+**Tabela `plans`:**
+- id
+- bot_id
+- name
+- price
+- duration_days
+
+**Políticas RLS**: Usuários só veem os bots que criaram
+
+---
+
+📌 **Importante:**  
+Use componentes reutilizáveis do projeto, como os botões, `AuthForm`, `StatCard` e layouts existentes. A usabilidade deve ser intuitiva e bonita.  
+
+🧠 Lembre-se: o GPT do Cursor já tem o MCP ativado, então ele deve criar tabelas e colunas que não existam automaticamente ao usar Supabase Client.
+
+# Objetivo final
+Permitir que o usuário cadastre seu bot, configure tudo (grupo, mensagem, mídia, planos), veja o link do bot pronto e funcional no Telegram, e visualize o que o usuário verá ao iniciar a conversa com o bot, tudo isso direto pelo painel sem precisar configurar nada fora do site.
+

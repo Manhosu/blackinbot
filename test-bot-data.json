@@ -1,0 +1,10 @@
+﻿{
+    "plan_info":  {
+                      "price":  9.9,
+                      "days":  30,
+                      "name":  "Plano Mensal"
+                  },
+    "description":  "Bot criado via script PowerShell para teste da API simplificada",
+    "name":  "Bot de Teste PowerShell v2",
+    "token":  "7018128699:AAEZTpUtMSLc83PHMPwqNamIwiZ5P8lCvq4"
+}
