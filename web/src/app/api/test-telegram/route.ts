@@ -36,11 +36,11 @@ export async function POST(request: NextRequest) {
       status: response.status
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Erro no teste:', error);
     return NextResponse.json({
       success: false,
-      error: error.message
+      error: error.message || 'Erro desconhecido'
     }, { status: 500 });
   }
 }

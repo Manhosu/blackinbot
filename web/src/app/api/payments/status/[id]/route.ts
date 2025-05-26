@@ -9,12 +9,8 @@ interface RouteParams {
 
 // Função para criar cliente Supabase com Service Role Key
 function createSupabaseServiceClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  
-  if (!url || !serviceKey) {
-    throw new Error('❌ Variáveis de ambiente do Supabase não configuradas para Service Role');
-  }
+  const url = 'https://xcnhlmqkovfaqyjxwdje.supabase.co';
+  const serviceKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhjbmhsbXFrb3ZmYXF5anh3ZGplIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NzY5MDQ1NiwiZXhwIjoyMDYzMjY2NDU2fQ.-nZKTJD77uUtCglMY3zs1Jkcoq_KiZsy9NLIbJlW9Eg';
   
   return createClient(url, serviceKey);
 }
@@ -70,8 +66,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         // Aqui você faria a verificação real no PushinPay
         // const pushinPayStatus = await checkPushinPayStatus(payment.pushinpay_id);
         
-        // Por enquanto, simular verificação
-        const pushinPayStatus = 'pending'; // ou 'completed'
+        // Por enquanto, simular verificação (pode retornar 'pending', 'completed', 'failed', etc.)
+        const pushinPayStatus: string = Math.random() > 0.5 ? 'pending' : 'completed';
         
         if (pushinPayStatus === 'completed' && payment.status !== 'completed') {
           console.log('✅ Pagamento aprovado no PushinPay! Atualizando...');
@@ -130,9 +126,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       expires_at: payment.expires_at,
       paid_at: payment.paid_at,
       is_expired: isExpired,
-      plan_name: payment.plans?.name,
-      bot_name: payment.bots?.name,
-      period_days: payment.plans?.period_days
+      plan_name: (payment as any).plans?.name || (payment as any).plans?.[0]?.name,
+      bot_name: (payment as any).bots?.name || (payment as any).bots?.[0]?.name,
+      period_days: (payment as any).plans?.period_days || (payment as any).plans?.[0]?.period_days
     });
 
   } catch (error: any) {

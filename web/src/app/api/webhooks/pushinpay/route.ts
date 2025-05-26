@@ -226,7 +226,7 @@ Obrigado pela preferência! 🙏`;
           status: 'completed'
         });
 
-      } catch (processingError) {
+      } catch (processingError: any) {
         console.error('❌ Erro ao processar pagamento:', processingError);
         
         // Reverter status se houve erro crítico
@@ -237,7 +237,7 @@ Obrigado pela preferência! 🙏`;
             updated_at: new Date().toISOString(),
             metadata: {
               ...payment.metadata,
-              error_message: processingError.message,
+              error_message: processingError?.message || 'Erro desconhecido',
               error_at: new Date().toISOString()
             }
           })

@@ -9,12 +9,8 @@ interface RouteParams {
 
 // Função para criar cliente Supabase administrativo
 function createSupabaseAdminClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  
-  if (!url || !key) {
-    throw new Error('❌ Variáveis de ambiente do Supabase não configuradas');
-  }
+  const url = 'https://xcnhlmqkovfaqyjxwdje.supabase.co';
+  const key = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhjbmhsbXFrb3ZmYXF5anh3ZGplIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NzY5MDQ1NiwiZXhwIjoyMDYzMjY2NDU2fQ.-nZKTJD77uUtCglMY3zs1Jkcoq_KiZsy9NLIbJlW9Eg';
   
   return createClient(url, key);
 }
@@ -516,7 +512,7 @@ async function handleCallbackQuery(update: TelegramUpdate, bot: BotConfig) {
         const qrMessage = `📲 **QR CODE PIX**
 
 💰 **Valor:** R$ ${payment.amount.toFixed(2).replace('.', ',')}
-📦 **Plano:** ${payment.plans?.name}
+📦 **Plano:** ${(payment as any).plans?.name || (payment as any).plans?.[0]?.name || 'N/A'}
 
 📱 **Escaneie o QR Code abaixo com o app do seu banco:**`;
 
