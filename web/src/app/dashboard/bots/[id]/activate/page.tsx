@@ -15,6 +15,7 @@ import {
   Users,
   Shield
 } from 'lucide-react';
+import { Label } from '@/components/ui/label';
 
 interface BotData {
   id: string;
@@ -45,6 +46,10 @@ export default function ActivateBotPage() {
   const [copied, setCopied] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [autoRenewing, setAutoRenewing] = useState(false);
+  const [activationMethod, setActivationMethod] = useState<'code' | 'link'>('link');
+  const [groupLink, setGroupLink] = useState('');
+  const [validatingGroup, setValidatingGroup] = useState(false);
+  const [groupValidationError, setGroupValidationError] = useState('');
 
   // Carregar dados do bot
   const loadBotData = async () => {
@@ -135,6 +140,51 @@ export default function ActivateBotPage() {
       } catch (error) {
         console.error('Erro ao copiar:', error);
       }
+    }
+  };
+
+  // Ativação via link do grupo
+  const activateViaLink = async () => {
+    if (!groupLink.trim()) {
+      setGroupValidationError('Por favor, insira o link ou ID do grupo');
+      return;
+    }
+
+    setValidatingGroup(true);
+    setGroupValidationError('');
+
+    try {
+      const response = await fetch('/api/bots/auto-activate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          botId: botId,
+          groupLink: groupLink.trim()
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Bot ativado com sucesso
+        setBot(prev => prev ? { ...prev, is_activated: true } : null);
+        setShowSuccessMessage(true);
+        
+        // Redirecionar após 2 segundos
+        setTimeout(() => {
+          router.push(`/dashboard/bots/${botId}?from=activation`);
+        }, 2000);
+      } else {
+        setGroupValidationError(data.error || 'Erro ao ativar bot via link');
+      }
+    } catch (error) {
+      console.error('Erro ao ativar via link:', error);
+      setGroupValidationError('Erro interno. Tente novamente.');
+    } finally {
+      setValidatingGroup(false);
     }
   };
 
@@ -328,31 +378,136 @@ export default function ActivateBotPage() {
         ) : (
           /* Bot Não Ativado */
           <div className="space-y-6">
-            {/* Instruções */}
-            <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
-              <h3 className="font-semibold text-blue-900 mb-4 flex items-center gap-2">
-                <Shield className="w-5 h-5" />
-                Como Ativar seu Bot
+            {/* Seletor de Método de Ativação */}
+            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                🚀 Método de Ativação
               </h3>
-              <div className="text-sm text-blue-800 space-y-2">
-                <p><strong>1.</strong> Gere um código de ativação clicando no botão abaixo</p>
-                <p><strong>2.</strong> Adicione seu bot a um grupo do Telegram como administrador</p>
-                <p><strong>3.</strong> Envie o código de ativação no grupo</p>
-                <p><strong>4.</strong> O bot será ativado automaticamente</p>
-              </div>
-              
-              <div className="mt-4 p-3 bg-blue-100 rounded-lg">
-                <p className="text-xs text-blue-700">
-                  ⚠️ <strong>Importante:</strong> O código expira em 10 minutos e deve ser usado em um grupo onde o bot é administrador.
-                </p>
+              <div className="flex gap-4 mb-6">
+                <button
+                  onClick={() => setActivationMethod('link')}
+                  className={`flex-1 p-4 rounded-lg border-2 transition-all ${
+                    activationMethod === 'link' 
+                      ? 'border-blue-500 bg-blue-50 text-blue-700' 
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <div className="text-center">
+                    <Shield className="w-8 h-8 mx-auto mb-2" />
+                    <h4 className="font-semibold">Ativação Automática</h4>
+                    <p className="text-sm mt-1">Mais rápido e confiável</p>
+                  </div>
+                </button>
+                
+                <button
+                  onClick={() => setActivationMethod('code')}
+                  className={`flex-1 p-4 rounded-lg border-2 transition-all ${
+                    activationMethod === 'code' 
+                      ? 'border-blue-500 bg-blue-50 text-blue-700' 
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <div className="text-center">
+                    <Key className="w-8 h-8 mx-auto mb-2" />
+                    <h4 className="font-semibold">Código Temporário</h4>
+                    <p className="text-sm mt-1">Método tradicional</p>
+                  </div>
+                </button>
               </div>
             </div>
 
+            {/* Ativação via Link do Grupo */}
+            {activationMethod === 'link' && (
+              <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                  🔗 Ativação via Link do Grupo
+                </h3>
+                
+                {/* Instruções */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                  <h4 className="font-semibold text-blue-900 mb-2">Como funciona:</h4>
+                  <div className="text-sm text-blue-800 space-y-1">
+                    <p>1. Adicione seu bot ao grupo como <strong>administrador</strong></p>
+                    <p>2. Copie o link ou ID do grupo</p>
+                    <p>3. Cole no campo abaixo e clique em "Ativar"</p>
+                    <p>4. O bot será ativado automaticamente!</p>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="groupLink" className="text-sm font-medium text-gray-700">
+                      Link ou ID do Grupo
+                    </Label>
+                    <input
+                      id="groupLink"
+                      type="text"
+                      value={groupLink}
+                      onChange={(e) => {
+                        setGroupLink(e.target.value);
+                        setGroupValidationError('');
+                      }}
+                      placeholder="https://t.me/+ABC123... ou -100123456789"
+                      className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                    {groupValidationError && (
+                      <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                        <AlertCircle className="w-4 h-4" />
+                        {groupValidationError}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                    <h5 className="font-semibold text-yellow-800 mb-2">💡 Formatos aceitos:</h5>
+                    <div className="text-sm text-yellow-700 space-y-1">
+                      <p>• Links de convite: <code>https://t.me/+ABC123...</code></p>
+                      <p>• Links antigos: <code>https://t.me/joinchat/ABC123...</code></p>
+                      <p>• Grupos públicos: <code>https://t.me/nomedogrupo</code></p>
+                      <p>• ID direto: <code>-100123456789</code></p>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={activateViaLink}
+                    disabled={!groupLink.trim() || validatingGroup}
+                    className="w-full bg-blue-600 text-white px-4 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {validatingGroup ? (
+                      <div className="flex items-center justify-center gap-2">
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        Validando e ativando...
+                      </div>
+                    ) : (
+                      'Ativar Bot Automaticamente'
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Geração de Código */}
-            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                🔑 Código de Ativação
-              </h3>
+            {activationMethod === 'code' && (
+              <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                  🔑 Código de Ativação
+                </h3>
+                
+                {/* Instruções para código */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                  <h4 className="font-semibold text-blue-900 mb-2">Passos para ativação:</h4>
+                  <div className="text-sm text-blue-800 space-y-1">
+                    <p>1. Gere um código temporário</p>
+                    <p>2. Adicione o bot ao grupo como administrador</p>
+                    <p>3. Envie o código no grupo</p>
+                    <p>4. O bot será ativado automaticamente</p>
+                  </div>
+                  <div className="mt-3 p-2 bg-blue-100 rounded">
+                    <p className="text-xs text-blue-700">
+                      ⚠️ O código expira em 10 minutos
+                    </p>
+                  </div>
+                </div>
 
               {activationCode ? (
                 /* Código Gerado */
@@ -456,15 +611,17 @@ export default function ActivateBotPage() {
                 </div>
               )}
             </div>
+            )}
 
             {/* Dicas */}
             <div className="bg-gray-50 rounded-xl p-6">
               <h4 className="font-semibold text-gray-900 mb-3">💡 Dicas Importantes</h4>
               <div className="text-sm text-gray-700 space-y-2">
+                <p>• <strong>Ativação automática:</strong> Use o link do grupo para ativação instantânea</p>
                 <p>• <strong>Grupos recomendados:</strong> Use grupos ou supergrupos para melhor funcionamento</p>
                 <p>• <strong>Permissões:</strong> O bot deve ser administrador do grupo</p>
-                <p>• <strong>Renovação automática:</strong> Novos códigos são gerados automaticamente quando expiram</p>
-                <p>• <strong>Verificação:</strong> O status é atualizado automaticamente a cada 3 segundos</p>
+                <p>• <strong>Renovação automática:</strong> Novos códigos são gerados automaticamente quando expiram (método código)</p>
+                <p>• <strong>Verificação:</strong> O status é atualizado automaticamente</p>
                 <p>• <strong>Redirecionamento:</strong> Após ativar, você será redirecionado automaticamente</p>
               </div>
             </div>
