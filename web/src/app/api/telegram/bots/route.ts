@@ -1,14 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+// Função para criar cliente Supabase com validação
+function createSupabaseClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  
+  if (!url || !key) {
+    throw new Error('❌ Variáveis de ambiente do Supabase não configuradas');
+  }
+  
+  return createClient(url, key);
+}
 
 export async function GET(request: NextRequest) {
   try {
     console.log('🔍 Buscando todos os bots para webhook manager');
+
+    const supabase = createSupabaseClient();
 
     // Buscar todos os bots com tokens
     const { data: bots, error } = await supabase

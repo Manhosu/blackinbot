@@ -2,10 +2,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { calculateSplitFees } from '@/lib/utils';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+// Função para criar cliente Supabase com validação
+function createSupabaseClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  
+  if (!url || !key) {
+    throw new Error('❌ Variáveis de ambiente do Supabase não configuradas');
+  }
+  
+  return createClient(url, key);
+}
 
 // Configurações padrão do Split
 const DEFAULT_SPLIT_CONFIG = {
@@ -25,6 +32,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'user_id é obrigatório' }, { status: 400 });
     }
 
+    const supabase = createSupabaseClient();
     const { data: splitConfig, error } = await supabase
       .from('user_split_configs')
       .select('*')
@@ -79,6 +87,7 @@ export async function POST(req: NextRequest) {
     const finalFixedFee = fixed_fee !== undefined ? parseFloat(fixed_fee) : DEFAULT_SPLIT_CONFIG.fixed_fee;
     const finalPercentageFee = percentage_fee !== undefined ? parseFloat(percentage_fee) : DEFAULT_SPLIT_CONFIG.percentage_fee;
 
+    const supabase = createSupabaseClient();
     // Verificar se já existe configuração
     const { data: existingConfig, error: checkError } = await supabase
       .from('user_split_configs')

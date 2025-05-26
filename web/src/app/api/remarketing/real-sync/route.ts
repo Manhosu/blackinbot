@@ -1,23 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-// Configuração do Supabase
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-
-const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false
-  },
-  global: {
-    headers: {
-      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-      'apikey': SUPABASE_ANON_KEY,
-      'x-bypass-rls': 'true'
-    }
+// Função para criar cliente Supabase com validação
+function createSupabaseAdminClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  
+  if (!url || !key) {
+    throw new Error('❌ Variáveis de ambiente do Supabase não configuradas');
   }
-});
+  
+  return createClient(url, key, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    },
+    global: {
+      headers: {
+        'Authorization': `Bearer ${key}`,
+        'apikey': key,
+        'x-bypass-rls': 'true'
+      }
+    }
+  });
+}
 
 // Função para chamar a API do Telegram
 async function callTelegramAPI(token: string, method: string, params: any = {}) {
@@ -50,6 +56,8 @@ export async function POST(req: NextRequest) {
     if (!user_id) {
       return NextResponse.json({ error: 'user_id é obrigatório' }, { status: 400 });
     }
+    
+    const supabaseAdmin = createSupabaseAdminClient();
     
     // Buscar bots ativos do usuário
     const { data: userBots, error: botsError } = await supabaseAdmin

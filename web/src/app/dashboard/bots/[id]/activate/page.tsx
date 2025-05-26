@@ -44,6 +44,7 @@ export default function ActivateBotPage() {
   const [timeRemaining, setTimeRemaining] = useState<number>(0);
   const [copied, setCopied] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [autoRenewing, setAutoRenewing] = useState(false);
 
   // Carregar dados do bot
   const loadBotData = async () => {
@@ -169,17 +170,21 @@ export default function ActivateBotPage() {
     }
   };
 
-  // Timer para expiração
+  // Timer para expiração com renovação automática
   useEffect(() => {
     if (activationCode && timeRemaining > 0) {
       const timer = setInterval(() => {
-        setTimeRemaining(prev => {
-          if (prev <= 1) {
-            setActivationCode(null);
-            return 0;
-          }
-          return prev - 1;
-        });
+                  setTimeRemaining(prev => {
+            if (prev <= 1) {
+              // Código expirou - gerar novo automaticamente
+              console.log('🔄 Código expirado, gerando novo automaticamente...');
+              setAutoRenewing(true);
+              generateActivationCode();
+              setTimeout(() => setAutoRenewing(false), 2000); // Remover indicador após 2s
+              return 0;
+            }
+            return prev - 1;
+          });
       }, 1000);
 
       return () => clearInterval(timer);
@@ -385,12 +390,25 @@ export default function ActivateBotPage() {
                     <span className="font-medium">
                       Expira em: {formatTime(timeRemaining)}
                     </span>
+                    {autoRenewing && (
+                      <span className="text-blue-600 text-sm flex items-center gap-1">
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        Renovando...
+                      </span>
+                    )}
                   </div>
 
                   {/* Instruções */}
                   <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                     <p className="text-sm text-yellow-800">
                       📋 {activationCode.instructions}
+                    </p>
+                  </div>
+
+                  {/* Aviso sobre renovação automática */}
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <p className="text-sm text-green-800">
+                      🔄 <strong>Renovação Automática:</strong> Quando este código expirar, um novo será gerado automaticamente para sua conveniência.
                     </p>
                   </div>
 
@@ -445,7 +463,7 @@ export default function ActivateBotPage() {
               <div className="text-sm text-gray-700 space-y-2">
                 <p>• <strong>Grupos recomendados:</strong> Use grupos ou supergrupos para melhor funcionamento</p>
                 <p>• <strong>Permissões:</strong> O bot deve ser administrador do grupo</p>
-                <p>• <strong>Segurança:</strong> Códigos expiram em 10 minutos por segurança</p>
+                <p>• <strong>Renovação automática:</strong> Novos códigos são gerados automaticamente quando expiram</p>
                 <p>• <strong>Verificação:</strong> O status é atualizado automaticamente a cada 3 segundos</p>
                 <p>• <strong>Redirecionamento:</strong> Após ativar, você será redirecionado automaticamente</p>
               </div>

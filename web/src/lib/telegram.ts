@@ -1,10 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+// Função para criar cliente Supabase com validação
+function createSupabaseClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  
+  if (!url || !key) {
+    throw new Error('❌ Variáveis de ambiente do Supabase não configuradas');
+  }
+  
+  return createClient(url, key);
+}
 
 interface TelegramUpdate {
   update_id: number;
@@ -69,6 +76,7 @@ async function getBotByIdFromCache(botId: string): Promise<BotConfig | null> {
   }
 
   try {
+    const supabase = createSupabaseClient();
     const { data: bot, error } = await supabase
       .from('bots')
       .select('id, name, token, username, welcome_text, welcome_media_url, welcome_media_type')
@@ -96,6 +104,7 @@ async function getPlansFromCache(botId: string): Promise<Plan[]> {
   }
 
   try {
+    const supabase = createSupabaseClient();
     const { data: plans, error } = await supabase
       .from('plans')
       .select('id, name, price')
@@ -377,6 +386,8 @@ async function handleGroupMessage(botConfig: BotConfig, update: TelegramUpdate) 
     console.log(`🔍 Possível código de ativação detectado: ${text}`);
     
     try {
+      const supabase = createSupabaseClient();
+      
       // Buscar código no banco
       const { data: code, error } = await supabase
         .from('bot_activation_codes')

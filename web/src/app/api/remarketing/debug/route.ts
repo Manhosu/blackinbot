@@ -1,29 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-// Configuração do Supabase com bypass RLS
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-
-const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false
-  },
-  global: {
-    headers: {
-      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-      'apikey': SUPABASE_ANON_KEY,
-      'x-bypass-rls': 'true'
-    }
+// Função para criar cliente Supabase com validação
+function createSupabaseAdminClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  
+  if (!url || !key) {
+    throw new Error('❌ Variáveis de ambiente do Supabase não configuradas');
   }
-});
+  
+  return createClient(url, key, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    },
+    global: {
+      headers: {
+        'Authorization': `Bearer ${key}`,
+        'apikey': key,
+        'x-bypass-rls': 'true'
+      }
+    }
+  });
+}
 
 export async function GET(req: NextRequest) {
   const userId = '315cf688-6036-4c3e-b316-f821b2d326f9';
   
   try {
     console.log('🔍 Testing Supabase connection...');
+    
+    const supabaseAdmin = createSupabaseAdminClient();
     
     // Teste 1: Buscar bots
     const { data: bots, error: botsError } = await supabaseAdmin

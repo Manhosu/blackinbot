@@ -1,10 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+// Função para criar cliente Supabase com validação
+function createSupabaseClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  
+  if (!url || !key) {
+    throw new Error('❌ Variáveis de ambiente do Supabase não configuradas');
+  }
+  
+  return createClient(url, key);
+}
 
 // PUT - Atualizar plano
 export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
@@ -21,6 +28,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
       active
     } = body;
 
+    const supabase = createSupabaseClient();
     const { data: updatedPlan, error } = await supabase
       .from('plans')
       .update({
@@ -54,6 +62,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
   try {
     const { id } = params;
 
+    const supabase = createSupabaseClient();
     // Verificar se há transações ativas para este plano
     const { data: activeTransactions, error: checkError } = await supabase
       .from('transactions')

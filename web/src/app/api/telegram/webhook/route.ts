@@ -1,11 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-// Cliente Supabase
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+// Função para criar cliente Supabase com Service Role Key
+function createSupabaseServiceClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  
+  if (!url || !serviceKey) {
+    throw new Error('❌ Variáveis de ambiente do Supabase não configuradas');
+  }
+  
+  return createClient(url, serviceKey);
+}
 
 interface TelegramUpdate {
   update_id: number;
@@ -141,6 +147,7 @@ async function editTelegramMessage(botToken: string, chatId: number, messageId: 
 
 async function getBotByToken(token: string): Promise<BotConfig | null> {
   try {
+    const supabase = createSupabaseServiceClient();
     const { data, error } = await supabase
       .from('bots')
       .select('id, name, token, username, is_activated, welcome_message, welcome_media_url, welcome_media_type')
@@ -161,6 +168,7 @@ async function getBotByToken(token: string): Promise<BotConfig | null> {
 
 async function getBotPlans(botId: string): Promise<Plan[]> {
   try {
+    const supabase = createSupabaseServiceClient();
     const { data, error } = await supabase
       .from('plans')
       .select('id, name, description, price')
@@ -187,6 +195,8 @@ async function activateBotWithCode(code: string, userId: number, chatId: number,
     if (!bot) {
       return { success: false, error: 'Bot não encontrado' };
     }
+
+    const supabase = createSupabaseServiceClient();
 
     // Buscar código de ativação
     const { data: codeData, error: codeError } = await supabase
@@ -348,6 +358,8 @@ async function handleCallbackQuery(update: TelegramUpdate, bot: BotConfig) {
 
   if (data?.startsWith('plan_')) {
     const planId = data.replace('plan_', '');
+    
+    const supabase = createSupabaseServiceClient();
     
     // Buscar informações do plano
     const { data: plan } = await supabase

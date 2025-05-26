@@ -1,10 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+// Função para criar cliente Supabase com validação
+function createSupabaseClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  
+  if (!url || !key) {
+    throw new Error('❌ Variáveis de ambiente do Supabase não configuradas');
+  }
+  
+  return createClient(url, key);
+}
 
 interface SetWebhookRequest {
   bot_id?: string;  // Se não fornecido, configura todos os bots
@@ -64,6 +71,8 @@ export async function POST(request: NextRequest) {
     const baseUrl = webhook_url || `https://${request.headers.get('host')}`;
     
     console.log(`🔧 Configurando webhooks com base URL: ${baseUrl}`);
+
+    const supabase = createSupabaseClient();
 
     // Buscar bots para configurar
     let query = supabase
@@ -165,6 +174,8 @@ export async function DELETE(request: NextRequest) {
 
     console.log(`🗑️ Removendo webhooks${bot_id ? ` para bot ${bot_id}` : ' de todos os bots'}`);
 
+    const supabase = createSupabaseClient();
+
     // Buscar bots para remover webhook
     let query = supabase
       .from('bots')
@@ -260,6 +271,8 @@ export async function GET(request: NextRequest) {
     const bot_id = url.searchParams.get('bot_id');
 
     console.log(`🔍 Verificando status dos webhooks${bot_id ? ` para bot ${bot_id}` : ''}`);
+
+    const supabase = createSupabaseClient();
 
     // Buscar bots
     let query = supabase

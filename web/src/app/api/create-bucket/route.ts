@@ -1,14 +1,23 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-// Usando a chave de service role permite operações administrativas
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY || ''
-);
+// Função para criar cliente Supabase com Service Role Key
+function createSupabaseServiceClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  
+  if (!url || !serviceKey) {
+    throw new Error('❌ Variáveis de ambiente do Supabase não configuradas');
+  }
+  
+  return createClient(url, serviceKey);
+}
 
 export async function GET() {
   try {
+    // Criar cliente Supabase com validação
+    const supabaseAdmin = createSupabaseServiceClient();
+    
     // Listar buckets existentes
     const { data: existingBuckets, error: listError } = await supabaseAdmin.storage.listBuckets();
     
