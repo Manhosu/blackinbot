@@ -2,10 +2,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import { pushinPayAPI, convertToCents } from '@/lib/pushinpay';
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+// Função para criar cliente Supabase com Service Role Key
+function createSupabaseServiceClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  
+  if (!url || !serviceKey) {
+    throw new Error('❌ Variáveis de ambiente do Supabase não configuradas para Service Role');
+  }
+  
+  return createClient(url, serviceKey);
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -34,6 +41,9 @@ export async function POST(request: NextRequest) {
     // Converter valor para centavos
     const valueInCents = convertToCents(value_reais);
     console.log(`💰 Valor: R$ ${value_reais} = ${valueInCents} centavos`);
+
+    // Criar cliente Supabase
+    const supabase = createSupabaseServiceClient();
 
     // Buscar informações do bot e plano
     const { data: bot, error: botError } = await supabase

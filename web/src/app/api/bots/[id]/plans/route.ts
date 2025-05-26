@@ -1,10 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+// Função para criar cliente Supabase com Service Role Key
+function createSupabaseServiceClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  
+  if (!url || !serviceKey) {
+    throw new Error('❌ Variáveis de ambiente do Supabase não configuradas para Service Role');
+  }
+  
+  return createClient(url, serviceKey);
+}
 
 /**
  * GET - Buscar planos de um bot
@@ -16,6 +23,9 @@ export async function GET(
   try {
     const botId = params.id;
     console.log('🔍 Buscando planos do bot:', botId);
+
+    // Criar cliente Supabase
+    const supabase = createSupabaseServiceClient();
 
     // Buscar planos do bot
     const { data: plans, error } = await supabase
@@ -77,6 +87,9 @@ export async function POST(
         error: 'Valor mínimo é R$ 4,90'
       }, { status: 400 });
     }
+
+    // Criar cliente Supabase
+    const supabase = createSupabaseServiceClient();
 
     // Verificar se o bot existe
     const { data: bot, error: botError } = await supabase
@@ -155,6 +168,9 @@ export async function PUT(
         error: 'Formato de planos inválido'
       }, { status: 400 });
     }
+
+    // Criar cliente Supabase
+    const supabase = createSupabaseServiceClient();
 
     // Verificar se o bot existe
     const { data: bot, error: botError } = await supabase

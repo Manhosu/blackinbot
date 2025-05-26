@@ -2,10 +2,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { pushinPayAPI } from '@/lib/pushinpay';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+// Função para criar cliente Supabase com Service Role Key
+function createSupabaseServiceClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  
+  if (!url || !serviceKey) {
+    throw new Error('❌ Variáveis de ambiente do Supabase não configuradas para Service Role');
+  }
+  
+  return createClient(url, serviceKey);
+}
 
 export async function GET(
   request: NextRequest,
@@ -14,6 +21,9 @@ export async function GET(
   try {
     const paymentId = params.id;
     console.log('🔍 Verificando status do pagamento:', paymentId);
+
+    // Criar cliente Supabase
+    const supabase = createSupabaseServiceClient();
 
     // Buscar pagamento no banco
     const { data: payment, error: paymentError } = await supabase
@@ -139,6 +149,9 @@ async function processPaymentApproval(paymentId: string) {
   console.log('🎯 Processando aprovação do pagamento:', paymentId);
 
   try {
+    // Criar cliente Supabase
+    const supabase = createSupabaseServiceClient();
+
     // Buscar dados completos do pagamento
     const { data: payment, error: paymentError } = await supabase
       .from('payments')

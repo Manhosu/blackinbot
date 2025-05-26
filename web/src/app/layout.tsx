@@ -4,12 +4,7 @@ import "./globals.css";
 import Providers from "@/components/Providers";
 import { metadata as sharedMetadata, viewport as sharedViewport } from "./metadata";
 
-// Add preload directive
-// @ts-ignore
-export const preload = true;
-// Avoid static regeneration issues
-// @ts-ignore
-export const dynamic = 'force-dynamic';
+// Layout configurado para produção
 
 const inter = Inter({
   subsets: ["latin"],
