@@ -249,7 +249,47 @@ Este bot ainda não foi ativado pelo proprietário.
     inline_keyboard: keyboard
   };
 
-  // Enviar mensagem de boas-vindas
+  // Enviar mídia primeiro (se configurada)
+  if (bot.welcome_media_url) {
+    try {
+      console.log(`📸 Enviando mídia de boas-vindas: ${bot.welcome_media_type}`);
+      
+      const mediaType = bot.welcome_media_type || 'photo';
+      let mediaMethod = 'sendPhoto';
+      let mediaField = 'photo';
+      
+      if (mediaType === 'video') {
+        mediaMethod = 'sendVideo';
+        mediaField = 'video';
+      } else if (mediaType === 'animation' || mediaType === 'gif') {
+        mediaMethod = 'sendAnimation';
+        mediaField = 'animation';
+      }
+      
+      const mediaUrl = `https://api.telegram.org/bot${bot.token}/${mediaMethod}`;
+      const mediaPayload: any = {
+        chat_id: chatId,
+        [mediaField]: bot.welcome_media_url
+      };
+      
+      const mediaResponse = await fetch(mediaUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(mediaPayload)
+      });
+      
+      const mediaResult = await mediaResponse.json();
+      if (!mediaResult.ok) {
+        console.warn(`⚠️ Erro ao enviar mídia: ${mediaResult.description}`);
+      } else {
+        console.log(`✅ Mídia enviada com sucesso`);
+      }
+    } catch (mediaError) {
+      console.warn(`⚠️ Erro ao processar mídia: ${mediaError}`);
+    }
+  }
+
+  // Enviar mensagem de boas-vindas com planos
   const welcomeMessage = bot.welcome_message || `🤖 Olá! Bem-vindo ao ${bot.name}!\n\nEscolha um dos nossos planos abaixo:`;
   
   await sendTelegramMessage(bot.token, chatId, welcomeMessage, {

@@ -1,11 +1,14 @@
-# 🤖 Black-in-Bot - Sistema de Webhooks Dinâmicos
+# 🤖 BlackInBot - Sistema de Bots Dinâmicos
 
 [![Next.js](https://img.shields.io/badge/Next.js-14.0.4-black?style=flat&logo=nextdotjs)](https://nextjs.org/)
 [![Supabase](https://img.shields.io/badge/Supabase-Database-green?style=flat&logo=supabase)](https://supabase.com/)
 [![Vercel](https://img.shields.io/badge/Vercel-Deploy-black?style=flat&logo=vercel)](https://vercel.com/)
 [![Telegram](https://img.shields.io/badge/Telegram-Bot%20API-blue?style=flat&logo=telegram)](https://core.telegram.org/bots/api)
 
-Sistema completo para gerenciamento de múltiplos bots do Telegram com webhooks dinâmicos, mídia personalizada e sistema de ativação por códigos.
+Sistema completo para criação e gerenciamento de múltiplos bots do Telegram com webhooks dinâmicos, mídia personalizada, sistema de ativação por códigos e painel administrativo.
+
+## 🌐 **Deploy em Produção**
+**URL**: https://blackinbot.vercel.app
 
 ## 🎯 Características Principais
 
