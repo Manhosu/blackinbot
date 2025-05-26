@@ -134,19 +134,25 @@ export async function POST(request: NextRequest) {
     // Retornar dados do pagamento
     return NextResponse.json({
       success: true,
+      payment_id: payment.id,
+      pix_code: payment.qr_code,
+      qr_code_base64: payment.qr_code_base64,
+      amount: payment.amount / 100, // Converter de volta para reais
+      amount_formatted: (payment.amount / 100).toLocaleString('pt-BR', {
+        style: 'currency',
+        currency: 'BRL'
+      }),
+      expires_at: payment.expires_at,
+      status: payment.status,
+      bot_name: bot.name,
+      plan_name: plan.name,
       payment: {
         id: payment.id,
         qr_code: payment.qr_code,
         qr_code_base64: payment.qr_code_base64,
         amount: payment.amount,
-        amount_formatted: (payment.amount / 100).toLocaleString('pt-BR', {
-          style: 'currency',
-          currency: 'BRL'
-        }),
         expires_at: payment.expires_at,
         status: payment.status,
-        bot_name: bot.name,
-        plan_name: plan.name,
       }
     });
 

@@ -45,7 +45,19 @@ export default function BotsPage() {
   // Função para atualizar lista de bots (callback para BotCard)
   const handleBotUpdate = async () => {
     console.log('🔄 Atualizando lista de bots...');
-    await fetchBots();
+    setLoading(true);
+    try {
+      setError(null);
+      const userBots = await getMyBots(true); // Forçar refresh
+      console.log(`✅ ${userBots.length} bots encontrados após atualização`);
+      setBots(userBots);
+    } catch (error: any) {
+      console.error('❌ Erro ao buscar bots:', error);
+      setError('Erro ao carregar bots. Tente novamente.');
+      setBots([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Configuração automática de webhooks com reload

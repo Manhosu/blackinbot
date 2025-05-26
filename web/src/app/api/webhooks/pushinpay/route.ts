@@ -1,230 +1,292 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@supabase/supabase-js';
+
+// Função para criar cliente Supabase com Service Role Key
+function createSupabaseServiceClient() {
+  const url = 'https://xcnhlmqkovfaqyjxwdje.supabase.co';
+  const serviceKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhjbmhsbXFrb3ZmYXF5anh3ZGplIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NzY5MDQ1NiwiZXhwIjoyMDYzMjY2NDU2fQ.-nZKTJD77uUtCglMY3zs1Jkcoq_KiZsy9NLIbJlW9Eg';
+  
+  return createClient(url, serviceKey);
+}
 
 /**
  * Webhook do PushinPay para receber notificações de pagamento
  */
 export async function POST(request: NextRequest) {
   try {
+    console.log('📨 Webhook PushinPay recebido');
+    
     const body = await request.json();
-    
-    console.log('📨 Webhook PushinPay recebido:', {
-      event: body.event,
-      payment_id: body.data?.id,
-      status: body.data?.status
-    });
-    
-    // Verificar se é um evento de pagamento
-    if (body.event !== 'payment.status_changed') {
-      console.log('ℹ️ Evento ignorado:', body.event);
-      return NextResponse.json({ received: true });
+    console.log('📋 Dados do webhook:', JSON.stringify(body, null, 2));
+
+    // Validar estrutura do webhook
+    if (!body.event || !body.data) {
+      console.error('❌ Webhook inválido - estrutura incorreta');
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Estrutura de webhook inválida' 
+      }, { status: 400 });
     }
-    
-    const pushinpayId = body.data?.id;
-    const newStatus = body.data?.status;
-    
-    if (!pushinpayId || !newStatus) {
-      console.error('❌ Dados do webhook incompletos');
-      return NextResponse.json({ error: 'Dados incompletos' }, { status: 400 });
+
+    const { event, data: paymentData } = body;
+
+    // Processar apenas eventos de mudança de status de pagamento
+    if (event !== 'payment.status_changed') {
+      console.log(`ℹ️ Evento ignorado: ${event}`);
+      return NextResponse.json({ 
+        success: true, 
+        message: 'Evento ignorado' 
+      });
     }
-    
-    // Buscar pagamento no banco
+
+    const { id: pushinpayId, status } = paymentData;
+
+    if (!pushinpayId || !status) {
+      console.error('❌ Dados do pagamento incompletos');
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Dados incompletos' 
+      }, { status: 400 });
+    }
+
+    console.log(`💳 Processando pagamento ${pushinpayId} - Status: ${status}`);
+
+    const supabase = createSupabaseServiceClient();
+    console.log('✅ Cliente Supabase criado com sucesso');
+
+    // Buscar pagamento no banco pelo pushinpay_id
+    console.log('🔍 Buscando pagamento com pushinpay_id:', pushinpayId);
     const { data: payment, error: paymentError } = await supabase
       .from('payments')
       .select(`
         *,
-        plans (
-          name,
-          period_days,
-          bot_id
-        ),
-        bots (
-          name,
-          owner_id,
-          group_id,
-          invite_link
-        )
+        bots!inner(id, name, token, owner_id),
+        plans!inner(id, name, period_days)
       `)
       .eq('pushinpay_id', pushinpayId)
       .single();
-    
+
+    console.log('📊 Resultado da consulta:', { payment: payment?.id, error: paymentError?.message });
+
     if (paymentError || !payment) {
-      console.error('❌ Pagamento não encontrado para PushinPay ID:', pushinpayId, paymentError?.message);
-      return NextResponse.json({ error: 'Pagamento não encontrado' }, { status: 404 });
+      console.error('❌ Pagamento não encontrado no banco:', paymentError);
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Pagamento não encontrado' 
+      }, { status: 404 });
     }
-    
-    console.log('💳 Pagamento encontrado:', payment.id, 'Status atual:', payment.status, 'Novo status:', newStatus);
-    
-    // Se o pagamento já foi processado, ignorar
-    if (payment.status === 'completed') {
-      console.log('ℹ️ Pagamento já processado, ignorando webhook');
-      return NextResponse.json({ received: true, message: 'Já processado' });
-    }
-    
-    // Processar apenas se foi aprovado
-    if (newStatus === 'approved') {
-      console.log('✅ Pagamento aprovado! Processando automaticamente...');
-      
+
+    console.log(`📋 Pagamento encontrado: ${payment.id} - Status atual: ${payment.status}`);
+
+    // Processar apenas se o status mudou para 'paid' ou 'approved'
+    if ((status === 'paid' || status === 'approved') && payment.status !== 'completed') {
+      console.log('✅ Pagamento aprovado! Processando...');
+
       try {
-        // Iniciar transação para garantir consistência
-        const { data: updatedPayment, error: updateError } = await supabase
+        // 1. Atualizar status do pagamento
+        const { error: updateError } = await supabase
           .from('payments')
           .update({
             status: 'completed',
             paid_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
             metadata: {
               ...payment.metadata,
-              pushinpay_status: newStatus,
+              pushinpay_status: status,
               processed_at: new Date().toISOString(),
-              webhook_processed: true
+              webhook_received_at: new Date().toISOString()
             }
           })
-          .eq('id', payment.id)
-          .eq('status', 'pending') // Garantir que só processa se ainda estiver pendente
-          .select()
+          .eq('id', payment.id);
+
+        if (updateError) {
+          console.error('❌ Erro ao atualizar pagamento:', updateError);
+          throw updateError;
+        }
+
+        console.log('✅ Status do pagamento atualizado para completed');
+
+        // 2. Calcular e processar split financeiro
+        const totalAmount = Number(payment.amount); // Já está em reais
+        const platformFee = 1.48 + (totalAmount * 0.05);
+        const ownerAmount = totalAmount - platformFee;
+
+        console.log(`💰 Split: Total R$ ${totalAmount.toFixed(2)} | Plataforma: R$ ${platformFee.toFixed(2)} | Dono: R$ ${ownerAmount.toFixed(2)}`);
+
+        // 3. Atualizar saldo financeiro para o dono do bot
+        const { data: currentFinance } = await supabase
+          .from('user_finances')
+          .select('available_balance, total_revenue')
+          .eq('user_id', payment.bots.owner_id)
           .single();
-        
-        if (updateError || !updatedPayment) {
-          console.error('❌ Erro ao atualizar pagamento ou já foi processado:', updateError?.message);
-          return NextResponse.json({ error: 'Erro ao processar' }, { status: 500 });
-        }
-        
-        // Processar split financeiro
-        console.log('💰 Processando split financeiro...');
-        const splitResult = await supabase
-          .rpc('process_payment_split', {
-            p_payment_id: payment.id,
-            p_bot_owner_id: payment.bots.owner_id,
-            p_total_amount: payment.amount
+
+        const currentBalance = Number(currentFinance?.available_balance || 0);
+        const currentRevenue = Number(currentFinance?.total_revenue || 0);
+
+        const { error: financeError } = await supabase
+          .from('user_finances')
+          .upsert({
+            user_id: payment.bots.owner_id,
+            available_balance: currentBalance + ownerAmount,
+            total_revenue: currentRevenue + ownerAmount,
+            updated_at: new Date().toISOString()
+          }, {
+            onConflict: 'user_id'
           });
-        
-        if (splitResult.error) {
-          console.error('❌ Erro ao processar split:', splitResult.error);
+
+        if (financeError) {
+          console.warn('⚠️ Erro ao registrar financeiro (não crítico):', financeError);
         } else {
-          console.log('💰 Split processado com sucesso:', splitResult.data);
+          console.log('✅ Saldo financeiro atualizado');
         }
-        
-        // Calcular data de expiração do acesso
+
+        // 4. Liberar acesso do usuário ao bot
         const expiresAt = new Date();
         expiresAt.setDate(expiresAt.getDate() + payment.plans.period_days);
-        
-        // Registrar acesso do usuário
-        console.log('🔓 Registrando acesso do usuário...');
+
         const { error: accessError } = await supabase
           .from('bot_user_access')
           .upsert({
             bot_id: payment.bot_id,
-            user_telegram_id: payment.user_telegram_id,
+            user_telegram_id: payment.telegram_user_id,
             plan_id: payment.plan_id,
             payment_id: payment.id,
             granted_at: new Date().toISOString(),
             expires_at: expiresAt.toISOString(),
-            is_active: true
+            is_active: true,
+            metadata: {
+              payment_amount: payment.amount,
+              plan_name: payment.plans.name,
+              granted_via: 'pushinpay_webhook'
+            }
           }, {
             onConflict: 'bot_id,user_telegram_id'
           });
-        
+
         if (accessError) {
-          console.error('❌ Erro ao registrar acesso:', accessError);
+          console.error('❌ Erro ao liberar acesso:', accessError);
         } else {
-          console.log('🔓 Acesso registrado para usuário:', payment.user_telegram_id);
+          console.log(`✅ Acesso liberado até ${expiresAt.toISOString()}`);
         }
-        
-        // Registrar venda
-        console.log('📈 Registrando venda...');
-        const { error: saleError } = await supabase
-          .from('sales')
-          .insert({
-            bot_id: payment.bot_id,
-            plan_id: payment.plan_id,
-            payment_id: payment.id,
-            customer_telegram_id: payment.user_telegram_id,
-            customer_name: payment.user_name,
-            amount: payment.amount,
-            status: 'completed',
-            sale_date: new Date().toISOString(),
-            metadata: {
-              pushinpay_id: pushinpayId,
-              processed_via_webhook: true,
-              plan_expires_at: expiresAt.toISOString()
-            }
+
+        // 5. Enviar mensagem de confirmação para o usuário
+        try {
+          const confirmationMessage = `🎉 **PAGAMENTO CONFIRMADO!**
+
+✅ **Plano ativado:** ${payment.plans.name}
+⏰ **Válido até:** ${expiresAt.toLocaleDateString('pt-BR')}
+💰 **Valor pago:** R$ ${totalAmount.toFixed(2).replace('.', ',')}
+
+🎯 **Seu acesso foi liberado automaticamente!**
+
+Obrigado pela preferência! 🙏`;
+
+          await fetch(`https://api.telegram.org/bot${payment.bots.token}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              chat_id: payment.telegram_user_id,
+              text: confirmationMessage,
+              parse_mode: 'Markdown'
+            })
           });
-        
-        if (saleError) {
-          console.error('❌ Erro ao registrar venda:', saleError);
-        } else {
-          console.log('📈 Venda registrada com sucesso');
+
+          console.log('✅ Mensagem de confirmação enviada');
+        } catch (telegramError) {
+          console.warn('⚠️ Erro ao enviar mensagem de confirmação:', telegramError);
         }
-        
-        // TODO: Adicionar usuário ao grupo do Telegram automaticamente
-        // Esta funcionalidade será implementada posteriormente
-        
-        console.log('🎉 Pagamento processado completamente via webhook!');
-        
+
+        // 6. Log de auditoria
+        const { error: auditError } = await supabase
+          .from('payment_audit_log')
+          .insert({
+            payment_id: payment.id,
+            event_type: 'payment_completed',
+            event_data: {
+              pushinpay_id: pushinpayId,
+              status: status,
+              amount: totalAmount,
+              platform_fee: platformFee,
+              owner_amount: ownerAmount,
+              processed_at: new Date().toISOString()
+            },
+            created_at: new Date().toISOString()
+          });
+
+        if (auditError) {
+          console.warn('⚠️ Erro no log de auditoria:', auditError);
+        }
+
+        console.log('🎉 Pagamento processado com sucesso!');
+
         return NextResponse.json({
-          received: true,
-          processed: true,
+          success: true,
+          message: 'Pagamento processado com sucesso',
           payment_id: payment.id,
-          status: 'completed',
-          message: 'Pagamento processado com sucesso'
+          status: 'completed'
         });
+
+      } catch (processingError) {
+        console.error('❌ Erro ao processar pagamento:', processingError);
         
-      } catch (processError) {
-        console.error('❌ Erro durante processamento do pagamento:', processError);
-        
-        // Reverter status se deu erro
+        // Reverter status se houve erro crítico
         await supabase
           .from('payments')
           .update({
             status: 'error',
+            updated_at: new Date().toISOString(),
             metadata: {
               ...payment.metadata,
-              error: 'Erro durante processamento webhook',
-              error_details: (processError as any)?.message || 'Erro desconhecido',
+              error_message: processingError.message,
               error_at: new Date().toISOString()
             }
           })
           .eq('id', payment.id);
-        
+
         return NextResponse.json({
-          error: 'Erro durante processamento',
+          success: false,
+          error: 'Erro ao processar pagamento',
           payment_id: payment.id
         }, { status: 500 });
       }
-    }
+    } 
     
-    // Para outros status, apenas atualizar
-    else {
-      console.log('📊 Atualizando status do pagamento para:', newStatus);
+    // Status não relevante ou já processado
+    else if (status === 'cancelled' || status === 'failed' || status === 'expired') {
+      console.log(`📋 Pagamento ${status} - atualizando status`);
       
-      const { error: updateError } = await supabase
+      await supabase
         .from('payments')
         .update({
-          status: newStatus === 'rejected' ? 'failed' : newStatus,
+          status: status,
+          updated_at: new Date().toISOString(),
           metadata: {
             ...payment.metadata,
-            pushinpay_status: newStatus,
-            webhook_updated_at: new Date().toISOString()
+            pushinpay_status: status,
+            updated_at: new Date().toISOString()
           }
         })
         .eq('id', payment.id);
-      
-      if (updateError) {
-        console.error('❌ Erro ao atualizar status:', updateError);
-        return NextResponse.json({ error: 'Erro ao atualizar' }, { status: 500 });
-      }
-      
+
       return NextResponse.json({
-        received: true,
-        updated: true,
-        payment_id: payment.id,
-        status: newStatus
+        success: true,
+        message: `Status atualizado para ${status}`,
+        payment_id: payment.id
       });
     }
     
+    else {
+      console.log(`ℹ️ Status ${status} - nenhuma ação necessária`);
+      return NextResponse.json({
+        success: true,
+        message: 'Status recebido, nenhuma ação necessária'
+      });
+    }
+
   } catch (error: any) {
     console.error('❌ Erro no webhook PushinPay:', error);
     return NextResponse.json({
+      success: false,
       error: 'Erro interno do servidor',
       details: error.message
     }, { status: 500 });
@@ -232,13 +294,13 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * GET para verificar se o webhook está funcionando
+ * GET para verificar se o webhook está ativo
  */
 export async function GET() {
   return NextResponse.json({
     service: 'PushinPay Webhook',
-    status: 'online',
+    status: 'active',
     timestamp: new Date().toISOString(),
-    message: 'Webhook pronto para receber notificações'
+    webhook_url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://blackinbot.vercel.app'}/api/webhooks/pushinpay`
   });
 } 

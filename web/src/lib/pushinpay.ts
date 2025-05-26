@@ -3,7 +3,7 @@
  * Versão atualizada com suporte a saques
  */
 
-const PUSHINPAY_API_KEY = process.env.NEXT_PUBLIC_PUSHINPAY_API_KEY;
+const PUSHINPAY_API_KEY = process.env.PUSHINPAY_API_KEY;
 const PUSHINPAY_BASE_URL = 'https://api.pushinpay.com.br/api/v1';
 
 interface PushinPayPaymentData {
@@ -416,7 +416,11 @@ export const PushinPayUtils = {
   }
 };
 
-// Exportações faltantes para compatibilidade
+export const convertToCents = (value: number): number => Math.round(value * 100);
+
+/**
+ * Objeto principal da API PushinPay
+ */
 export const pushinPayAPI = {
   createPushinPayment,
   checkPushinPaymentStatus,
@@ -428,8 +432,6 @@ export const pushinPayAPI = {
   createWithdrawalWebhookHandler,
   Utils: PushinPayUtils
 };
-
-export const convertToCents = (value: number): number => Math.round(value * 100);
 
 export default {
   createPushinPayment,

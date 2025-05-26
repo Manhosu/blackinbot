@@ -82,6 +82,11 @@ async function sendTelegramMessage(botToken: string, chatId: number, text: strin
   };
 
   try {
+    // Forçar log para ser visível
+    console.log(`📤 ENVIANDO MENSAGEM para chat ${chatId}:`, text.substring(0, 100));
+    console.log(`🔗 URL:`, url);
+    console.log(`📋 PAYLOAD:`, JSON.stringify(payload, null, 2));
+    
     const response = await fetch(url, {
       method: 'POST',
       headers: {
@@ -90,9 +95,30 @@ async function sendTelegramMessage(botToken: string, chatId: number, text: strin
       body: JSON.stringify(payload)
     });
 
-    return await response.json();
+    const result = await response.json();
+    
+    console.log(`📋 STATUS DA RESPOSTA:`, response.status);
+    console.log(`📋 RESULTADO COMPLETO:`, JSON.stringify(result, null, 2));
+    
+    if (!result.ok) {
+      console.error(`❌ ERRO DO TELEGRAM: ${result.description} (código: ${result.error_code})`);
+      
+      // Tratar erro específico de chat not found
+      if (result.error_code === 400 && result.description.includes('chat not found')) {
+        console.error(`🚫 CHAT ${chatId} NÃO ENCONTRADO - O usuário precisa iniciar conversa com o bot primeiro!`);
+        return { 
+          ok: false, 
+          error_code: result.error_code, 
+          description: 'Usuário precisa iniciar conversa com o bot primeiro' 
+        };
+      }
+    } else {
+      console.log(`✅ MENSAGEM ENVIADA COM SUCESSO para chat ${chatId}`);
+    }
+
+    return result;
   } catch (error) {
-    console.error('❌ Erro ao enviar mensagem:', error);
+    console.error('❌ ERRO DE REDE AO ENVIAR MENSAGEM:', error);
     throw error;
   }
 }
@@ -332,6 +358,225 @@ async function handleGroupMessage(update: TelegramUpdate, bot: BotConfig) {
   }
 }
 
+async function handleCallbackQuery(update: TelegramUpdate, bot: BotConfig) {
+  const callbackQuery = update.callback_query!;
+  const chatId = callbackQuery.message!.chat.id;
+  const messageId = callbackQuery.message!.message_id;
+  const data = callbackQuery.data;
+  const userId = callbackQuery.from.id;
+  const userName = callbackQuery.from.first_name;
+
+  console.log(`💎 Callback recebido: ${data} de usuário ${userId} no chat ${chatId}`);
+
+  // Responder ao callback para remover o "loading"
+  try {
+    await fetch(`https://api.telegram.org/bot${bot.token}/answerCallbackQuery`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        callback_query_id: callbackQuery.id,
+        text: 'Processando...'
+      })
+    });
+  } catch (error) {
+    console.warn('⚠️ Erro ao responder callback:', error);
+  }
+
+  // Processar clique no plano
+  if (data?.startsWith('plan_')) {
+    const planId = data.replace('plan_', '');
+    
+    try {
+      // Buscar detalhes do plano
+      const supabase = createSupabaseAdminClient();
+      const { data: plan, error: planError } = await supabase
+        .from('plans')
+        .select('id, name, price, description, period_days')
+        .eq('id', planId)
+        .eq('bot_id', bot.id)
+        .eq('is_active', true)
+        .single();
+
+      if (planError || !plan) {
+        console.error('❌ Plano não encontrado:', planError);
+        await sendTelegramMessage(bot.token, chatId, 
+          '❌ Plano não encontrado ou indisponível. Tente novamente.');
+        return;
+      }
+
+      console.log(`💎 Plano selecionado: ${plan.name} (R$ ${plan.price})`);
+
+      // Criar pagamento PIX
+      const paymentResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'https://blackinbot.vercel.app'}/api/payments/create`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          bot_id: bot.id,
+          plan_id: planId,
+          telegram_user_id: userId.toString(),
+          telegram_username: callbackQuery.from.username || '',
+          user_name: userName,
+          value_reais: plan.price
+        })
+      });
+
+      const paymentResult = await paymentResponse.json();
+
+      if (!paymentResult.success) {
+        console.error('❌ Erro ao criar pagamento:', paymentResult.error);
+        await sendTelegramMessage(bot.token, chatId, 
+          `❌ Erro ao processar pagamento: ${paymentResult.error}`);
+        return;
+      }
+
+      console.log('✅ Pagamento PIX criado:', paymentResult.payment_id);
+
+      // Calcular split
+      const totalAmount = plan.price;
+      const platformFee = 1.48 + (totalAmount * 0.05);
+      const ownerAmount = totalAmount - platformFee;
+
+      // Gerar mensagem com instruções de pagamento
+      const paymentMessage = `💳 **PLANO SELECIONADO**
+
+📦 **${plan.name}**
+💰 **Valor:** R$ ${plan.price.toFixed(2).replace('.', ',')}
+⏰ **Período:** ${plan.period_days} dias
+
+🎯 **PAGAMENTO VIA PIX**
+
+💻 **Código Copia e Cola:**
+\`${paymentResult.pix_code}\`
+
+📱 **Como pagar:**
+1. Abra o app do seu banco
+2. Escolha PIX → Copia e Cola
+3. Cole o código acima
+4. Confirme o pagamento
+
+⚡ **Pagamento expira em 15 minutos**
+🔄 **Acesso liberado automaticamente após confirmação**
+
+💰 **Split da plataforma:** R$ ${platformFee.toFixed(2)} | **Seu valor:** R$ ${ownerAmount.toFixed(2)}`;
+
+      // Botões de ação
+      const keyboard = [
+        [{ text: '📲 Ver QR Code', callback_data: `qr_${paymentResult.payment_id}` }],
+        [{ text: '🔄 Verificar Pagamento', callback_data: `check_${paymentResult.payment_id}` }],
+        [{ text: '❌ Cancelar', callback_data: `cancel_${paymentResult.payment_id}` }]
+      ];
+
+      // Editar mensagem com instruções de pagamento
+      await fetch(`https://api.telegram.org/bot${bot.token}/editMessageText`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: chatId,
+          message_id: messageId,
+          text: paymentMessage,
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: keyboard
+          }
+        })
+      });
+
+      console.log(`✅ Instruções de pagamento enviadas para usuário ${userId}`);
+
+    } catch (error) {
+      console.error('❌ Erro ao processar plano:', error);
+      await sendTelegramMessage(bot.token, chatId, 
+        '❌ Erro interno. Tente novamente em alguns instantes.');
+    }
+  }
+  
+  // Processar outros callbacks (QR code, verificar pagamento, etc.)
+  else if (data?.startsWith('qr_')) {
+    const paymentId = data.replace('qr_', '');
+    
+    try {
+      // Buscar dados do pagamento
+      const supabase = createSupabaseAdminClient();
+      const { data: payment, error } = await supabase
+        .from('payments')
+        .select('qr_code_base64, amount, plans(name)')
+        .eq('id', paymentId)
+        .single();
+
+      if (error || !payment) {
+        await sendTelegramMessage(bot.token, chatId, 
+          '❌ Pagamento não encontrado.');
+        return;
+      }
+
+      // Enviar QR Code como imagem
+      if (payment.qr_code_base64) {
+        const qrMessage = `📲 **QR CODE PIX**
+
+💰 **Valor:** R$ ${payment.amount.toFixed(2).replace('.', ',')}
+📦 **Plano:** ${payment.plans?.name}
+
+📱 **Escaneie o QR Code abaixo com o app do seu banco:**`;
+
+        await fetch(`https://api.telegram.org/bot${bot.token}/sendPhoto`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: chatId,
+            photo: payment.qr_code_base64,
+            caption: qrMessage,
+            parse_mode: 'Markdown'
+          })
+        });
+      } else {
+        await sendTelegramMessage(bot.token, chatId, 
+          '❌ QR Code não disponível. Use o código copia e cola.');
+      }
+
+    } catch (error) {
+      console.error('❌ Erro ao enviar QR code:', error);
+      await sendTelegramMessage(bot.token, chatId, 
+        '❌ Erro ao carregar QR code.');
+    }
+  }
+  
+  else if (data?.startsWith('check_')) {
+    const paymentId = data.replace('check_', '');
+    
+    try {
+      // Verificar status do pagamento
+      const statusResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'https://blackinbot.vercel.app'}/api/payments/status/${paymentId}`);
+      const statusResult = await statusResponse.json();
+
+      if (statusResult.success && statusResult.status === 'completed') {
+        await sendTelegramMessage(bot.token, chatId, 
+          '🎉 **PAGAMENTO CONFIRMADO!**\n\nSeu acesso foi liberado com sucesso!');
+      } else if (statusResult.status === 'pending') {
+        await sendTelegramMessage(bot.token, chatId, 
+          '⏳ Pagamento ainda pendente. Aguarde a confirmação.');
+      } else {
+        await sendTelegramMessage(bot.token, chatId, 
+          '❌ Pagamento não encontrado ou expirado.');
+      }
+
+    } catch (error) {
+      console.error('❌ Erro ao verificar pagamento:', error);
+      await sendTelegramMessage(bot.token, chatId, 
+        '❌ Erro ao verificar status do pagamento.');
+    }
+  }
+  
+  else if (data?.startsWith('cancel_')) {
+    const paymentId = data.replace('cancel_', '');
+    
+    // Cancelar pagamento
+    await sendTelegramMessage(bot.token, chatId, 
+      '❌ Pagamento cancelado.\n\nVocê pode escolher um plano novamente com /start');
+  }
+}
+
 export async function POST(request: NextRequest, { params }: RouteParams) {
   const { botId } = params;
   
@@ -369,6 +614,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       else if (message.chat.type === 'group' || message.chat.type === 'supergroup') {
         await handleGroupMessage(update, bot);
       }
+    }
+
+    if (update.callback_query) {
+      await handleCallbackQuery(update, bot);
     }
 
     return NextResponse.json({ success: true });

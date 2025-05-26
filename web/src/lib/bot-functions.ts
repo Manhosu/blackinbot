@@ -129,7 +129,7 @@ export async function validateBotToken(token: string) {
 /**
  * Busca todos os bots do usuário atual
  */
-export async function getMyBots() {
+export async function getMyBots(forceRefresh = false) {
   try {
     // Obter ID do usuário de múltiplas formas
     let userId = null;
@@ -161,6 +161,10 @@ export async function getMyBots() {
       console.warn('Nenhum usuário identificado');
       return [];
     }
+
+    // Se forceRefresh for true, adicionar timestamp para evitar cache
+    const cacheKey = forceRefresh ? `bots_${userId}_${Date.now()}` : `bots_${userId}`;
+    console.log(`🔄 Buscando bots para usuário ${userId} ${forceRefresh ? '(refresh forçado)' : ''}`);
     
     // Busca DIRETA sem RLS - vamos fazer a consulta mais simples possível
     const { data, error } = await supabase
@@ -185,9 +189,11 @@ export async function getMyBots() {
       
       // Filtrar no cliente
       const userBots = allBots?.filter(bot => bot.owner_id === userId) || [];
+      console.log(`✅ ${userBots.length} bots encontrados via fallback`);
       return userBots;
     }
-    
+
+    console.log(`✅ ${data?.length || 0} bots encontrados`);
     return data || [];
     
   } catch (error: any) {
