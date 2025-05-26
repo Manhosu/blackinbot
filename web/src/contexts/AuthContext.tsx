@@ -40,6 +40,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Função unificada para carregar usuário do localStorage
   const loadLocalUser = (): AuthUser | null => {
+    // Verificar se estamos no cliente
+    if (typeof window === 'undefined') {
+      return null;
+    }
+    
     try {
       const savedUser = localStorage.getItem('blackinpay_user');
       if (savedUser) {
@@ -53,6 +58,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Função unificada para salvar usuário no localStorage
   const saveLocalUser = (userData: AuthUser): void => {
+    // Verificar se estamos no cliente
+    if (typeof window === 'undefined') {
+      return;
+    }
+    
     try {
       localStorage.setItem('blackinpay_user', JSON.stringify(userData));
       console.log('✅ Usuário salvo no localStorage:', userData.id);
@@ -100,7 +110,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       
       // 3. Último recurso: criar um usuário local temporário para emergência
-      if (isProtectedRoute(window.location.pathname)) {
+      if (typeof window !== 'undefined' && isProtectedRoute(window.location.pathname)) {
         console.warn('⚠️ Criando usuário temporário para rota protegida');
         const tempUser: AuthUser = {
           id: LOCAL_USER_ID,
@@ -238,20 +248,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               saveLocalUser(userData);
               
               // Redirecionar para dashboard após login
-              if (window.location.pathname.includes('/login')) {
+              if (typeof window !== 'undefined' && window.location.pathname.includes('/login')) {
                 router.replace('/dashboard');
               }
             } else if (event === 'SIGNED_OUT') {
               console.log('🔓 Evento de logout detectado');
               setUser(null);
               try {
-                localStorage.removeItem('blackinpay_user');
+                if (typeof window !== 'undefined') {
+                  localStorage.removeItem('blackinpay_user');
+                }
               } catch (e) {
                 console.error('Erro ao remover usuário do localStorage:', e);
               }
               
               // Redirecionar para login se em rota protegida
-              if (isProtectedRoute(window.location.pathname)) {
+              if (typeof window !== 'undefined' && isProtectedRoute(window.location.pathname)) {
                 router.replace('/login');
               }
             } else if (event === 'TOKEN_REFRESHED') {
@@ -385,14 +397,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       // Sempre limpar dados locais
       setUser(null);
-      localStorage.removeItem('blackinpay_user');
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('blackinpay_user');
+      }
       router.replace('/login');
     } catch (error) {
       console.error('❌ Erro ao fazer logout:', error);
       
       // Forçar logout local mesmo se Supabase falhar
       setUser(null);
-      localStorage.removeItem('blackinpay_user');
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('blackinpay_user');
+      }
       router.replace('/login');
     }
   };

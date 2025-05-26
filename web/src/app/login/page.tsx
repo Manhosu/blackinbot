@@ -6,6 +6,8 @@ import Link from 'next/link';
 import { CheckCircle, Sparkles, ArrowLeft } from 'lucide-react';
 import { LoginForm } from '@/components/LoginForm';
 
+export const dynamic = 'force-dynamic';
+
 export default function LoginPage() {
   useEffect(() => {
     // Remover link preload incorreto e adicionar com atributo 'as' correto

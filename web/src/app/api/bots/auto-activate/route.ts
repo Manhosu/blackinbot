@@ -132,6 +132,14 @@ async function validateGroupWithBot(botToken: string, groupIdentifier: string): 
       }
       
       botMember = memberResult.result;
+      
+      if (!botMember) {
+        return {
+          success: false,
+          error: 'Erro ao obter informações do bot no grupo'
+        };
+      }
+      
       console.log(`✅ Bot encontrado no grupo com status: ${botMember.status}`);
       
       // Verificar se o bot é administrador
@@ -356,19 +364,26 @@ export async function POST(request: NextRequest) {
 
     const { group, botMember } = validation;
 
-    console.log(`✅ Grupo validado: ${group!.title} (ID: ${group!.id})`);
+    if (!group) {
+      return NextResponse.json({
+        success: false,
+        error: 'Erro interno: dados do grupo não disponíveis'
+      }, { status: 500 });
+    }
+
+    console.log(`✅ Grupo validado: ${group.title} (ID: ${group.id})`);
 
     // 4. Salvar/atualizar informações do grupo
     const groupData = {
-      name: group!.title,
-      telegram_id: group!.id.toString(),
+      name: group.title,
+      telegram_id: group.id.toString(),
       bot_id: botId,
-      description: group!.description || '',
+      description: group.description || '',
       is_active: true,
       is_vip: true,
       link: groupLink,
       bot_is_admin: true,
-      admin_permissions: botMember,
+      admin_permissions: botMember || null,
       validated_at: new Date().toISOString()
     };
 
@@ -376,7 +391,7 @@ export async function POST(request: NextRequest) {
     const { data: existingGroup, error: groupCheckError } = await supabaseClient
       .from('groups')
       .select('id')
-      .eq('telegram_id', group!.id.toString())
+      .eq('telegram_id', group.id.toString())
       .eq('bot_id', botId)
       .single();
 
@@ -417,10 +432,10 @@ export async function POST(request: NextRequest) {
         is_activated: true,
         auto_activated: true,
         activated_at: new Date().toISOString(),
-        activated_by_telegram_id: group!.id.toString(),
-        activated_in_chat_id: group!.id,
+        activated_by_telegram_id: group.id.toString(),
+        activated_in_chat_id: group.id,
         group_link: groupLink,
-        group_id_telegram: group!.id.toString(),
+        group_id_telegram: group.id.toString(),
         auto_activation_attempted_at: new Date().toISOString(),
         auto_activation_error: null,
         status: 'active'
@@ -436,9 +451,9 @@ export async function POST(request: NextRequest) {
     }
 
     // 6. Enviar mensagem de boas-vindas no grupo
-    const welcomeSent = await sendWelcomeMessage(bot.token, group!.id, botId);
+    const welcomeSent = await sendWelcomeMessage(bot.token, group.id, botId);
 
-    console.log(`🎉 Bot ${bot.name} ativado com sucesso no grupo ${group!.title}!`);
+    console.log(`🎉 Bot ${bot.name} ativado com sucesso no grupo ${group.title}!`);
 
     return NextResponse.json({
       success: true,
@@ -451,10 +466,10 @@ export async function POST(request: NextRequest) {
           auto_activated: true
         },
         group: {
-          id: group!.id,
-          title: group!.title,
-          type: group!.type,
-          member_count: group!.member_count
+          id: group.id,
+          title: group.title,
+          type: group.type,
+          member_count: group.member_count
         },
         welcome_message_sent: welcomeSent
       }

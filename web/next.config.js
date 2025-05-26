@@ -1,12 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: true,
-  experimental: {
-    optimizeCss: true,
-    optimizePackageImports: ['lucide-react'],
-    scrollRestoration: true,
-  },
-  pageExtensions: ['js', 'jsx', 'ts', 'tsx'],
+  reactStrictMode: false,
   
   images: {
     formats: ['image/avif', 'image/webp'],
@@ -25,26 +19,18 @@ const nextConfig = {
     removeConsole: process.env.NODE_ENV === 'production',
   },
   
-  webpack(config) {
-    config.watchOptions = {
-      ...config.watchOptions,
-      aggregateTimeout: 300,
-      poll: 1000,
-    };
-    return config;
-  },
+  // Configurar para servidor dinâmico
+  output: 'standalone',
   
-  async rewrites() {
-    return [
-      {
-        source: '/.identity',
-        destination: '/api/identity',
-      },
-      {
-        source: '/.well-known/appspecific/com.chrome.devtools.json',
-        destination: '/api/devtools',
-      },
-    ];
+  // Permitir imports externos
+  transpilePackages: ['@supabase/supabase-js'],
+  
+  // Desabilitar geração estática
+  trailingSlash: false,
+  
+  // Configurar para não gerar páginas estáticas
+  generateBuildId: async () => {
+    return 'build-' + Date.now()
   },
 }
 

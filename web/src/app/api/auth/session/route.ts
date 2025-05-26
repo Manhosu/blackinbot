@@ -1,40 +1,41 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
 
-export async function GET(req: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
-    // Verificar se existe o cookie de autenticação
-    const authToken = req.cookies.get("auth_token")?.value;
-
-    if (!authToken) {
-      return NextResponse.json(
-        { 
-          authenticated: false,
-          message: "Usuário não autenticado" 
-        },
-        { status: 401 }
-      );
+    const cookieStore = cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+    
+    const { data: { session }, error } = await supabase.auth.getSession();
+    
+    if (error) {
+      console.error('Erro ao obter sessão:', error);
+      return NextResponse.json({ session: null, error: error.message }, { status: 401 });
     }
-
-    // Aqui você verificaria a validade do token e buscaria os dados do usuário
-    // no banco de dados. Por enquanto, simulamos um usuário autenticado.
     
-    return NextResponse.json({
-      authenticated: true,
-      user: {
-        id: "user-123",
-        name: "Usuário Teste",
-        email: "usuario@teste.com",
-      }
-    });
-    
+    return NextResponse.json({ session, error: null });
   } catch (error) {
-    console.error("Erro ao verificar sessão:", error);
-    return NextResponse.json(
-      { 
-        authenticated: false,
-        message: "Erro ao verificar autenticação" 
-      },
-      { status: 500 }
-    );
+    console.error('Erro interno na sessão:', error);
+    return NextResponse.json({ session: null, error: 'Erro interno' }, { status: 500 });
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const cookieStore = cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+    
+    const { data: { session }, error } = await supabase.auth.getSession();
+    
+    if (error) {
+      console.error('Erro ao obter sessão:', error);
+      return NextResponse.json({ session: null, error: error.message }, { status: 401 });
+    }
+    
+    return NextResponse.json({ session, error: null });
+  } catch (error) {
+    console.error('Erro interno na sessão:', error);
+    return NextResponse.json({ session: null, error: 'Erro interno' }, { status: 500 });
   }
 } 

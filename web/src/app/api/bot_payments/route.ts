@@ -15,68 +15,30 @@ const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3025';
  */
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const status = searchParams.get('status');
-    const startDate = searchParams.get('created_at');
-    const botId = searchParams.get('bot_id');
+    const cookieStore = cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
     
-    console.log('🔍 Buscando pagamentos com filtros:', { status, startDate, botId });
+    // Buscar pagamentos dos bots
+    const { data: payments, error } = await supabase
+      .from('payments')
+      .select(`
+        *,
+        bots (
+          id,
+          name
+        )
+      `)
+      .order('created_at', { ascending: false });
     
-    // Buscar dados do localStorage
-    let allPayments: any[] = [];
-    
-    try {
-      // Não podemos acessar localStorage diretamente do servidor
-      // Vamos simular os dados com os pagamentos em memória
-      allPayments = [...serverPayments];
-      
-      console.log(`✅ Encontrados ${allPayments.length} pagamentos (servidor)`);
-      
-      // Aplicar filtros
-      let filteredPayments = [...allPayments];
-      
-      // Filtrar por status
-      if (status) {
-        filteredPayments = filteredPayments.filter(p => p.status === status);
-      }
-      
-      // Filtrar por data
-      if (startDate) {
-        const dateFilter = new Date(startDate);
-        filteredPayments = filteredPayments.filter(p => new Date(p.created_at) >= dateFilter);
-      }
-      
-      // Filtrar por bot_id
-      if (botId) {
-        filteredPayments = filteredPayments.filter(p => p.bot_id === botId);
-      }
-      
-      // Ordenar por data (mais recente primeiro)
-      filteredPayments.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-      
-      return NextResponse.json({
-        data: filteredPayments,
-        error: null
-      });
-    } catch (localError) {
-      console.error('❌ Erro ao processar pagamentos:', localError);
-      
-      // Retornar array vazio em caso de erro
-      return NextResponse.json({
-        data: [],
-        error: null
-      });
+    if (error) {
+      console.error('Erro ao buscar pagamentos:', error);
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
-  } catch (error) {
-    console.error('❌ Erro ao buscar pagamentos:', error);
     
-    return NextResponse.json({
-      data: null,
-      error: {
-        message: 'Erro interno ao buscar pagamentos',
-        details: error instanceof Error ? error.message : String(error)
-      }
-    }, { status: 500 });
+    return NextResponse.json({ payments });
+  } catch (error) {
+    console.error('Erro interno nos pagamentos:', error);
+    return NextResponse.json({ error: 'Erro interno' }, { status: 500 });
   }
 }
 
@@ -85,49 +47,38 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { botId, userId, amount, status = 'pending', planId, planName, userName } = body;
+    const cookieStore = cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
     
-    if (!botId || !userId || !amount) {
-      return NextResponse.json({
-        data: null,
-        error: {
-          message: 'Dados incompletos'
-        }
-      }, { status: 400 });
+    const body = await request.json();
+    const { bot_id, amount, payment_method, customer_data } = body;
+    
+    if (!bot_id || !amount) {
+      return NextResponse.json({ error: 'Bot ID e valor são obrigatórios' }, { status: 400 });
     }
     
     // Criar novo pagamento
-    const newPayment = {
-      id: `payment_${uuidv4().substring(0, 8)}`,
-      bot_id: botId,
-      user_id: userId,
-      amount: parseFloat(amount),
-      status,
-      created_at: new Date().toISOString(),
-      payout_status: null,
-      plan_id: planId || 'default_plan',
-      plan_name: planName || 'Plano Padrão',
-      user_name: userName || 'Usuário'
-    };
+    const { data: payment, error } = await supabase
+      .from('payments')
+      .insert({
+        bot_id,
+        amount,
+        payment_method: payment_method || 'pix',
+        customer_data: customer_data || {},
+        status: 'pending',
+        created_at: new Date().toISOString()
+      })
+      .select()
+      .single();
     
-    // Adicionar ao armazenamento do servidor
-    serverPayments.push(newPayment);
-    console.log('✅ Pagamento criado e armazenado no servidor:', newPayment.id);
+    if (error) {
+      console.error('Erro ao criar pagamento:', error);
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
     
-    return NextResponse.json({
-      data: newPayment,
-      error: null
-    });
+    return NextResponse.json({ payment });
   } catch (error) {
-    console.error('❌ Erro ao criar pagamento:', error);
-    
-    return NextResponse.json({
-      data: null,
-      error: {
-        message: 'Erro interno ao criar pagamento',
-        details: error instanceof Error ? error.message : String(error)
-      }
-    }, { status: 500 });
+    console.error('Erro interno ao criar pagamento:', error);
+    return NextResponse.json({ error: 'Erro interno' }, { status: 500 });
   }
 } 
