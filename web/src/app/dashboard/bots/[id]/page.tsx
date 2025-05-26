@@ -21,6 +21,13 @@ import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { FiEdit } from 'react-icons/fi';
 
+interface Transaction {
+  id: string;
+  status: string;
+  amount: string;
+  created_at: string;
+}
+
 // Componente para estatísticas
 const StatCard = ({ title, value, icon, trend = null, description = null }: {
   title: string;
@@ -251,12 +258,12 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
             if (!transactionsError && transactionsData) {
               // Calcular receita total e pagamentos pendentes
               totalRevenue = transactionsData
-                .filter(tx => tx.status === 'completed')
-                .reduce((sum, tx) => sum + parseFloat(tx.amount || '0'), 0);
+                .filter((tx: Transaction) => tx.status === 'completed')
+                .reduce((sum: number, tx: Transaction) => sum + parseFloat(tx.amount || '0'), 0);
               
               pendingPayments = transactionsData
-                .filter(tx => tx.status === 'pending')
-                .reduce((sum, tx) => sum + parseFloat(tx.amount || '0'), 0);
+                .filter((tx: Transaction) => tx.status === 'pending')
+                .reduce((sum: number, tx: Transaction) => sum + parseFloat(tx.amount || '0'), 0);
               
               // Salvar transações
               setTransactions(transactionsData);

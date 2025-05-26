@@ -22,6 +22,15 @@ interface BankAccountForm {
   pixKey: string;
 }
 
+interface Bot {
+  id: string;
+  name: string;
+}
+
+interface Payment {
+  amount: string;
+}
+
 // Componente para cálculo visual das taxas
 const FeeCalculator = ({ config }: { config: any }) => {
   const [amount, setAmount] = useState(100);
@@ -187,7 +196,7 @@ export default function FinancePage() {
         return; // Usuário não tem bots
       }
       
-      const botIds = bots.map(bot => bot.id);
+      const botIds = bots.map((bot: Bot) => bot.id);
       
       // 2. Buscar saldo pendente
       const { data: pendingPayments, error: pendingError } = await supabase
@@ -210,8 +219,8 @@ export default function FinancePage() {
       if (balanceError) throw balanceError;
       
       // 4. Calcular saldos
-      const pendingAmount = pendingPayments?.reduce((sum, payment) => sum + parseFloat(payment.amount), 0) || 0;
-      const availableAmount = availableBalance?.reduce((sum, payment) => sum + parseFloat(payment.amount), 0) || 0;
+      const pendingAmount = pendingPayments?.reduce((sum: number, payment: Payment) => sum + parseFloat(payment.amount), 0) || 0;
+      const availableAmount = availableBalance?.reduce((sum: number, payment: Payment) => sum + parseFloat(payment.amount), 0) || 0;
       
       // 5. Atualizar estado
       setStats({

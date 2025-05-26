@@ -1,6 +1,25 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
+interface ExpiredAccess {
+  id: string;
+  user_id: string;
+  group_id: string;
+  bot_id: string;
+  expires_at: string;
+  status: string;
+  bot_users: {
+    telegram_id: string;
+  };
+  bot_groups: {
+    chat_id: string;
+    invite_link: string;
+  };
+  bots: {
+    token: string;
+  };
+}
+
 /**
  * Endpoint para verificar e remover acessos expirados
  * Este endpoint deve ser chamado por um cron job uma vez por dia
@@ -52,12 +71,12 @@ export async function POST(request: Request) {
     
     // Processar cada acesso expirado
     const results = await Promise.all(
-      expiredAccess.map(async (access) => {
+      expiredAccess.map(async (access: ExpiredAccess) => {
         try {
           // 1. Enviar mensagem para o usuário informando que foi removido
-          const token = (access.bots as any).token;
-          const chatId = (access.bot_users as any).telegram_id;
-          const groupName = (access.bot_groups as any).invite_link.split('/').pop();
+          const token = access.bots.token;
+          const chatId = access.bot_users.telegram_id;
+          const groupName = access.bot_groups.invite_link.split('/').pop();
           
           const message = `⚠️ *ACESSO EXPIRADO* ⚠️\n\nOlá! Seu acesso ao grupo "${groupName}" expirou há mais de 3 dias. Você foi removido do grupo.\n\nPara obter acesso novamente, por favor, adquira um novo plano enviando /planos.`;
           
@@ -86,7 +105,7 @@ export async function POST(request: Request) {
                 'Content-Type': 'application/json',
               },
               body: JSON.stringify({
-                chat_id: (access.bot_groups as any).chat_id,
+                chat_id: access.bot_groups.chat_id,
                 user_id: chatId,
                 until_date: Math.floor(Date.now() / 1000) + 30 // Ban por 30 segundos apenas (é o mínimo permitido)
               }),
@@ -105,7 +124,7 @@ export async function POST(request: Request) {
                 'Content-Type': 'application/json',
               },
               body: JSON.stringify({
-                chat_id: (access.bot_groups as any).chat_id,
+                chat_id: access.bot_groups.chat_id,
                 user_id: chatId,
                 only_if_banned: true
               }),

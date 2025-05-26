@@ -19,6 +19,19 @@ interface Sale {
   status: string;
 }
 
+interface RawSalesTransaction {
+  id: string;
+  created_at: string;
+  amount: string;
+  status: string;
+  user_name?: string;
+  plan_name?: string;
+  bots?: {
+    id: string;
+    name: string;
+  };
+}
+
 export default function SalesPage() {
   const { user, isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
@@ -68,7 +81,7 @@ export default function SalesPage() {
         }
         
         // Transformar dados para o formato necessário
-        const allSales: Sale[] = (transactions || []).map(tx => ({
+        const allSales: Sale[] = (transactions || []).map((tx: RawSalesTransaction) => ({
           id: tx.id,
           created_at: tx.created_at,
           amount: parseFloat(tx.amount) || 0,

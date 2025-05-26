@@ -48,6 +48,32 @@ interface Sale {
   status: string;
 }
 
+interface RawTransaction {
+  id: string;
+  type: string;
+  amount: number;
+  description: string;
+  created_at: string;
+  status?: string;
+  bots?: {
+    name: string;
+  };
+}
+
+interface RawSale {
+  id: string;
+  amount: number;
+  customer_name: string;
+  sale_date: string;
+  status: string;
+  bots?: {
+    name: string;
+  };
+  plans?: {
+    name: string;
+  };
+}
+
 export default function FinanceiroPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -135,14 +161,14 @@ export default function FinanceiroPage() {
       }
       
       if (transactionResult.data) {
-        setTransactions(transactionResult.data.map(t => ({
+        setTransactions(transactionResult.data.map((t: RawTransaction) => ({
           ...t,
           bot_name: t.bots?.name
         })));
       }
 
       if (salesResult.data) {
-        setSales(salesResult.data.map(s => ({
+        setSales(salesResult.data.map((s: RawSale) => ({
           ...s,
           bot_name: s.bots?.name || 'Bot Removido',
           plan_name: s.plans?.name || 'Plano Removido'

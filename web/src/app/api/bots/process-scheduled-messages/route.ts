@@ -1,6 +1,34 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
+interface ScheduledMessage {
+  id: string;
+  user_id: string;
+  message: string;
+  include_plans: boolean;
+  scheduled_date: string;
+  status: string;
+  bot: {
+    id: string;
+    token: string;
+    name: string;
+  };
+  user: {
+    id: string;
+    telegram_id: string;
+    name: string;
+    username?: string;
+  };
+}
+
+interface BotPlan {
+  id: string;
+  name: string;
+  price: number;
+  days_access: number;
+  description?: string;
+}
+
 /**
  * Endpoint para processar mensagens programadas
  * Este endpoint deve ser chamado por um cron job a cada hora
@@ -44,7 +72,7 @@ export async function POST(request: Request) {
     
     // Processar cada mensagem
     const results = await Promise.all(
-      messages.map(async (message) => {
+      messages.map(async (message: ScheduledMessage) => {
         try {
           // Se a mensagem incluir planos, buscar os planos do bot
           let plansMessage = '';
@@ -105,7 +133,7 @@ export async function POST(request: Request) {
             
             if (plans && plans.length > 0) {
               replyMarkup = {
-                inline_keyboard: plans.map(plan => [{
+                inline_keyboard: plans.map((plan: BotPlan) => [{
                   text: `${plan.name} - R$ ${plan.price.toFixed(2).replace('.', ',')}`,
                   callback_data: `plan_${plan.id}`
                 }])

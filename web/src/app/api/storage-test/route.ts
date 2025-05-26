@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
+interface Bucket {
+  name: string;
+  id: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export async function GET() {
   try {
     // Verificar se o bucket existe
@@ -11,7 +18,7 @@ export async function GET() {
     }
 
     // Procurar o bucket específico
-    const botAvatarsBucket = data.find(bucket => bucket.name === 'bot-avatars');
+    const botAvatarsBucket = data.find((bucket: Bucket) => bucket.name === 'bot-avatars');
     
     // Tentar listar arquivos se o bucket existir
     let files = null;

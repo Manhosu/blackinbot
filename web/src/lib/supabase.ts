@@ -23,14 +23,30 @@ if (typeof window !== 'undefined') {
   validateSupabaseConfig();
 }
 
-// Cliente Supabase configurado
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: true
+// Cliente Supabase configurado como singleton
+let supabaseInstance: any = null;
+
+function createSupabaseClient() {
+  if (!supabaseInstance) {
+    supabaseInstance = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: false, // Desabilitar para evitar conflitos
+        storageKey: 'blackinpay-auth', // Chave única
+        storage: typeof window !== 'undefined' ? window.localStorage : undefined
+      },
+      global: {
+        headers: {
+          'X-Client-Info': 'blackinpay-web'
+        }
+      }
+    });
   }
-});
+  return supabaseInstance;
+}
+
+export const supabase = createSupabaseClient();
 
 // Exportação padrão para compatibilidade
 export default supabase; 

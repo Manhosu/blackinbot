@@ -27,6 +27,17 @@ interface Plan {
   is_active: boolean;
 }
 
+interface RawPlan {
+  id: string;
+  name: string;
+  price: string | number;
+  period?: string;
+  period_days?: number;
+  days_access?: number;
+  description?: string;
+  is_active?: boolean;
+}
+
 export default function BotSettingsPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -96,10 +107,10 @@ export default function BotSettingsPage({ params }: { params: { id: string } }) 
         });
 
         // Converter planos para o formato do PlanManager
-        const formattedPlans = (plansData || []).map(plan => ({
+        const formattedPlans = (plansData || []).map((plan: RawPlan) => ({
           id: plan.id,
           name: plan.name,
-          price: parseFloat(plan.price) || 0,
+          price: parseFloat(String(plan.price)) || 0,
           period: plan.period || 'monthly',
           period_days: plan.period_days || plan.days_access || 30,
           description: plan.description || '',

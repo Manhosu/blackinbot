@@ -34,49 +34,57 @@ interface BotMember {
 }
 
 // Função para extrair ID do grupo de um link
-function extractGroupIdFromLink(link: string): string | null {
+function extractGroupIdFromLink(link: string): { identifier: string | null; isInviteLink: boolean; linkType: string } {
   // Formatos de link possíveis:
-  // https://t.me/+ABC123...
-  // https://t.me/joinchat/ABC123...
-  // https://t.me/groupname
+  // https://t.me/+ABC123... (convite privado)
+  // https://t.me/joinchat/ABC123... (convite privado antigo)
+  // https://t.me/groupname (grupo público)
   // t.me/+ABC123...
-  // Também aceita IDs diretos: -100123456789
+  // ID direto: -100123456789
 
   const cleanLink = link.trim();
 
   // Se já é um ID direto (negativo para grupos)
   if (/^-?\d+$/.test(cleanLink)) {
-    return cleanLink;
+    return { identifier: cleanLink, isInviteLink: false, linkType: 'direct_id' };
   }
 
-  // Extrair de links de convite
+  // Links de convite privados (+ ou joinchat)
   const inviteMatch = cleanLink.match(/(?:https?:\/\/)?(?:www\.)?t\.me\/(?:\+|joinchat\/)([A-Za-z0-9_-]+)/);
   if (inviteMatch) {
-    return inviteMatch[1]; // Retorna o hash do convite
+    return { identifier: inviteMatch[1], isInviteLink: true, linkType: 'private_invite' };
   }
 
   // Para grupos públicos (@username) - incluindo links com @
   if (cleanLink.startsWith('@')) {
-    return cleanLink;
+    return { identifier: cleanLink, isInviteLink: false, linkType: 'username' };
   }
   
   const usernameMatch = cleanLink.match(/(?:https?:\/\/)?(?:www\.)?t\.me\/([A-Za-z0-9_]+)/);
   if (usernameMatch) {
-    return `@${usernameMatch[1]}`;
+    return { identifier: `@${usernameMatch[1]}`, isInviteLink: false, linkType: 'username' };
   }
 
-  return null;
+  return { identifier: null, isInviteLink: false, linkType: 'invalid' };
 }
 
 // Função para validar grupo via API do Telegram
-async function validateGroupWithBot(botToken: string, groupIdentifier: string): Promise<{
+async function validateGroupWithBot(botToken: string, groupIdentifier: string, isInviteLink: boolean, linkType: string): Promise<{
   success: boolean;
   group?: GroupInfo;
   botMember?: BotMember;
   error?: string;
 }> {
   try {
-    console.log(`🔍 Validando grupo ${groupIdentifier} com bot`);
+    console.log(`🔍 Validando grupo ${groupIdentifier} (tipo: ${linkType}) com bot`);
+
+    // Para links de convite privados, não podemos validar diretamente
+    if (isInviteLink) {
+      return {
+        success: false,
+        error: `❌ Links de convite privados não são suportados!\n\n📝 **Como resolver:**\n\n1. **Adicione o bot ao grupo manualmente**\n2. **Use um grupo público** (com @username)\n3. **Ou forneça o ID do grupo diretamente**\n\n💡 **Para obter o ID do grupo:**\n- Adicione @userinfobot ao seu grupo\n- Ele mostrará o ID (ex: -100123456789)\n- Use esse ID no campo acima\n\n⚠️ **Importante:** O bot deve estar no grupo como administrador antes da ativação!`
+      };
+    }
 
     // 1. Tentar obter informações do grupo
     let chatInfo: any;
@@ -92,9 +100,19 @@ async function validateGroupWithBot(botToken: string, groupIdentifier: string): 
       
       if (!chatResult.ok) {
         console.error('❌ Erro ao obter informações do grupo:', chatResult);
+        
+        // Dar instruções específicas baseadas no tipo de erro
+        let errorMessage = `Não foi possível acessar o grupo: ${chatResult.description || 'Erro desconhecido'}`;
+        
+        if (chatResult.description?.includes('chat not found')) {
+          errorMessage = `❌ Grupo não encontrado!\n\n📝 **Possíveis causas:**\n\n1. **Bot não está no grupo** - Adicione o bot ao grupo primeiro\n2. **ID do grupo incorreto** - Verifique se o ID está correto\n3. **Grupo é privado** - Use o ID numérico do grupo\n\n💡 **Para grupos privados:**\n- Adicione @userinfobot ao grupo\n- Copie o ID (ex: -100123456789)\n- Use esse ID no campo acima`;
+        } else if (chatResult.description?.includes('Forbidden')) {
+          errorMessage = `❌ Bot não tem permissão para acessar o grupo!\n\n📝 **Como resolver:**\n\n1. **Adicione o bot ao grupo**\n2. **Torne o bot administrador**\n3. **Certifique-se que o bot não foi removido**`;
+        }
+        
         return {
           success: false,
-          error: `Não foi possível acessar o grupo: ${chatResult.description || 'Erro desconhecido'}`
+          error: errorMessage
         };
       }
       
@@ -104,7 +122,7 @@ async function validateGroupWithBot(botToken: string, groupIdentifier: string): 
       console.error('❌ Erro na requisição getChat:', error);
       return {
         success: false,
-        error: 'Erro ao conectar com API do Telegram'
+        error: 'Erro ao conectar com API do Telegram. Verifique sua conexão.'
       };
     }
 
@@ -331,18 +349,18 @@ export async function POST(request: NextRequest) {
     }
 
     // 2. Extrair ID do grupo do link
-    const groupIdentifier = extractGroupIdFromLink(groupLink);
-    if (!groupIdentifier) {
+    const linkInfo = extractGroupIdFromLink(groupLink);
+    if (!linkInfo.identifier) {
       return NextResponse.json({
         success: false,
         error: 'Link ou ID do grupo inválido. Use um link do Telegram válido ou ID do grupo.'
       }, { status: 400 });
     }
 
-    console.log(`🔍 ID/identificador extraído: ${groupIdentifier}`);
+    console.log(`🔍 ID/identificador extraído: ${linkInfo.identifier} (tipo: ${linkInfo.linkType})`);
 
     // 3. Validar grupo e permissões do bot
-    const validation = await validateGroupWithBot(bot.token, groupIdentifier);
+    const validation = await validateGroupWithBot(bot.token, linkInfo.identifier, linkInfo.isInviteLink, linkInfo.linkType);
     
     if (!validation.success) {
       // Salvar erro de tentativa
@@ -352,7 +370,7 @@ export async function POST(request: NextRequest) {
           auto_activation_attempted_at: new Date().toISOString(),
           auto_activation_error: validation.error,
           group_link: groupLink,
-          group_id_telegram: groupIdentifier
+          group_id_telegram: linkInfo.identifier
         })
         .eq('id', botId);
 

@@ -1,16 +1,28 @@
 {
-  "name": "BLACKINPAY",
-  "short_name": "BLACKINPAY",
+  "name": "BlackInPay",
+  "short_name": "BlackInPay",
+  "description": "Sistema de gerenciamento de bots Telegram para vendas automatizadas",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#000000",
-  "theme_color": "#000000",
-  "description": "Automatize o acesso e pagamentos dos seus grupos VIP no Telegram.",
+  "background_color": "#0D1117",
+  "theme_color": "#00D4FF",
+  "orientation": "portrait-primary",
   "icons": [
     {
       "src": "/logo.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
     }
-  ]
+  ],
+  "categories": ["business", "productivity", "utilities"],
+  "lang": "pt-BR",
+  "scope": "/",
+  "prefer_related_applications": false
 } 

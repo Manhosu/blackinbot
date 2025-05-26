@@ -234,7 +234,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const setupAuthListener = () => {
       try {
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
-          async (event, session) => {
+          async (event: any, session: any) => {
             if (!mounted) return;
             
             if (event === 'SIGNED_IN' && session?.user) {

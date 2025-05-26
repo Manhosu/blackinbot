@@ -9,6 +9,13 @@ import Link from 'next/link';
 import { toast } from "sonner";
 import { supabase } from '@/lib/supabase';
 
+interface DashboardTransaction {
+  id: string;
+  status: string;
+  amount: string;
+  created_at: string;
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -63,14 +70,14 @@ export default function DashboardPage() {
         
         if (transactions && transactions.length > 0) {
           // Filtrar transações completadas no período
-          const completedTransactions = transactions.filter(tx => tx.status === 'completed');
+          const completedTransactions = transactions.filter((tx: DashboardTransaction) => tx.status === 'completed');
           
           // Calcular estatísticas
-          const totalAmount = completedTransactions.reduce((sum, tx) => sum + parseFloat(tx.amount || 0), 0);
+          const totalAmount = completedTransactions.reduce((sum: number, tx: DashboardTransaction) => sum + parseFloat(tx.amount || '0'), 0);
           
           // Transações pendentes
-          const pendingTransactions = transactions.filter(tx => tx.status === 'pending');
-          const pendingAmount = pendingTransactions.reduce((sum, tx) => sum + parseFloat(tx.amount || 0), 0);
+          const pendingTransactions = transactions.filter((tx: DashboardTransaction) => tx.status === 'pending');
+          const pendingAmount = pendingTransactions.reduce((sum: number, tx: DashboardTransaction) => sum + parseFloat(tx.amount || '0'), 0);
           
           // Definir estatísticas
           dashboardStats = {

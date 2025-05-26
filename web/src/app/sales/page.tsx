@@ -33,6 +33,23 @@ interface SalesStats {
   totalAmount: number;
 }
 
+interface RawSaleData {
+  id: string;
+  user_telegram_id: string;
+  amount: string | number;
+  created_at: string;
+  expires_at: string | null;
+  plans?: {
+    name: string;
+  };
+  bots?: {
+    name: string;
+  };
+  payments?: {
+    status: string;
+  };
+}
+
 export default function SalesPage() {
   const [sales, setSales] = useState<Sale[]>([]);
   const [stats, setStats] = useState<SalesStats>({
@@ -67,7 +84,7 @@ export default function SalesPage() {
         if (salesError) throw salesError;
 
         // Formatar dados das vendas
-        const formattedSales: Sale[] = salesData?.map(sale => ({
+        const formattedSales: Sale[] = salesData?.map((sale: RawSaleData) => ({
           id: sale.id,
           user_telegram_id: sale.user_telegram_id,
           amount: Number(sale.amount),
