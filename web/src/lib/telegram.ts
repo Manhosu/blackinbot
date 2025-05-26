@@ -13,6 +13,18 @@ function createSupabaseClient() {
   return createClient(url, key);
 }
 
+// Função para criar cliente Supabase administrativo
+function createSupabaseAdminClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  
+  if (!url || !key) {
+    throw new Error('❌ Variáveis de ambiente do Supabase administrativo não configuradas');
+  }
+  
+  return createClient(url, key);
+}
+
 interface TelegramUpdate {
   update_id: number;
   message?: {
@@ -54,8 +66,10 @@ interface BotConfig {
   token: string;
   username?: string;
   welcome_text?: string;
+  welcome_message?: string;
   welcome_media_url?: string;
   welcome_media_type?: 'photo' | 'video';
+  is_activated?: boolean;
 }
 
 interface Plan {
@@ -79,7 +93,7 @@ async function getBotByIdFromCache(botId: string): Promise<BotConfig | null> {
     const supabase = createSupabaseClient();
     const { data: bot, error } = await supabase
       .from('bots')
-      .select('id, name, token, username, welcome_text, welcome_media_url, welcome_media_type')
+      .select('id, name, token, username, welcome_text, welcome_media_url, welcome_media_type, is_activated, welcome_message')
       .eq('id', botId)
       .single();
 
@@ -108,6 +122,8 @@ async function getPlansFromCache(botId: string): Promise<Plan[]> {
     const { data: plans, error } = await supabase
       .from('plans')
       .select('id, name, price')
+      .eq('bot_id', botId)
+      .eq('is_active', true)
       .order('price', { ascending: true });
 
     if (error) {
@@ -279,7 +295,7 @@ async function handleStartCommand(botConfig: BotConfig, update: TelegramUpdate) 
     }]);
 
     // Texto de boas-vindas personalizado
-    const welcomeText = botConfig.welcome_text || 
+    const welcomeText = botConfig.welcome_message || botConfig.welcome_text || 
       `🤖 *Olá! Bem-vindo ao ${botConfig.name}!*\n\n` +
       `Escolha um dos nossos planos abaixo:`;
 
@@ -384,20 +400,25 @@ async function handleGroupMessage(botConfig: BotConfig, update: TelegramUpdate) 
   
   if (activationCodePattern.test(text)) {
     console.log(`🔍 Possível código de ativação detectado: ${text}`);
+    console.log(`🔍 Bot ID: ${botConfig.id}`);
     
     try {
-      const supabase = createSupabaseClient();
+      const supabase = createSupabaseAdminClient();
+      console.log(`🔍 Cliente administrativo criado com sucesso`);
       
       // Buscar código no banco
+      console.log(`🔍 Buscando código: ${text.toUpperCase()} para bot: ${botConfig.id}`);
       const { data: code, error } = await supabase
         .from('bot_activation_codes')
         .select('*')
-        .eq('code', text.toUpperCase())
+        .eq('activation_code', text.toUpperCase())
         .eq('bot_id', botConfig.id)
         .single();
 
+      console.log(`🔍 Resultado da busca:`, { code, error });
+
       if (error || !code) {
-        console.log(`⚠️ Código não encontrado: ${text}`);
+        console.log(`⚠️ Código não encontrado: ${text}`, error);
         return;
       }
 
@@ -416,24 +437,34 @@ async function handleGroupMessage(botConfig: BotConfig, update: TelegramUpdate) 
       }
 
       // Ativar o bot
-      await supabase
+      const { error: botUpdateError } = await supabase
         .from('bots')
         .update({ 
+          is_activated: true,
           activated_at: new Date().toISOString(),
           activated_by_user_id: userId,
           activated_in_chat_id: chatId
         })
         .eq('id', botConfig.id);
 
+      if (botUpdateError) {
+        console.error('❌ Erro ao ativar bot:', botUpdateError);
+        throw new Error('Erro ao ativar bot');
+      }
+
       // Marcar código como usado
-      await supabase
+      const { error: codeUpdateError } = await supabase
         .from('bot_activation_codes')
         .update({ 
           used_at: new Date().toISOString(),
-          used_by_user_id: userId,
-          used_in_chat_id: chatId
+          used_by_telegram_id: userId.toString()
         })
         .eq('id', code.id);
+
+      if (codeUpdateError) {
+        console.error('❌ Erro ao marcar código como usado:', codeUpdateError);
+        throw new Error('Erro ao marcar código como usado');
+      }
 
       await sendTelegramMessage(
         botConfig.token,

@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
       console.log('⚠️ Ambiente de desenvolvimento detectado - removendo webhook');
     } else {
       // Para produção, usar URL do ambiente ou construir baseado no host
-      webhookUrl = process.env.WEBHOOK_URL || `https://${host}/api/telegram/webhook/${botId}`;
+      webhookUrl = process.env.WEBHOOK_URL || `https://${host}/api/webhook/${botId}`;
       console.log('📡 Configurando webhook para produção:', webhookUrl);
     }
     

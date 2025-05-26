@@ -1,7 +1,4 @@
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-
-// Cliente Supabase para componentes
-const supabase = createClientComponentClient();
+import { supabase } from '@/lib/supabase';
 
 /**
  * Verifica se a tabela webhook_configs existe e a cria se necessário
