@@ -1,7 +1,7 @@
 'use client';
 
-import { Box, VStack, Heading, Text, Button, Icon } from '@chakra-ui/react';
 import { FiBox } from 'react-icons/fi';
+import { Button } from '@/components/ui/button';
 
 interface EmptyStateProps {
   title: string;
@@ -18,37 +18,33 @@ export default function EmptyState({
   onAction,
   icon
 }: EmptyStateProps) {
+  const IconComponent = icon || <FiBox />;
+  
   return (
-    <Box 
-      p={8} 
-      borderRadius="md" 
-      borderWidth="1px" 
-      borderColor="gray.200"
-      bg="gray.50"
-      textAlign="center"
-      width="100%"
-    >
-      <VStack spacing={4}>
-        <Icon as={icon || FiBox} boxSize={12} color="gray.400" />
+    <div className="p-8 rounded-xl border border-white/20 glass text-center w-full">
+      <div className="flex flex-col items-center space-y-4">
+        <div className="text-white/40 text-5xl">
+          {IconComponent}
+        </div>
         
-        <Heading size="md" color="gray.700">
+        <h2 className="text-xl font-bold text-white">
           {title}
-        </Heading>
+        </h2>
         
-        <Text color="gray.500">
+        <p className="text-white/60">
           {description}
-        </Text>
+        </p>
         
         {actionLabel && onAction && (
           <Button 
-            colorScheme="brand" 
+            variant="gradient" 
             onClick={onAction}
-            mt={2}
+            className="mt-2"
           >
             {actionLabel}
           </Button>
         )}
-      </VStack>
-    </Box>
+      </div>
+    </div>
   );
 } 

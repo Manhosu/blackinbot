@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
@@ -10,7 +10,7 @@ import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import Image from 'next/image';
 import Link from 'next/link';
-import { BarChart, Users, CreditCard, Settings, Share2, Plus, RefreshCw, Trash2, ArrowUpRight, Copy, Key, ExternalLink, AlertCircle, Activity, TestTube, MessageSquare } from 'lucide-react';
+import { BarChart, Users, CreditCard, Settings, Share2, Plus, RefreshCw, Trash2, ArrowUpRight, Copy, Key, ExternalLink, AlertCircle, Activity, TestTube, MessageSquare, CheckCircle } from 'lucide-react';
 import { Globe, TicketIcon, DollarSign } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -19,6 +19,7 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
+import { FiEdit } from 'react-icons/fi';
 
 // Componente para estatísticas
 const StatCard = ({ title, value, icon, trend = null, description = null }: {
@@ -131,10 +132,13 @@ const PlanItem = ({ plan, onEdit, onDelete }: {
 // Página principal
 export default function BotDashboardPage({ params }: { params: { id: string } }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, isLoading: authLoading } = useAuth();
   const [bot, setBot] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [showActivationSuccess, setShowActivationSuccess] = useState(false);
   const [stats, setStats] = useState({
     totalUsers: 0,
     activeUsers: 0,
@@ -156,10 +160,37 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
   const [mediaPreview, setMediaPreview] = useState<string | null>(null);
   const [isSavingCustomContent, setIsSavingCustomContent] = useState(false);
 
+  // Estados para edição
+  const [editForm, setEditForm] = useState({
+    name: '',
+    description: '',
+    status: 'active'
+  });
+
   useEffect(() => {
     if (!authLoading && !user) {
       router.push('/login');
       return;
+    }
+
+    // Verificar parâmetros de query
+    const editParam = searchParams.get('edit');
+    const tabParam = searchParams.get('tab');
+    const fromActivation = searchParams.get('from') === 'activation';
+    
+    if (editParam === 'true') {
+      setIsEditMode(true);
+    }
+    
+    if (tabParam) {
+      setActiveTab(tabParam);
+    }
+    
+    // Se veio da ativação e bot está ativado, mostrar sucesso
+    if (fromActivation) {
+      setShowActivationSuccess(true);
+      // Esconder notificação após 5 segundos
+      setTimeout(() => setShowActivationSuccess(false), 5000);
     }
 
     const fetchBotData = async () => {
@@ -189,6 +220,13 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
           
           console.log('✅ Bot encontrado no banco:', botData);
           setBot(botData);
+          
+          // Inicializar formulário de edição
+          setEditForm({
+            name: botData.name || '',
+            description: botData.description || '',
+            status: botData.status || 'active'
+          });
           
           // Atualizar mensagem personalizada se existir
           setCustomMessage(botData.welcome_message || '');
@@ -267,7 +305,7 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
     if (params.id) {
       fetchBotData();
     }
-  }, [params.id, router, user, authLoading]);
+  }, [params.id, router, user, authLoading, searchParams]);
 
   // Função para editar um plano
   const handleEditPlan = async (plan: any) => {
@@ -330,6 +368,7 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
           headers: {
             'Content-Type': 'application/json',
           },
+          credentials: 'include',
           body: JSON.stringify(updatedBot),
         });
         
@@ -348,6 +387,74 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
     } catch (error) {
       console.error('Erro ao excluir plano:', error);
       toast.error('Erro ao excluir plano');
+    }
+  };
+
+  // Função para entrar no modo de edição
+  const handleEditBot = () => {
+    setIsEditMode(true);
+    setEditForm({
+      name: bot?.name || '',
+      description: bot?.description || '',
+      status: bot?.status || 'active'
+    });
+  };
+
+  // Função para cancelar edição
+  const handleCancelEdit = () => {
+    setIsEditMode(false);
+    setEditForm({
+      name: '',
+      description: '',
+      status: 'active'
+    });
+    
+    // Remover query param
+    const url = new URL(window.location.href);
+    url.searchParams.delete('edit');
+    router.replace(url.pathname + url.search);
+  };
+
+  // Função para salvar edições do bot
+  const handleSaveBot = async () => {
+    if (!editForm.name.trim()) {
+      toast.error('Nome do bot é obrigatório');
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/bots/${bot.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          name: editForm.name.trim(),
+          description: editForm.description.trim(),
+          status: editForm.status
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        // Atualizar bot no estado
+        setBot(result.data);
+        setIsEditMode(false);
+        
+        // Remover query param
+        const url = new URL(window.location.href);
+        url.searchParams.delete('edit');
+        router.replace(url.pathname + url.search);
+        
+        toast.success('Bot atualizado com sucesso');
+      } else {
+        throw new Error(result.error || 'Erro ao atualizar bot');
+      }
+    } catch (error: any) {
+      console.error('Erro ao salvar bot:', error);
+      toast.error(error.message || 'Erro ao salvar alterações');
     }
   };
 
@@ -420,6 +527,7 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
           headers: {
             'Content-Type': 'application/json',
           },
+          credentials: 'include',
           body: JSON.stringify(updatedBot),
         });
         
@@ -453,43 +561,47 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
   const loadBot = async () => {
     try {
       console.log('🔄 Recarregando dados do bot após pagamento...');
-      const response = await fetch(`/api/bots/${params.id}`);
+      const response = await fetch(`/api/bots/${params.id}`, {
+        credentials: 'include'
+      });
       const data = await response.json();
       
       if (data.success) {
-        console.log('✅ Bot recarregado com sucesso:', data.bot);
-        setBot(data.bot);
+        // A API GET retorna data.data, não data.bot
+        const botData = data.data;
+        console.log('✅ Bot recarregado com sucesso:', botData);
+        setBot(botData);
         
-        // Atualizar estatísticas
-        setStats({
-          ...stats,
-          totalRevenue: parseFloat(data.bot.totalRevenue || '0'),
-        });
+        // Atualizar estatísticas de forma segura
+        setStats(prevStats => ({
+          ...prevStats,
+          totalRevenue: parseFloat(botData?.totalRevenue || '0'),
+        }));
         
-        // Atualizar transações
-        if (data.bot.transactions) {
-          setTransactions(data.bot.transactions);
+        // Atualizar transações se existirem
+        if (botData?.transactions && Array.isArray(botData.transactions)) {
+          setTransactions(botData.transactions);
         }
         
-        // Atualizar planos
+        // Atualizar planos de forma segura
         const updatedPlans: any[] = [];
         
         // Primeiro verificar se temos planos no formato novo
-        if (data.bot.plans && Array.isArray(data.bot.plans) && data.bot.plans.length > 0) {
+        if (botData?.plans && Array.isArray(botData.plans) && botData.plans.length > 0) {
           // Usar planos no formato novo
-          updatedPlans.push(...data.bot.plans);
+          updatedPlans.push(...botData.plans);
         } 
         // Depois verificar o plano principal no formato antigo
-        else if (data.bot.plan_name && data.bot.plan_price) {
+        else if (botData?.plan_name && botData?.plan_price) {
           updatedPlans.push({
             id: 'main_plan',
-            name: data.bot.plan_name,
-            price: parseFloat(data.bot.plan_price) || 0,
-            days_access: parseInt(data.bot.plan_days_access) || 30,
-            period_label: `${parseInt(data.bot.plan_days_access) || 30} dias`,
-            sales: parseInt(data.bot.totalSales || '0'),
+            name: botData.plan_name,
+            price: parseFloat(botData.plan_price) || 0,
+            days_access: parseInt(botData.plan_days_access) || 30,
+            period_label: `${parseInt(botData.plan_days_access) || 30} dias`,
+            sales: parseInt(botData.totalSales || '0'),
             is_active: true,
-            bot_id: data.bot.id
+            bot_id: botData.id
           });
         }
         
@@ -497,6 +609,7 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
         
         toast.success('Dados atualizados com sucesso!');
       } else {
+        console.warn('❌ Falha ao recarregar bot:', data.error);
         toast.error('Erro ao recarregar dados do bot');
       }
     } catch (error) {
@@ -548,11 +661,13 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
       
       const response = await fetch(`/api/bots/${bot.id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include',
         body: JSON.stringify({
           welcome_message: customMessage,
-          media_url: mediaUrl,
-          media_type: mediaType
+          welcome_media_url: mediaUrl,
         })
       });
 
@@ -583,7 +698,7 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
         id: 'main_plan',
         name: bot.plan_name,
         price: parseFloat(bot.plan_price) || 0,
-        days_access: parseInt(bot.plan_days_access || '30') || 30,
+        days_access: parseInt(bot.plan_days_access) || 30,
         is_active: true
       });
     }
@@ -636,10 +751,10 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
         {/* Cabeçalho do Bot */}
         <div className="bg-card border border-border-light rounded-xl p-6 mb-8">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4">
               <div className="relative">
                 <div className="w-16 h-16 rounded-xl overflow-hidden bg-accent/10 flex items-center justify-center border border-accent/20">
-              {bot.avatar_url ? (
+                  {bot.avatar_url ? (
                     <Image 
                       src={bot.avatar_url} 
                       alt={bot.name} 
@@ -649,53 +764,189 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
                     />
                   ) : (
                     <span className="text-accent text-2xl">🤖</span>
-              )}
-            </div>
+                  )}
+                </div>
                 <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-green-500 rounded-full border-2 border-card flex items-center justify-center">
                   <div className="w-2 h-2 bg-white rounded-full"></div>
                 </div>
               </div>
               
               <div className="flex-1">
-                <div className="flex items-center gap-3 mb-2">
-                  <h1 className="text-2xl font-bold text-white">{bot.name}</h1>
-                  <span className="px-3 py-1 rounded-full text-xs font-medium bg-green-500/20 text-green-400 border border-green-500/30">
-                    ● Ativo
-                  </span>
-                </div>
-                <div className="flex items-center gap-4 text-white/60">
-                  <span className="flex items-center gap-2">
-                    <span className="text-accent">@</span>
-                    {bot.username || 'sem_username'}
-                  </span>
-                  <span className="flex items-center gap-2">
-                    <span className="text-accent">•</span>
-                    Criado em {new Date(bot.created_at).toLocaleDateString('pt-BR')}
-                  </span>
-                </div>
+                {isEditMode ? (
+                  /* Modo de Edição */
+                  <div className="space-y-3">
+                    <div>
+                      <Input
+                        value={editForm.name}
+                        onChange={(e) => setEditForm({...editForm, name: e.target.value})}
+                        placeholder="Nome do bot"
+                        className="text-xl font-bold bg-white/5 border-white/20 text-white"
+                      />
+                    </div>
+                    <div>
+                      <Textarea
+                        value={editForm.description}
+                        onChange={(e) => setEditForm({...editForm, description: e.target.value})}
+                        placeholder="Descrição do bot (opcional)"
+                        className="bg-white/5 border-white/20 text-white/80 resize-none"
+                        rows={2}
+                      />
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Label htmlFor="bot-status" className="text-white/60">Status:</Label>
+                      <select
+                        id="bot-status"
+                        value={editForm.status}
+                        onChange={(e) => setEditForm({...editForm, status: e.target.value})}
+                        className="bg-white/5 border border-white/20 rounded-lg px-3 py-1 text-white text-sm"
+                      >
+                        <option value="active">Ativo</option>
+                        <option value="inactive">Inativo</option>
+                      </select>
+                    </div>
+                  </div>
+                ) : (
+                  /* Modo de Visualização */
+                  <div>
+                    <div className="flex items-center gap-3 mb-2">
+                      <h1 className="text-2xl font-bold text-white">{bot.name}</h1>
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium border ${
+                        bot.status === 'active' 
+                          ? 'bg-green-500/20 text-green-400 border-green-500/30' 
+                          : 'bg-orange-500/20 text-orange-400 border-orange-500/30'
+                      }`}>
+                        ● {bot.status === 'active' ? 'Ativo' : 'Inativo'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-4 text-white/60">
+                      <span className="flex items-center gap-2">
+                        <span className="text-accent">@</span>
+                        {bot.username || 'sem_username'}
+                      </span>
+                      <span className="flex items-center gap-2">
+                        <span className="text-accent">•</span>
+                        Criado em {new Date(bot.created_at).toLocaleDateString('pt-BR')}
+                      </span>
+                    </div>
+                    {bot.description && (
+                      <p className="text-white/60 mt-2 text-sm">{bot.description}</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            <div className="flex gap-3 self-end md:self-auto">
+              {isEditMode ? (
+                /* Botões do Modo de Edição */
+                <>
+                  <Button 
+                    onClick={handleCancelEdit}
+                    variant="outline" 
+                    className="flex items-center gap-2"
+                  >
+                    Cancelar
+                  </Button>
+                  <Button 
+                    onClick={handleSaveBot}
+                    variant="default" 
+                    className="flex items-center gap-2 bg-accent hover:bg-accent/90"
+                  >
+                    Salvar
+                  </Button>
+                </>
+              ) : (
+                /* Botões do Modo de Visualização */
+                <>
+                  {/* Botão de Ativação - só aparece se bot não estiver ativado */}
+                  {!bot.is_activated && (
+                    <Button 
+                      onClick={() => router.push(`/dashboard/bots/${params.id}/activate`)}
+                      variant="default" 
+                      className="flex items-center gap-2 bg-green-600 hover:bg-green-700 transition-all"
+                    >
+                      <Key size={16} />
+                      Ativar Bot
+                    </Button>
+                  )}
+                  
+                  <Button 
+                    onClick={handleEditBot}
+                    variant="outline" 
+                    className="flex items-center gap-2 hover:bg-blue-500/10 hover:border-blue-500/50 transition-all"
+                  >
+                    <FiEdit size={16} />
+                    Editar
+                  </Button>
+                  <Button 
+                    onClick={handleShareBot}
+                    variant="outline" 
+                    className="flex items-center gap-2 hover:bg-blue-500/10 hover:border-blue-500/50 transition-all"
+                  >
+                    <Share2 size={16} />
+                    Compartilhar
+                  </Button>
+                  <Button 
+                    variant="default" 
+                    className="flex items-center gap-2 bg-accent hover:bg-accent/90 transition-all"
+                    onClick={() => router.push(`/dashboard/bots/${params.id}/settings`)}
+                  >
+                    <Settings size={16} />
+                    Configurações
+                  </Button>
+                </>
+              )}
             </div>
           </div>
-          
-            <div className="flex gap-3 self-end md:self-auto">
-            <Button 
-                onClick={handleShareBot}
-              variant="outline" 
-                className="flex items-center gap-2 hover:bg-blue-500/10 hover:border-blue-500/50 transition-all"
-            >
-                <Share2 size={16} />
-                Compartilhar
-            </Button>
-            <Button 
-              variant="default" 
-                className="flex items-center gap-2 bg-accent hover:bg-accent/90 transition-all"
-              onClick={() => router.push(`/dashboard/bots/${params.id}/settings`)}
-            >
-              <Settings size={16} />
-              Configurações
-            </Button>
+        </div>
+        
+        {/* Notificação de ativação bem-sucedida */}
+        {showActivationSuccess && bot.is_activated && (
+          <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-4 mb-8">
+            <div className="flex items-start gap-3">
+              <div className="w-6 h-6 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <CheckCircle className="text-green-500 w-4 h-4" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-green-500 font-medium mb-1">🎉 Bot Ativado com Sucesso!</h3>
+                <div className="text-green-500/80 text-sm space-y-1">
+                  <p>• Seu bot <strong>{bot.name}</strong> está agora funcionando e pode receber usuários</p>
+                  <p>• Usuários podem usar /start para ver os planos disponíveis</p>
+                  <p>• Configure mensagens personalizadas abaixo para melhor experiência</p>
+                  {bot.activated_at && (
+                    <p>• Ativado em: {new Date(bot.activated_at).toLocaleString('pt-BR')}</p>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
-        </div>
+        )}
+        
+        {/* Alerta para bot não ativado */}
+        {!bot.is_activated && (
+          <div className="bg-orange-500/10 border border-orange-500/30 rounded-xl p-4 mb-8">
+            <div className="flex items-start gap-3">
+              <div className="w-6 h-6 rounded-full bg-orange-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <AlertCircle className="text-orange-500 w-4 h-4" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-orange-500 font-medium mb-1">🔑 Bot Não Ativado</h3>
+                <p className="text-orange-500/80 text-sm mb-3">
+                  Seu bot foi criado com sucesso, mas ainda precisa ser ativado para começar a funcionar. 
+                  A ativação é feita através de um código temporário que deve ser enviado em um grupo do Telegram.
+                </p>
+                <Button 
+                  onClick={() => router.push(`/dashboard/bots/${params.id}/activate`)}
+                  size="sm"
+                  className="bg-orange-600 hover:bg-orange-700 text-white"
+                >
+                  <Key className="w-4 h-4 mr-2" />
+                  Ativar Agora
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
         
         {/* Notificação para bots demo */}
         {false && bot.status === 'demo' && (
@@ -1177,11 +1428,26 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
           {/* Conteúdo da aba Planos */}
           <TabsContent value="plans">
             <div className="mb-6 flex justify-between items-center">
-              <h2 className="text-xl font-bold">Planos de Assinatura</h2>
-              <Button onClick={handleAddPlan} className="flex items-center gap-2">
-                <Plus size={16} />
-                Adicionar Plano
-              </Button>
+              <div>
+                <h2 className="text-xl font-bold">Planos de Assinatura</h2>
+                <p className="text-white/60 text-sm mt-1">
+                  Gerencie os planos que os usuários podem comprar para acessar seu bot
+                </p>
+              </div>
+              <div className="flex gap-3">
+                <Button 
+                  onClick={() => router.push(`/dashboard/bots/${params.id}/settings?tab=plans`)}
+                  variant="outline" 
+                  className="flex items-center gap-2"
+                >
+                  <Settings size={16} />
+                  Configurar Planos
+                </Button>
+                <Button onClick={handleAddPlan} className="flex items-center gap-2">
+                  <Plus size={16} />
+                  Adicionar Plano
+                </Button>
+              </div>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -1195,8 +1461,28 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
               ))}
               
               {availablePlans.length === 0 && (
-                <div className="col-span-full py-8 text-center text-white/40 bg-card border border-border-light rounded-xl p-6">
-                  Nenhum plano encontrado
+                <div className="col-span-full py-12 text-center bg-card border border-border-light rounded-xl p-6">
+                  <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-4">
+                    <CreditCard size={24} className="text-white/30" />
+                  </div>
+                  <h3 className="text-white/60 font-medium mb-2">Nenhum plano configurado</h3>
+                  <p className="text-white/40 text-sm mb-6">
+                    Configure planos para que os usuários possam comprar acesso ao seu bot
+                  </p>
+                  <div className="flex gap-3 justify-center">
+                    <Button 
+                      onClick={() => router.push(`/dashboard/bots/${params.id}/settings?tab=plans`)}
+                      variant="outline"
+                      className="flex items-center gap-2"
+                    >
+                      <Settings size={16} />
+                      Configurar Planos
+                    </Button>
+                    <Button onClick={handleAddPlan} className="flex items-center gap-2">
+                      <Plus size={16} />
+                      Criar Primeiro Plano
+                    </Button>
+                  </div>
                 </div>
               )}
             </div>

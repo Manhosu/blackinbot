@@ -40,15 +40,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             <span>Visão geral</span>
           </Link>
           
-          <Link href="/dashboard/bots" className={`sidebar-link ${isActivePath('/dashboard/bots') && !isActivePath('/dashboard/bots/test') ? 'active' : ''}`}>
+          <Link href="/dashboard/bots" className={`sidebar-link ${isActivePath('/dashboard/bots') ? 'active' : ''}`}>
             <Users size={20} />
             <span>Meus bots</span>
           </Link>
           
-          <Link href="/dashboard/bots/test" className={`sidebar-link ${isActivePath('/dashboard/bots/test') ? 'active' : ''}`}>
-            <Globe size={20} />
-            <span>🧪 Testar bots</span>
-          </Link>
+
           
           <Link href="/dashboard/sales" className={`sidebar-link ${isActivePath('/dashboard/sales') ? 'active' : ''}`}>
             <BarChart3 size={20} />

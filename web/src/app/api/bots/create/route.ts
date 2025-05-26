@@ -167,6 +167,98 @@ export async function POST(request: NextRequest) {
         
         supabaseSaveSuccess = true;
         console.log('✅ Bot salvo com sucesso no Supabase');
+        
+        // Configurar webhook automaticamente após criar o bot no Supabase
+        try {
+          console.log('🔧 Configurando webhook automaticamente para o bot criado no Supabase...');
+          
+          // Determinar URL do webhook baseado no ambiente
+          const host = request.headers.get('host');
+          const isLocalhost = host?.includes('localhost') || host?.includes('127.0.0.1');
+          
+          let webhookUrl = '';
+          if (isLocalhost || process.env.NODE_ENV === 'development') {
+            // Para desenvolvimento local, usar URL vazia (remove webhook)
+            webhookUrl = '';
+            console.log('⚠️ Ambiente de desenvolvimento detectado - webhook vazio');
+          } else {
+            // Para produção, usar URL do ambiente ou construir baseado no host
+            webhookUrl = process.env.WEBHOOK_URL || `https://${host}/api/telegram/webhook/${botId}`;
+            console.log('📡 URL do webhook para produção:', webhookUrl);
+          }
+          
+          // Configurar webhook no Telegram
+          const telegramUrl = `https://api.telegram.org/bot${body.token}/setWebhook`;
+          const webhookPayload: any = { url: webhookUrl };
+          
+          if (webhookUrl) {
+            webhookPayload.allowed_updates = ['message', 'callback_query'];
+            webhookPayload.drop_pending_updates = true;
+          } else {
+            // Para desenvolvimento, apenas remover webhook sem configurar
+            webhookPayload.drop_pending_updates = true;
+          }
+          
+          const webhookResponse = await fetch(telegramUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(webhookPayload)
+          });
+          
+          const webhookResult = await webhookResponse.json();
+          
+          if (webhookResult.ok) {
+            console.log('✅ Webhook configurado no Telegram com sucesso');
+            
+            // Atualizar bot no banco com informações do webhook
+            const { error: updateError } = await supabaseAuth
+              .from('bots')
+              .update({
+                webhook_url: webhookUrl || '',
+                webhook_set_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', botId);
+            
+            if (updateError) {
+              console.warn('⚠️ Erro ao atualizar dados do webhook no bot:', updateError);
+            } else {
+              console.log('✅ Dados do webhook salvos no banco');
+            }
+            
+            // Salvar na tabela de configurações de webhook se tiver URL
+            if (webhookUrl) {
+              try {
+                const tokenHash = Buffer.from(body.token.slice(-10)).toString('base64');
+                
+                const { error: webhookConfigError } = await supabaseAuth
+                  .from('webhook_configs')
+                  .upsert({
+                    bot_id: botId,
+                    token_hash: tokenHash,
+                    webhook_url: webhookUrl,
+                    configured_at: new Date().toISOString(),
+                    status: 'active'
+                  });
+                
+                if (webhookConfigError) {
+                  console.warn('⚠️ Erro ao salvar configuração de webhook:', webhookConfigError);
+                } else {
+                  console.log('✅ Configuração salva na tabela webhook_configs');
+                }
+              } catch (configError) {
+                console.warn('⚠️ Erro ao salvar configuração adicional:', configError);
+              }
+            }
+            
+          } else {
+            console.warn('⚠️ Falha ao configurar webhook no Telegram:', webhookResult);
+          }
+          
+        } catch (webhookError) {
+          console.warn('⚠️ Erro ao configurar webhook automaticamente (bot criado com sucesso):', webhookError);
+          // Não falhar a criação do bot se apenas o webhook falhar
+        }
       }
     } catch (dbError) {
       console.error('❌ Erro ao salvar no Supabase:', dbError);

@@ -65,6 +65,8 @@ export function RegisterForm() {
       setLoading(true);
       setSuccess("");
       
+      console.log('📝 Iniciando processo de registro...');
+      
       // 1. Cria usuário no Supabase Auth
       const { data: userData, error } = await supabase.auth.signUp({
         email: data.email,
@@ -79,13 +81,56 @@ export function RegisterForm() {
       });
 
       if (error) {
+        console.error('❌ Erro no registro Supabase Auth:', error);
         throw error;
+      }
+
+      console.log('✅ Usuário criado no Auth:', userData.user?.id);
+
+      // 2. Aguardar um momento para o trigger processar
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // 3. Atualizar dados adicionais na tabela users (telefone e telegram_id)
+      if (userData.user?.id) {
+        console.log('📞 Atualizando dados adicionais do usuário...');
+        
+        const { error: updateError } = await supabase
+          .from('users')
+          .update({
+            telegram_id: data.phone.replace(/\D/g, ""), // Usar telefone como telegram_id temporário
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', userData.user.id);
+
+        if (updateError) {
+          console.warn('⚠️ Erro ao atualizar dados adicionais:', updateError.message);
+        } else {
+          console.log('✅ Dados adicionais atualizados');
+        }
+
+        // 4. Criar perfil do usuário com dados completos
+        const { error: profileError } = await supabase
+          .from('user_profiles')
+          .insert({
+            id: userData.user.id,
+            full_name: data.name,
+            phone: data.phone.replace(/\D/g, ""),
+            cpf: data.cpf.replace(/\D/g, ""),
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          });
+
+        if (profileError && profileError.code !== '23505') { // Ignorar erro de duplicata
+          console.warn('⚠️ Erro ao criar perfil:', profileError.message);
+        } else {
+          console.log('✅ Perfil criado com sucesso');
+        }
       }
 
       setSuccess("Cadastro realizado com sucesso! Redirecionando para login...");
       setTimeout(() => router.push("/login"), 2000);
     } catch (err: any) {
-      console.error("Erro ao cadastrar:", err);
+      console.error("❌ Erro ao cadastrar:", err);
       alert(err?.message || "Erro ao cadastrar. Tente novamente.");
     } finally {
       setLoading(false);

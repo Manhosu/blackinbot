@@ -74,7 +74,7 @@ export default function SalesPage() {
           amount: parseFloat(tx.amount) || 0,
           user_name: tx.user_name || 'Usuário',
           plan_name: tx.plan_name || 'Plano padrão',
-          bot_name: tx.bots?.name || 'Bot',
+          bot_name: (tx.bots as any)?.name || 'Bot',
           status: tx.status
         }));
         

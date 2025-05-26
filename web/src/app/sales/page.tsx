@@ -1,116 +1,110 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { DashboardLayout } from '@/components/layout/dashboard-layout';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { StatCard } from '@/components/ui/stat-card';
-import { DollarSign, Search, Filter, Calendar, Download } from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
-import { toast } from 'sonner';
+import { Input } from '@/components/ui/input';
+import { 
+  Search, 
+  Filter, 
+  Download, 
+  TrendingUp, 
+  DollarSign, 
+  Users, 
+  Calendar 
+} from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 
 interface Sale {
   id: string;
-  customer: {
-    name: string;
-    email: string;
-  };
+  user_telegram_id: string;
   amount: number;
-  commission: number;
-  status: 'pending' | 'completed' | 'refunded';
+  plan_name: string;
+  bot_name: string;
+  status: string;
   created_at: string;
-  product: {
-    name: string;
-    type: string;
-  };
+  expires_at: string | null;
+}
+
+interface SalesStats {
+  transactions: number;
+  commission: number;
+  totalAmount: number;
 }
 
 export default function SalesPage() {
   const [sales, setSales] = useState<Sale[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({
+  const [stats, setStats] = useState<SalesStats>({
     transactions: 0,
     commission: 0,
     totalAmount: 0
   });
-  const [filter, setFilter] = useState({
-    dateRange: '7',
-    status: 'all',
-    search: ''
-  });
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterStatus, setFilterStatus] = useState('all');
 
-  // Simula carregamento dos dados
   useEffect(() => {
-    const fetchData = async () => {
+    async function fetchSales() {
       try {
         setLoading(true);
-        // Aqui você faria as chamadas reais à API
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Dados simulados
-        const mockSales: Sale[] = [
-          {
-            id: '1',
-            customer: {
-              name: 'João Silva',
-              email: 'joao@email.com'
-            },
-            amount: 297.00,
-            commission: 29.70,
-            status: 'completed',
-            created_at: '2024-03-20T10:00:00Z',
-            product: {
-              name: 'Grupo VIP Trading',
-              type: 'subscription'
-            }
-          },
-          {
-            id: '2',
-            customer: {
-              name: 'Maria Santos',
-              email: 'maria@email.com'
-            },
-            amount: 497.00,
-            commission: 49.70,
-            status: 'pending',
-            created_at: '2024-03-19T15:00:00Z',
-            product: {
-              name: 'Sinais Premium',
-              type: 'subscription'
-            }
-          }
-        ];
-        
-        setSales(mockSales);
+
+        // Buscar vendas com informações dos planos e bots
+        const { data: salesData, error: salesError } = await supabase
+          .from('sales')
+          .select(`
+            id,
+            user_telegram_id,
+            amount,
+            created_at,
+            expires_at,
+            plans!inner(name),
+            bots!inner(name),
+            payments!inner(status)
+          `)
+          .order('created_at', { ascending: false });
+
+        if (salesError) throw salesError;
+
+        // Formatar dados das vendas
+        const formattedSales: Sale[] = salesData?.map(sale => ({
+          id: sale.id,
+          user_telegram_id: sale.user_telegram_id,
+          amount: Number(sale.amount),
+          plan_name: (sale.plans as any)?.name || 'Plano não encontrado',
+          bot_name: (sale.bots as any)?.name || 'Bot não encontrado',
+          status: (sale.payments as any)?.status || 'unknown',
+          created_at: sale.created_at,
+          expires_at: sale.expires_at
+        })) || [];
+
+        setSales(formattedSales);
+
+        // Calcular estatísticas
+        const totalAmount = formattedSales.reduce((acc, sale) => acc + sale.amount, 0);
+        const commission = totalAmount * 0.05; // 5% de comissão
+
         setStats({
-          transactions: mockSales.length,
-          commission: mockSales.reduce((acc, sale) => acc + sale.commission, 0),
-          totalAmount: mockSales.reduce((acc, sale) => acc + sale.amount, 0)
+          transactions: formattedSales.length,
+          commission,
+          totalAmount
         });
-        
+
       } catch (error) {
-        toast.error('Erro ao carregar vendas');
+        console.error('Erro ao carregar vendas:', error);
       } finally {
         setLoading(false);
       }
-    };
-    
-    fetchData();
+    }
+
+    fetchSales();
   }, []);
 
-  const handleFilterChange = (key: string, value: string) => {
-    setFilter(prev => ({
-      ...prev,
-      [key]: value
-    }));
-  };
-
-  const handleExportSales = () => {
-    try {
-      // Aqui você implementaria a exportação real
-      toast.success('Relatório de vendas exportado com sucesso!');
-    } catch (error) {
-      toast.error('Erro ao exportar vendas');
-    }
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    }).format(value);
   };
 
   const formatDate = (dateString: string) => {
@@ -123,163 +117,168 @@ export default function SalesPage() {
     });
   };
 
-  const getStatusColor = (status: Sale['status']) => {
+  const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'completed':
-        return 'bg-green-100 text-green-800';
+      case 'paid':
+        return <Badge className="bg-green-100 text-green-800">Pago</Badge>;
       case 'pending':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'refunded':
-        return 'bg-red-100 text-red-800';
+        return <Badge className="bg-yellow-100 text-yellow-800">Pendente</Badge>;
+      case 'failed':
+        return <Badge className="bg-red-100 text-red-800">Falhou</Badge>;
       default:
-        return 'bg-gray-100 text-gray-800';
+        return <Badge className="bg-gray-100 text-gray-800">Desconhecido</Badge>;
     }
   };
 
-  const getStatusText = (status: Sale['status']) => {
-    switch (status) {
-      case 'completed':
-        return 'Concluído';
-      case 'pending':
-        return 'Pendente';
-      case 'refunded':
-        return 'Reembolsado';
-      default:
-        return status;
-    }
-  };
+  const filteredSales = sales.filter(sale => {
+    const matchesSearch = sale.user_telegram_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         sale.plan_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         sale.bot_name.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesFilter = filterStatus === 'all' || sale.status === filterStatus;
+    
+    return matchesSearch && matchesFilter;
+  });
+
+  if (loading) {
+    return (
+      <div className="container mx-auto p-6">
+        <div className="text-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-2 text-gray-600">Carregando vendas...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <DashboardLayout>
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="heading-1">Minhas vendas</h1>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={handleExportSales}>
-            <Download size={16} className="mr-2" />
-            Exportar
-          </Button>
-          <Button variant="outline">
-            <Filter size={16} className="mr-2" />
-            Filtrar
-          </Button>
+    <div className="container mx-auto p-6 space-y-6">
+      {/* Header */}
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold">Vendas</h1>
+          <p className="text-muted-foreground">Gerencie e acompanhe suas vendas</p>
         </div>
+        <Button>
+          <Download className="w-4 h-4 mr-2" />
+          Exportar
+        </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-        <StatCard 
-          title="Transações" 
-          value={stats.transactions}
-          icon={<DollarSign size={24} />}
-        />
-        <StatCard 
-          title="Comissão" 
-          value={formatCurrency(stats.commission)}
-          icon={<DollarSign size={24} />}
-        />
-        <StatCard 
-          title="Total em Vendas" 
-          value={formatCurrency(stats.totalAmount)}
-          icon={<DollarSign size={24} />}
-        />
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total de Transações</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.transactions}</div>
+            <p className="text-xs text-muted-foreground">vendas realizadas</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Receita Total</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatCurrency(stats.totalAmount)}</div>
+            <p className="text-xs text-muted-foreground">valor bruto</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Comissão</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatCurrency(stats.commission)}</div>
+            <p className="text-xs text-muted-foreground">5% sobre vendas</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Receita Líquida</CardTitle>
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatCurrency(stats.totalAmount - stats.commission)}</div>
+            <p className="text-xs text-muted-foreground">após comissões</p>
+          </CardContent>
+        </Card>
       </div>
 
-      <div className="bg-card rounded-lg border">
-        <div className="p-6 border-b">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" size={18} />
-              <input
-                type="text"
-                placeholder="Buscar por cliente, produto..."
-                className="pl-10 pr-4 py-2 w-full rounded-lg border bg-background"
-                value={filter.search}
-                onChange={(e) => handleFilterChange('search', e.target.value)}
-              />
-            </div>
-            
-            <div className="flex items-center gap-4">
-              <select
-                className="px-4 py-2 rounded-lg border bg-background"
-                value={filter.dateRange}
-                onChange={(e) => handleFilterChange('dateRange', e.target.value)}
-              >
-                <option value="7">Últimos 7 dias</option>
-                <option value="15">Últimos 15 dias</option>
-                <option value="30">Últimos 30 dias</option>
-                <option value="90">Últimos 90 dias</option>
-              </select>
-              
-              <select
-                className="px-4 py-2 rounded-lg border bg-background"
-                value={filter.status}
-                onChange={(e) => handleFilterChange('status', e.target.value)}
-              >
-                <option value="all">Todos os status</option>
-                <option value="completed">Concluídos</option>
-                <option value="pending">Pendentes</option>
-                <option value="refunded">Reembolsados</option>
-              </select>
-            </div>
-          </div>
+      {/* Filters */}
+      <div className="flex gap-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+          <Input
+            placeholder="Buscar por usuário, plano ou bot..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
         </div>
+        <select
+          value={filterStatus}
+          onChange={(e) => setFilterStatus(e.target.value)}
+          className="px-3 py-2 border rounded-md"
+        >
+          <option value="all">Todos os status</option>
+          <option value="paid">Pago</option>
+          <option value="pending">Pendente</option>
+          <option value="failed">Falhou</option>
+        </select>
+      </div>
 
-        <div className="overflow-x-auto">
-          {loading ? (
-            <div className="p-8 text-center">
-              <p className="text-muted-foreground">Carregando vendas...</p>
-            </div>
-          ) : sales.length === 0 ? (
-            <div className="p-8 text-center">
-              <p className="text-muted-foreground">Nenhuma venda encontrada</p>
+      {/* Sales Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Histórico de Vendas</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {filteredSales.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-gray-600">Nenhuma venda encontrada.</p>
             </div>
           ) : (
-            <table className="w-full">
-              <thead>
-                <tr className="border-b bg-muted/50">
-                  <th className="text-left p-4 font-medium">Cliente</th>
-                  <th className="text-left p-4 font-medium">Produto</th>
-                  <th className="text-left p-4 font-medium">Data</th>
-                  <th className="text-left p-4 font-medium">Valor</th>
-                  <th className="text-left p-4 font-medium">Comissão</th>
-                  <th className="text-left p-4 font-medium">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sales.map(sale => (
-                  <tr key={sale.id} className="border-b">
-                    <td className="p-4">
-                      <div>
-                        <p className="font-medium">{sale.customer.name}</p>
-                        <p className="text-sm text-muted-foreground">{sale.customer.email}</p>
-                      </div>
-                    </td>
-                    <td className="p-4">
-                      <div>
-                        <p className="font-medium">{sale.product.name}</p>
-                        <p className="text-sm text-muted-foreground capitalize">{sale.product.type}</p>
-                      </div>
-                    </td>
-                    <td className="p-4">
-                      <p className="text-sm">{formatDate(sale.created_at)}</p>
-                    </td>
-                    <td className="p-4">
-                      <p className="font-medium">{formatCurrency(sale.amount)}</p>
-                    </td>
-                    <td className="p-4">
-                      <p className="font-medium">{formatCurrency(sale.commission)}</p>
-                    </td>
-                    <td className="p-4">
-                      <span className={`px-3 py-1 rounded-full text-sm ${getStatusColor(sale.status)}`}>
-                        {getStatusText(sale.status)}
-                      </span>
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left p-2">Usuário</th>
+                    <th className="text-left p-2">Plano</th>
+                    <th className="text-left p-2">Bot</th>
+                    <th className="text-left p-2">Valor</th>
+                    <th className="text-left p-2">Status</th>
+                    <th className="text-left p-2">Data</th>
+                    <th className="text-left p-2">Expira em</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {filteredSales.map((sale) => (
+                    <tr key={sale.id} className="border-b hover:bg-gray-50">
+                      <td className="p-2">{sale.user_telegram_id}</td>
+                      <td className="p-2">{sale.plan_name}</td>
+                      <td className="p-2">{sale.bot_name}</td>
+                      <td className="p-2 font-medium">{formatCurrency(sale.amount)}</td>
+                      <td className="p-2">{getStatusBadge(sale.status)}</td>
+                      <td className="p-2">{formatDate(sale.created_at)}</td>
+                      <td className="p-2">
+                        {sale.expires_at ? formatDate(sale.expires_at) : 'Sem expiração'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
-        </div>
-      </div>
-    </DashboardLayout>
+        </CardContent>
+      </Card>
+    </div>
   );
 } 

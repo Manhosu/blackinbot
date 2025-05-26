@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 import uvicorn
 
 # Importar routers
-from .routers import bots, payments, plans
+from .routers import bots, payments, plans, telegram
 
 # Carregar variáveis de ambiente
 load_dotenv()
@@ -30,6 +30,7 @@ app.add_middleware(
 app.include_router(bots.router)
 app.include_router(payments.router)
 app.include_router(plans.router)
+app.include_router(telegram.router)
 
 # Rota raiz para verificar se a API está funcionando
 @app.get("/")

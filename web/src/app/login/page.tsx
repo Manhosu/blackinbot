@@ -29,6 +29,7 @@ export default function LoginPage() {
           alt="BLACKINPAY" 
           width={100} 
           height={100} 
+          style={{ height: "auto" }}
           className="object-contain mb-2 drop-shadow-lg"
           priority
         />

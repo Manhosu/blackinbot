@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { Users, AlertTriangle, Clock, CheckCircle, XCircle, RefreshCw, Trash2 } from 'lucide-react';
+import { Users, AlertTriangle, Clock, CheckCircle, XCircle, RefreshCw, Trash2, Download } from 'lucide-react';
 import { toast } from 'sonner';
 
 // Componente para estatísticas
@@ -159,10 +159,13 @@ export default function MarketingPage() {
     members_to_remove: 0
   });
   const [autoRemoving, setAutoRemoving] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [lastSync, setLastSync] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
       fetchMarketingData();
+      checkSyncStatus();
     }
   }, [user]);
 
@@ -191,6 +194,90 @@ export default function MarketingPage() {
       setSummary({ total_groups: 0, total_members: 0, active_members: 0, members_to_remove: 0 });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const checkSyncStatus = async () => {
+    try {
+      const response = await fetch(`/api/remarketing/sync-telegram?user_id=${user?.id}`);
+      if (response.ok) {
+        const data = await response.json();
+        setLastSync(data.last_check);
+      }
+    } catch (error) {
+      console.error('Erro ao verificar status de sincronização:', error);
+    }
+  };
+
+  const handleSyncTelegram = async () => {
+    if (!confirm('Deseja sincronizar com os dados reais do Telegram? Isso pode demorar alguns minutos.')) {
+      return;
+    }
+
+    setSyncing(true);
+    try {
+      const response = await fetch('/api/remarketing/sync-telegram', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          user_id: user?.id
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        toast.success(`Sincronização concluída! ${data.summary.total_groups_found} grupos e ${data.summary.total_members_found} membros encontrados.`);
+        
+        // Recarregar dados após sincronização
+        await fetchMarketingData();
+        await checkSyncStatus();
+      } else {
+        const error = await response.json();
+        toast.error(error.error || 'Erro na sincronização com Telegram');
+      }
+    } catch (error) {
+      console.error('Erro na sincronização:', error);
+      toast.error('Erro na sincronização com Telegram');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const handleRealSync = async () => {
+    if (!confirm('Deseja fazer uma sincronização REAL com grupos do Telegram? Esta função busca dados reais dos grupos onde seus bots estão.')) {
+      return;
+    }
+
+    setSyncing(true);
+    try {
+      const response = await fetch('/api/remarketing/real-sync', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          user_id: user?.id
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        toast.success(`Sincronização REAL concluída! ${data.summary.total_groups_found} grupos e ${data.summary.total_members_found} membros reais encontrados.`);
+        
+        // Recarregar dados após sincronização
+        await fetchMarketingData();
+        await checkSyncStatus();
+      } else {
+        const error = await response.json();
+        toast.error(error.error || 'Erro na sincronização real');
+      }
+    } catch (error) {
+      console.error('Erro na sincronização real:', error);
+      toast.error('Erro na sincronização real');
+    } finally {
+      setSyncing(false);
     }
   };
 
@@ -261,6 +348,24 @@ export default function MarketingPage() {
             Atualizar
           </button>
           
+          <button 
+            onClick={handleSyncTelegram}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors"
+            disabled={syncing}
+          >
+            <Download size={16} className={syncing ? 'animate-pulse' : ''} />
+            {syncing ? 'Sincronizando...' : 'Sincronizar Telegram'}
+          </button>
+          
+          <button 
+            onClick={handleRealSync}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white transition-colors"
+            disabled={syncing}
+          >
+            <Download size={16} className={syncing ? 'animate-pulse' : ''} />
+            {syncing ? 'Sincronizando...' : 'Sincronizar REAL'}
+          </button>
+          
           {summary.members_to_remove > 0 && (
             <button 
               onClick={handleAutoRemoveMembers}
@@ -323,7 +428,40 @@ export default function MarketingPage() {
             <span className="ml-2 font-medium text-red-500">{summary.members_to_remove}</span>
           </div>
         </div>
-            </div>
+      </div>
+
+      {/* Informações de Sincronização */}
+      <div className="bg-card border border-border-light rounded-xl p-6 mb-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h3 className="text-lg font-semibold mb-2">Sincronização com Telegram</h3>
+            <p className="text-white/60 text-sm">
+              {lastSync 
+                ? `Última verificação: ${new Date(lastSync).toLocaleString('pt-BR')}`
+                : 'Nunca sincronizado'
+              }
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            {syncing ? (
+              <div className="flex items-center gap-2 text-blue-500">
+                <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                <span className="text-sm">Sincronizando...</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 text-green-500">
+                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                <span className="text-sm">Pronto para sincronizar</span>
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="mt-4 text-sm text-white/60">
+          <p>• A sincronização busca grupos reais onde seus bots estão ativos</p>
+          <p>• Apenas administradores dos grupos são incluídos como membros</p>
+          <p>• Dados são atualizados automaticamente no banco</p>
+        </div>
+      </div>
             
       {/* Lista de grupos */}
       {groups.length > 0 ? (

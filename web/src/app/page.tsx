@@ -15,15 +15,7 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
-// Add prefetch directive
-// @ts-ignore
-export const prefetch = true;
-// Add dynamic directive for dynamic rendering 
-// @ts-ignore
-export const dynamic = 'force-dynamic';
-// Add preload directive for important assets
-// @ts-ignore
-export const preload = ['font', 'script', 'style'];
+// Configurações do Next.js removidas - causavam erro de build
 
 export default function HomePage() {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -67,7 +59,7 @@ export default function HomePage() {
               alt="BLACKINPAY" 
               width={36} 
               height={36} 
-              style={{ width: 36, height: 36, objectFit: 'contain', borderRadius: 8, background: '#fff' }}
+              style={{ width: 36, height: "auto", objectFit: 'contain', borderRadius: 8, background: '#fff' }}
               priority
             />
             <span className="text-white text-2xl font-bold font-heading tracking-tight" style={{lineHeight: '36px'}}>BLACKINPAY</span>
@@ -139,28 +131,29 @@ export default function HomePage() {
                 <Sparkles size={18} className="text-white" />
               </div>
               
-              <div className="text-3xl mb-4">📱</div>
-              <h3 className="text-xl font-bold mb-2 font-heading">Bot de Demonstração</h3>
+              <div className="text-3xl mb-4">🤖</div>
+              <h3 className="text-xl font-bold mb-2 font-heading">Sistema Automatizado</h3>
               <div className="bg-black/30 rounded-xl p-5 mb-4 backdrop-blur-sm">
-                <p className="text-sm text-left mb-3 text-white/90">Bem-vindo(a)! 👋</p>
-                <p className="text-sm text-left mb-3 text-white/90">Obtenha acesso exclusivo ao nosso grupo VIP!</p>
-                <p className="text-sm text-left mb-3 text-white/90">Escolha o plano que melhor se adequa a você:</p>
+                <p className="text-sm text-left mb-3 text-white/90">✅ Pagamentos via PIX automáticos</p>
+                <p className="text-sm text-left mb-3 text-white/90">✅ Adição/remoção de membros instantânea</p>
+                <p className="text-sm text-left mb-3 text-white/90">✅ Controle de acesso por tempo</p>
+                <p className="text-sm text-left mb-3 text-white/90">✅ Notificações de vencimento</p>
                 
                 <div className="mt-4 space-y-3">
-                  <div className="bg-white/5 rounded-lg p-3 text-left border border-white/10 transition-all hover:border-accent/30 hover:bg-white/10 cursor-pointer">
-                    <p className="text-sm"><strong className="text-accent">Plano Mensal</strong>: R$ 19,90 / 1 Mês</p>
+                  <div className="bg-white/5 rounded-lg p-3 text-left border border-white/10">
+                    <p className="text-sm"><strong className="text-accent">Configuração Simples</strong>: 5 minutos para ativar</p>
                   </div>
-                  <div className="bg-white/5 rounded-lg p-3 text-left border border-white/10 transition-all hover:border-accent/30 hover:bg-white/10 cursor-pointer">
-                    <p className="text-sm"><strong className="text-accent">Plano Trimestral</strong>: R$ 49,90 / 3 Meses</p>
+                  <div className="bg-white/5 rounded-lg p-3 text-left border border-white/10">
+                    <p className="text-sm"><strong className="text-accent">Suporte 24/7</strong>: Ajuda sempre disponível</p>
                   </div>
                 </div>
                 
-                <button className="w-full bg-gradient-primary text-white rounded-lg py-2.5 px-4 mt-5 font-medium hover:shadow-glow transition-all active:scale-95">
-                  Gerar QR Code Pix
-                </button>
+                <div className="w-full bg-gradient-primary text-white rounded-lg py-2.5 px-4 mt-5 font-medium text-center">
+                  Sistema 100% Automatizado
+                </div>
               </div>
               <p className="text-white/60 text-sm">
-                Visualize como seu bot aparecerá para os clientes
+                Automatize completamente suas vendas de acesso
               </p>
             </div>
             
@@ -365,21 +358,21 @@ export default function HomePage() {
               <div className="glass-card animate-float">
                 <div className="space-y-4">
                   <div className="flex items-center gap-4 p-3 rounded-xl bg-white/5 border border-accent/20">
-                    <div className="w-10 h-10 rounded-full bg-gradient-accent flex items-center justify-center text-white">C</div>
+                    <div className="w-10 h-10 rounded-full bg-gradient-accent flex items-center justify-center text-white">✓</div>
                     <div>
-                      <p className="font-medium">Carlos M.</p>
-                      <p className="text-sm text-white/60">Sala de Sinais</p>
+                      <p className="font-medium">Membro Adicionado</p>
+                      <p className="text-sm text-white/60">Grupo VIP Premium</p>
                     </div>
                     <div className="ml-auto py-1 px-3 rounded-full bg-accent/10 text-accent text-xs font-medium">
-                      Adicionado
+                      Ativo
                     </div>
                   </div>
                   
                   <div className="flex items-center gap-4 p-3 rounded-xl bg-white/5">
-                    <div className="w-10 h-10 rounded-full bg-red-500/80 flex items-center justify-center text-white">F</div>
+                    <div className="w-10 h-10 rounded-full bg-red-500/80 flex items-center justify-center text-white">✗</div>
                     <div>
-                      <p className="font-medium">Fabricio S.</p>
-                      <p className="text-sm text-white/60">Mentoria VIP</p>
+                      <p className="font-medium">Acesso Expirado</p>
+                      <p className="text-sm text-white/60">Grupo Sinais</p>
                     </div>
                     <div className="ml-auto py-1 px-3 rounded-full bg-red-500/10 text-red-400 text-xs font-medium">
                       Removido
@@ -387,24 +380,24 @@ export default function HomePage() {
                   </div>
                   
                   <div className="flex items-center gap-4 p-3 rounded-xl bg-white/5">
-                    <div className="w-10 h-10 rounded-full bg-amber-500/80 flex items-center justify-center text-white">J</div>
+                    <div className="w-10 h-10 rounded-full bg-amber-500/80 flex items-center justify-center text-white">⏳</div>
                     <div>
-                      <p className="font-medium">Jhony M.</p>
-                      <p className="text-sm text-white/60">Mentoria VIP</p>
+                      <p className="font-medium">Pagamento Pendente</p>
+                      <p className="text-sm text-white/60">Aguardando PIX</p>
                     </div>
                     <div className="ml-auto py-1 px-3 rounded-full bg-amber-500/10 text-amber-400 text-xs font-medium">
-                      Pagamento Pendente
+                      Pendente
                     </div>
                   </div>
                   
                   <div className="flex items-center gap-4 p-3 rounded-xl bg-white/5 border border-accent/20">
-                    <div className="w-10 h-10 rounded-full bg-gradient-accent flex items-center justify-center text-white">R</div>
+                    <div className="w-10 h-10 rounded-full bg-gradient-accent flex items-center justify-center text-white">💰</div>
                     <div>
-                      <p className="font-medium">Rafael T.</p>
-                      <p className="text-sm text-white/60">Sala de Sinais</p>
+                      <p className="font-medium">Pagamento Confirmado</p>
+                      <p className="text-sm text-white/60">Processando acesso</p>
                     </div>
                     <div className="ml-auto py-1 px-3 rounded-full bg-accent/10 text-accent text-xs font-medium">
-                      Adicionado
+                      Processando
                     </div>
                   </div>
                 </div>

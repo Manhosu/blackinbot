@@ -75,7 +75,7 @@ export default function BotsPage() {
               }));
               
               // Ordenar por data de criação (mais recentes primeiro)
-              formattedBots.sort((a: Bot, b: Bot) => {
+              formattedBots.sort((a: any, b: any) => {
                 const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
                 const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
                 return dateB - dateA;
