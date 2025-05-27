@@ -19,6 +19,14 @@ const nextConfig = {
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL || 'https://blackinbot.vercel.app',
   },
   
+  // Configurações para upload de arquivos
+  serverRuntimeConfig: {
+    maxFileSize: 10 * 1024 * 1024, // 10MB
+  },
+  publicRuntimeConfig: {
+    maxFileSize: 10 * 1024 * 1024, // 10MB
+  },
+  
   // Images config
   images: {
     unoptimized: true,

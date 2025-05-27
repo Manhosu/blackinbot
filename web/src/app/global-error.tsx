@@ -8,8 +8,8 @@ export default function GlobalError({
   reset: () => void;
 }) {
   return (
-    <html>
-      <body>
+    <html lang="pt-BR">
+      <body style={{ margin: 0, padding: 0, fontFamily: 'system-ui, sans-serif' }}>
         <div className="min-h-screen bg-black text-white flex items-center justify-center">
           <div className="max-w-md w-full mx-4 text-center space-y-6">
             <div className="space-y-2">

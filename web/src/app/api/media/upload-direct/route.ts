@@ -3,6 +3,9 @@ import { supabase } from '@/lib/supabase';
 
 // Configuração para aceitar uploads de arquivos
 export const runtime = 'nodejs';
+export const maxDuration = 60;
+
+// Configuração para Next.js App Router (sem export config - deprecated)
 
 export async function POST(request: NextRequest) {
   try {
@@ -81,15 +84,15 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
     
-    // Validar tamanho
-    const maxSize = mediaType === 'image' ? 10 * 1024 * 1024 : 100 * 1024 * 1024;
+    // Validar tamanho (Vercel tem limite de 4.5MB por padrão)
+    const maxSize = mediaType === 'image' ? 4 * 1024 * 1024 : 4 * 1024 * 1024; // 4MB para ambos no Vercel
     if (file.size > maxSize) {
       const maxSizeMB = maxSize / (1024 * 1024);
       return NextResponse.json({
         success: false,
-        error: `Arquivo muito grande. Máximo: ${maxSizeMB}MB`,
+        error: `Arquivo muito grande para Vercel. Máximo: ${maxSizeMB}MB`,
         code: 'FILE_TOO_LARGE'
-      }, { status: 400 });
+      }, { status: 413 });
     }
     
     // Gerar nome único para o arquivo
