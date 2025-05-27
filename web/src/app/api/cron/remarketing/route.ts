@@ -239,7 +239,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Filtrar apenas membros dos grupos deste bot
-    const botMembers = (members || []).filter(member => 
+    const botMembers = (members || []).filter((member: any) => 
       member.groups?.bot_id === bot_id
     );
     
@@ -253,7 +253,7 @@ export async function POST(request: NextRequest) {
         bot_name: bot.name,
         remarketing_message: bot.remarketing_message,
         members_found: botMembers.length,
-        members: botMembers.map(m => ({
+        members: botMembers.map((m: any) => ({
           name: m.name,
           telegram_id: m.telegram_id,
           expires_at: m.expires_at,

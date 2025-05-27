@@ -90,10 +90,10 @@ export default function FinanceiroPage() {
         .from('payments')
         .select('amount, status')
         .eq('status', 'approved')
-        .in('bot_id', (botsData || []).map(bot => bot.id));
+        .in('bot_id', (botsData || []).map((bot: any) => bot.id));
 
       if (!salesError && salesData) {
-        const totalRevenue = salesData.reduce((sum, sale) => sum + Number(sale.amount), 0);
+        const totalRevenue = salesData.reduce((sum: number, sale: any) => sum + Number(sale.amount), 0);
         setStats({
           total_sales: salesData.length,
           total_revenue: totalRevenue,
@@ -267,7 +267,10 @@ export default function FinanceiroPage() {
                 onError={(e) => {
                   // Fallback para texto se logo não carregar
                   e.currentTarget.style.display = 'none';
-                  e.currentTarget.nextElementSibling.style.display = 'block';
+                  const nextElement = e.currentTarget.nextElementSibling as HTMLElement;
+                  if (nextElement) {
+                    nextElement.style.display = 'block';
+                  }
                 }}
               />
               <div style={{ display: 'none' }} className="text-xl font-bold text-accent">

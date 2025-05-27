@@ -162,7 +162,7 @@ export async function createPushinPayment(
   const totalPlatformFee = platformFeeFixed + platformFeePercentage;
   const ownerAmount = totalAmount - totalPlatformFee;
   
-  const data = {
+  const baseData = {
     amount: totalAmount,
     description: paymentData.description,
     external_reference: paymentData.external_reference,
@@ -172,7 +172,11 @@ export async function createPushinPayment(
     return_url: `${process.env.NEXT_PUBLIC_APP_URL}/payment/success`,
     cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/payment/cancel`,
     notification_url: `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/pushinpay`,
-    // Split automático
+  };
+
+  // Se tiver chave do usuário, adicionar split automático
+  const data = userPushinPayKey ? {
+    ...baseData,
     splits: [
       {
         // Admin (plataforma)
@@ -187,11 +191,9 @@ export async function createPushinPayment(
         description: "Pagamento para o proprietário do bot"
       }
     ]
-  };
+  } : baseData;
 
-  // Se não tiver chave do usuário, usar apenas a chave admin (fallback)
   if (!userPushinPayKey) {
-    delete data.splits;
     console.log('⚠️ Usando chave admin como fallback - sem split');
   }
 

@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
       const { data: groups, error: groupsError } = await supabase
         .from('groups')
         .select('*, bots:bot_id(token)')
-        .in('bot_id', userBots.map(bot => bot.id));
+        .in('bot_id', userBots.map((bot: any) => bot.id));
 
       if (groupsError) {
         return NextResponse.json({

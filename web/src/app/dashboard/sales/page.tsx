@@ -96,7 +96,7 @@ export default function SalesPage() {
       
         // Calcular estatísticas
         const totalTransactions = allSales.length;
-        const totalCommission = allSales.reduce((sum, sale) => {
+        const totalCommission = allSales.reduce((sum: number, sale: any) => {
           // Cálculo de comissão (90% para o proprietário do bot)
           return sum + (sale.amount * 0.9);
         }, 0);

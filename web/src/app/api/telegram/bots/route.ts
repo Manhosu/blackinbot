@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Formatar bots para o webhook manager
-    const botsFormatted = bots.map(bot => ({
+    const botsFormatted = bots.map((bot: any) => ({
       bot_id: bot.id,
       bot_name: bot.name,
       token: bot.token,

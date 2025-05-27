@@ -8,10 +8,14 @@ interface RouteParams {
 }
 
 // Função para criar cliente Supabase administrativo
-function createSupabaseAdminClient() {
-  const url = 'https://xcnhlmqkovfaqyjxwdje.supabase.co';
-  const key = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhjbmhsbXFrb3ZmYXF5anh3ZGplIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NzY5MDQ1NiwiZXhwIjoyMDYzMjY2NDU2fQ.-nZKTJD77uUtCglMY3zs1Jkcoq_KiZsy9NLIbJlW9Eg';
-  
+function createSupabaseAdmin() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!url || !key) {
+    throw new Error('Missing Supabase environment variables');
+  }
+
   return createClient(url, key);
 }
 
@@ -121,7 +125,7 @@ async function sendTelegramMessage(botToken: string, chatId: number, text: strin
 
 async function getBotById(botId: string): Promise<BotConfig | null> {
   try {
-    const supabase = createSupabaseAdminClient();
+    const supabase = createSupabaseAdmin();
     const { data: bot, error } = await supabase
       .from('bots')
       .select('id, name, token, username, is_activated, welcome_message, welcome_media_url, welcome_media_type')
@@ -142,7 +146,7 @@ async function getBotById(botId: string): Promise<BotConfig | null> {
 
 async function getBotPlans(botId: string): Promise<Plan[]> {
   try {
-    const supabase = createSupabaseAdminClient();
+    const supabase = createSupabaseAdmin();
     const { data: plans, error } = await supabase
       .from('plans')
       .select('id, name, price')
@@ -166,7 +170,7 @@ async function activateBotWithCode(code: string, userId: number, chatId: number,
   try {
     console.log(`🔑 Tentando ativar bot ${botId} com código ${code}`);
     
-    const supabase = createSupabaseAdminClient();
+    const supabase = createSupabaseAdmin();
 
     // Buscar código de ativação
     const { data: codeData, error: codeError } = await supabase
@@ -384,7 +388,7 @@ async function handleCallbackQuery(update: TelegramUpdate, bot: BotConfig) {
     
     try {
       // Buscar detalhes do plano
-      const supabase = createSupabaseAdminClient();
+      const supabase = createSupabaseAdmin();
       const { data: plan, error: planError } = await supabase
         .from('plans')
         .select('id, name, price, description, period_days')
@@ -494,7 +498,7 @@ async function handleCallbackQuery(update: TelegramUpdate, bot: BotConfig) {
     
     try {
       // Buscar dados do pagamento
-      const supabase = createSupabaseAdminClient();
+      const supabase = createSupabaseAdmin();
       const { data: payment, error } = await supabase
         .from('payments')
         .select('qr_code_base64, amount, plans(name)')

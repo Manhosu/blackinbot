@@ -68,7 +68,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     console.log(`👑 Encontrados ${administrators.length} administradores`);
     
     // Buscar o criador do grupo (owner)
-    const groupCreator = administrators.find(admin => admin.status === 'creator');
+    const groupCreator = administrators.find((admin: any) => admin.status === 'creator');
     
     if (!groupCreator) {
       return NextResponse.json({

@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { Users, AlertTriangle, Clock, CheckCircle, XCircle, RefreshCw, Settings, Save, MessageSquare, Crown, Sync } from 'lucide-react';
+import { Users, AlertTriangle, Clock, CheckCircle, XCircle, RefreshCw, Settings, Save, MessageSquare, Crown } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -64,7 +64,10 @@ const MemberItem = ({ member }: { member: any }) => {
                 onError={(e) => {
                   // Fallback para quando a imagem não carrega
                   e.currentTarget.style.display = 'none';
-                  e.currentTarget.nextElementSibling.style.display = 'flex';
+                  const nextElement = e.currentTarget.nextElementSibling as HTMLElement;
+                  if (nextElement) {
+                    nextElement.style.display = 'flex';
+                  }
                 }}
               />
             ) : null}
@@ -197,7 +200,8 @@ export default function MarketingPage() {
     total: 0,
     active: 0,
     expiring_soon: 0,
-    expired: 0
+    expired: 0,
+    admins: 0
   });
   const [summary, setSummary] = useState({
     total_groups: 0,
@@ -244,7 +248,7 @@ export default function MarketingPage() {
       if (response.ok) {
         const data = await response.json();
         setGroups(data.groups || []);
-        setStats(data.total_stats || { total: 0, active: 0, expiring_soon: 0, expired: 0 });
+        setStats(data.total_stats || { total: 0, active: 0, expiring_soon: 0, expired: 0, admins: 0 });
         setSummary(data.summary || { total_groups: 0, total_members: 0, active_members: 0, members_to_remove: 0 });
       } else {
         console.error('Erro ao buscar dados de remarketing');

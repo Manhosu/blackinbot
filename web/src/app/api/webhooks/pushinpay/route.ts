@@ -2,10 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
 // Função para criar cliente Supabase com Service Role Key
-function createSupabaseServiceClient() {
-  const url = 'https://xcnhlmqkovfaqyjxwdje.supabase.co';
-  const serviceKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhjbmhsbXFrb3ZmYXF5anh3ZGplIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NzY5MDQ1NiwiZXhwIjoyMDYzMjY2NDU2fQ.-nZKTJD77uUtCglMY3zs1Jkcoq_KiZsy9NLIbJlW9Eg';
-  
+function createSupabaseAdmin() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!url || !serviceKey) {
+    throw new Error('Missing Supabase environment variables');
+  }
+
   return createClient(url, serviceKey);
 }
 
@@ -51,7 +55,7 @@ export async function POST(request: NextRequest) {
 
     console.log(`💳 Processando pagamento ${pushinpayId} - Status: ${status}`);
 
-    const supabase = createSupabaseServiceClient();
+    const supabase = createSupabaseAdmin();
     console.log('✅ Cliente Supabase criado com sucesso');
 
     // Buscar pagamento no banco pelo pushinpay_id

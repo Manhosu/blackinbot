@@ -61,7 +61,7 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    const botIds = userBots.map(bot => bot.id);
+    const botIds = userBots.map((bot: any) => bot.id);
     console.log('🤖 IDs dos bots:', botIds);
 
     // Buscar grupos dos bots do usuário
@@ -133,7 +133,7 @@ export async function GET(req: NextRequest) {
             
             if (telegramResult.ok) {
               const administrators = telegramResult.result || [];
-              const groupCreator = administrators.find(admin => admin.status === 'creator');
+                              const groupCreator = administrators.find((admin: any) => admin.status === 'creator');
               
               if (groupCreator && !groupCreator.user.is_bot) {
                 // Buscar foto do perfil
@@ -399,7 +399,7 @@ export async function POST(req: NextRequest) {
       }
 
       // Filtrar membros que devem ser removidos
-      const membersToRemove = (expiredMembers || []).filter(member => {
+      const membersToRemove = (expiredMembers || []).filter((member: any) => {
         if (!member.transactions || !member.transactions.expires_at) return false;
         
         const expiresAt = new Date(member.transactions.expires_at);
@@ -407,7 +407,7 @@ export async function POST(req: NextRequest) {
       });
 
       if (membersToRemove.length > 0) {
-        const memberIds = membersToRemove.map(m => m.id);
+        const memberIds = membersToRemove.map((m: any) => m.id);
         
         // Remover membros
         const { error: removeError } = await supabaseAdmin

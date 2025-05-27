@@ -283,7 +283,7 @@ export async function GET(req: NextRequest) {
       });
     }
     
-    const botIds = userBots.map(bot => bot.id);
+    const botIds = userBots.map((bot: any) => bot.id);
     
     // Contar grupos
     const { count: groupsCount } = await supabaseAdmin

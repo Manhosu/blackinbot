@@ -3,10 +3,14 @@ import { createPushinPayment, convertToCents } from '@/lib/pushinpay';
 import { createClient } from '@supabase/supabase-js';
 
 // Função para criar cliente Supabase com Service Role Key
-function createSupabaseServiceClient() {
-  const url = 'https://xcnhlmqkovfaqyjxwdje.supabase.co';
-  const serviceKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhjbmhsbXFrb3ZmYXF5anh3ZGplIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NzY5MDQ1NiwiZXhwIjoyMDYzMjY2NDU2fQ.-nZKTJD77uUtCglMY3zs1Jkcoq_KiZsy9NLIbJlW9Eg';
-  
+function createSupabaseAdmin() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!url || !serviceKey) {
+    throw new Error('Missing Supabase environment variables');
+  }
+
   return createClient(url, serviceKey);
 }
 
@@ -25,7 +29,7 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    const supabase = createSupabaseServiceClient();
+    const supabase = createSupabaseAdmin();
     
     // Buscar dados do bot e do proprietário
     const { data: bot, error: botError } = await supabase
@@ -54,7 +58,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Verificar se o proprietário tem chave PushinPay configurada
-    if (!bot.users?.pushinpay_key) {
+    const userPushinPayKey = (bot.users as any)?.pushinpay_key;
+    if (!userPushinPayKey) {
       console.error('❌ Proprietário sem chave PushinPay:', bot.owner_id);
       return NextResponse.json({
         success: false,
@@ -86,7 +91,7 @@ export async function POST(request: NextRequest) {
       external_reference: `bot_${bot_id}_user_${user_telegram_id}_${Date.now()}`,
       expires_in_minutes: 15,
       payer: user_name ? { name: user_name } : undefined
-    }, bot.users.pushinpay_key);
+    }, userPushinPayKey);
     
     if (!paymentResult.success) {
       console.error('❌ Erro no PushinPay:', paymentResult.error);
@@ -113,7 +118,7 @@ export async function POST(request: NextRequest) {
         metadata: {
           ...(paymentResult.data.split_info || {}),
           bot_owner_id: bot.owner_id,
-          user_pushinpay_key_used: bot.users.pushinpay_key.substring(0, 10) + '...'
+          user_pushinpay_key_used: userPushinPayKey.substring(0, 10) + '...'
         }
       })
       .select()
