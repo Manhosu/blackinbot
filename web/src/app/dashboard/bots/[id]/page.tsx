@@ -644,49 +644,26 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
     console.log('🔥 Custom message:', customMessage);
     console.log('🔥 Custom media:', customMedia);
     
+    // TESTE VERCEL - Apenas mostrar alert
+    alert(`TESTE VERCEL: Função chamada!\nBot ID: ${bot?.id}\nMensagem: ${customMessage?.substring(0, 50)}...`);
+    
+    toast.success('🎉 TESTE: Função de salvar foi executada!', {
+      description: `Bot: ${bot?.name} | Mensagem: ${customMessage?.length} caracteres`,
+      duration: 5000
+    });
+    
     if (!bot) {
       console.log('❌ Bot não encontrado!');
+      toast.error('Bot não encontrado!');
       return;
     }
 
     setIsSavingCustomContent(true);
+    
     try {
       console.log('💬 Salvando conteúdo personalizado...');
       
-      let mediaUrl = customMedia;
-      
-      // Se for upload de arquivo, primeiro fazer o upload direto ao Supabase
-      if (mediaSource === 'upload' && mediaFile) {
-        try {
-          console.log('🚀 Iniciando upload direto para Supabase Storage...');
-          
-          const uploadResult = await uploadFile(mediaFile, {
-            botId: bot.id,
-            mediaType: mediaType as 'image' | 'video',
-            onProgress: setUploadProgress
-          });
-          
-          if (uploadResult.success && uploadResult.url) {
-            mediaUrl = uploadResult.url;
-            console.log('✅ Upload direto realizado com sucesso:', mediaUrl);
-            toast.success('📤 Arquivo enviado com sucesso!', {
-              description: 'Agora salvando as configurações...',
-              duration: 3000
-            });
-          } else {
-            throw new Error(uploadResult.error || 'Erro no upload');
-          }
-        } catch (uploadError) {
-          console.error('❌ Erro no upload direto:', uploadError);
-          toast.error('❌ Falha no envio do arquivo', {
-            description: 'Verifique o arquivo e tente novamente ou use uma URL direta',
-            duration: 5000
-          });
-          setIsSavingCustomContent(false);
-          return;
-        }
-      }
-      
+      // TESTE SIMPLIFICADO - apenas a chamada da API
       const response = await fetch(`/api/bots/${bot.id}`, {
         method: 'PATCH',
         headers: { 
@@ -695,36 +672,26 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
         credentials: 'include',
         body: JSON.stringify({
           welcome_message: customMessage,
-          welcome_media_url: mediaUrl,
         })
       });
 
       const result = await response.json();
+      console.log('📤 Resposta da API:', result);
       
       if (result.success) {
-        // Feedback visual aprimorado
-        toast.success('🎉 Mensagem de boas-vindas atualizada com sucesso!', {
-          description: 'Seus usuários agora receberão a nova mensagem personalizada',
+        toast.success('🎉 Sucesso no teste!', {
+          description: 'API respondeu com sucesso',
           duration: 4000
         });
-        
-        // Atualizar estados locais
-        setCustomMedia(mediaUrl);
-        if (mediaSource === 'upload' && mediaFile) {
-          setMediaFile(null);
-          setMediaPreview(null);
-        }
-        
-        await loadBot();
       } else {
-        toast.error('❌ Erro ao salvar configuração', {
-          description: result.error || 'Tente novamente em alguns instantes',
+        toast.error('❌ Erro no teste', {
+          description: result.error || 'API retornou erro',
           duration: 4000
         });
       }
     } catch (error) {
-      console.error('❌ Erro ao salvar conteúdo:', error);
-      toast.error('Erro interno ao salvar conteúdo.');
+      console.error('❌ Erro no teste:', error);
+      toast.error('Erro no teste: ' + error.message);
     } finally {
       setIsSavingCustomContent(false);
     }
@@ -1279,19 +1246,19 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
                 <div className="text-sm text-white/60">
                   {customMessage ? '✅ Mensagem configurada' : '⏳ Configure sua mensagem'}
                 </div>
-                {/* Debug constante do estado do botão */}
-                {console.log('🎯 RENDER BOTÃO - customMessage:', customMessage?.length || 0, 'chars')}
-                {console.log('🎯 RENDER BOTÃO - disabled?', isSavingCustomContent || isUploading || !customMessage)}
+                
+                {/* DEBUG VERCEL */}
+                <div className="text-xs bg-red-900 text-white p-2 rounded mb-2 border">
+                  <div>🔍 DEBUG VERCEL:</div>
+                  <div>• customMessage: {customMessage ? `"${customMessage.substring(0, 50)}..." (${customMessage.length} chars)` : 'VAZIO'}</div>
+                  <div>• isSavingCustomContent: {isSavingCustomContent ? 'TRUE' : 'FALSE'}</div>
+                  <div>• isUploading: {isUploading ? 'TRUE' : 'FALSE'}</div>
+                  <div>• botId: {bot?.id || 'UNDEFINED'}</div>
+                  <div>• disabled: {(isSavingCustomContent || isUploading || !customMessage) ? 'TRUE' : 'FALSE'}</div>
+                </div>
+                
                 <Button
-                  onClick={() => {
-                    alert('TESTE: Botão foi clicado!');
-                    console.log('🔥 BOTÃO CLICADO!');
-                    console.log('🔥 Disabled?', isSavingCustomContent || isUploading || !customMessage);
-                    console.log('🔥 isSavingCustomContent:', isSavingCustomContent);
-                    console.log('🔥 isUploading:', isUploading);
-                    console.log('🔥 customMessage:', customMessage);
-                    saveCustomContent();
-                  }}
+                  onClick={saveCustomContent}
                   disabled={isSavingCustomContent || isUploading || !customMessage}
                   className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 px-8 py-2 text-white font-medium rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
