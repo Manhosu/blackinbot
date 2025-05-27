@@ -364,6 +364,7 @@ export async function PATCH(
     // Obter dados da requisição
     const requestData = await request.json();
     console.log('📦 Dados recebidos para atualização parcial:', Object.keys(requestData));
+    console.log('📦 Dados completos:', requestData);
     
     // Estratégia de autenticação múltipla
     let userId = null;
@@ -446,6 +447,8 @@ export async function PATCH(
         }
       );
       
+      console.log('🔍 Tentando atualizar bot:', { botId, userId, updateData });
+      
       const { data: updatedBot, error: updateError } = await supabaseAdmin
         .from('bots')
         .update(updateData)
@@ -456,13 +459,22 @@ export async function PATCH(
       
       if (updateError) {
         console.error('❌ Erro ao atualizar bot:', updateError.message);
+        console.error('❌ Detalhes do erro:', updateError);
         return NextResponse.json({ 
           success: false, 
           error: `Erro ao atualizar bot: ${updateError.message}`
         }, { status: 500 });
       }
       
-      console.log('✅ Bot atualizado com sucesso');
+      if (!updatedBot) {
+        console.error('❌ Bot não encontrado ou não foi atualizado');
+        return NextResponse.json({ 
+          success: false, 
+          error: 'Bot não encontrado ou você não tem permissão para atualizá-lo'
+        }, { status: 404 });
+      }
+      
+      console.log('✅ Bot atualizado com sucesso:', updatedBot);
       return NextResponse.json({
         success: true,
         data: updatedBot,
