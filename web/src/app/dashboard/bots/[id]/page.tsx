@@ -670,13 +670,22 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
         });
 
         try {
-          const uploadedUrl = await uploadFile(mediaFile, 'bot-media');
-          updateData.media_url = uploadedUrl;
-          console.log('✅ Arquivo enviado:', uploadedUrl);
-        } catch (uploadError) {
+          const uploadedUrl = await uploadFile(mediaFile, {
+            botId: bot.id,
+            mediaType: mediaType,
+            onProgress: (progress) => setUploadProgress(progress)
+          });
+          
+          if (uploadedUrl.success && uploadedUrl.url) {
+            updateData.media_url = uploadedUrl.url;
+            console.log('✅ Arquivo enviado:', uploadedUrl.url);
+          } else {
+            throw new Error(uploadedUrl.error || 'Erro no upload');
+          }
+        } catch (uploadError: any) {
           console.error('❌ Erro no upload:', uploadError);
           toast.error('❌ Erro ao enviar arquivo', {
-            description: 'Tente novamente ou use uma URL direta',
+            description: uploadError.message || 'Tente novamente ou use uma URL direta',
             duration: 4000
           });
           return;
