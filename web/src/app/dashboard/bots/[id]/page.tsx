@@ -632,7 +632,15 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
 
   // Função para salvar mensagem e mídia personalizadas
   const saveCustomContent = async () => {
-    if (!bot) return;
+    console.log('🔥 FUNÇÃO SAVECONTENTCUSTOM CHAMADA!');
+    console.log('🔥 Bot:', bot?.id);
+    console.log('🔥 Custom message:', customMessage);
+    console.log('🔥 Custom media:', customMedia);
+    
+    if (!bot) {
+      console.log('❌ Bot não encontrado!');
+      return;
+    }
 
     setIsSavingCustomContent(true);
     try {
@@ -1265,7 +1273,14 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
                   {customMessage ? '✅ Mensagem configurada' : '⏳ Configure sua mensagem'}
                 </div>
                 <Button
-                  onClick={saveCustomContent}
+                  onClick={() => {
+                    console.log('🔥 BOTÃO CLICADO!');
+                    console.log('🔥 Disabled?', isSavingCustomContent || isUploading || !customMessage);
+                    console.log('🔥 isSavingCustomContent:', isSavingCustomContent);
+                    console.log('🔥 isUploading:', isUploading);
+                    console.log('🔥 customMessage:', customMessage);
+                    saveCustomContent();
+                  }}
                   disabled={isSavingCustomContent || isUploading || !customMessage}
                   className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 px-8 py-2 text-white font-medium rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
