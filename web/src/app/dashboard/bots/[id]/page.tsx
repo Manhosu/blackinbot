@@ -803,12 +803,12 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
 
       // Se há mídia, incluir no update
       if (mediaType !== 'none' && customMedia) {
-        updateData.media_url = customMedia;
-        updateData.media_type = mediaType;
+        updateData.welcome_media_url = customMedia;
+        updateData.welcome_media_type = mediaType;
       } else {
         // Limpar mídia se não há
-        updateData.media_url = '';
-        updateData.media_type = 'none';
+        updateData.welcome_media_url = '';
+        updateData.welcome_media_type = 'none';
       }
 
       console.log('📤 Enviando para API:', updateData);
@@ -828,7 +828,7 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
           });
           
           if (uploadedUrl.success && uploadedUrl.url) {
-            updateData.media_url = uploadedUrl.url;
+            updateData.welcome_media_url = uploadedUrl.url;
             console.log('✅ Arquivo enviado:', uploadedUrl.url);
           } else {
             throw new Error(uploadedUrl.error || 'Erro no upload');
@@ -861,8 +861,8 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
         setBot((prevBot: any) => ({
           ...prevBot,
           welcome_message: updateData.welcome_message,
-          media_url: updateData.media_url,
-          media_type: updateData.media_type
+          welcome_media_url: updateData.welcome_media_url,
+          welcome_media_type: updateData.welcome_media_type
         }));
 
         toast.success('🎉 Personalização salva!', {

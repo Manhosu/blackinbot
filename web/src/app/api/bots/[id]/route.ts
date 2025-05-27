@@ -412,6 +412,7 @@ export async function PATCH(
       'description', 
       'welcome_message',
       'welcome_media_url',
+      'welcome_media_type',
       'avatar_url',
       'status',
       'is_public'
