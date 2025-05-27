@@ -245,6 +245,13 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
           setCustomMedia(botData.media_url || '');
           setMediaType((botData.media_type || 'none') as 'image' | 'video' | 'none');
           
+          // Debug: verificar estado do botão
+          console.log('🔍 DEBUG BOTÃO SALVAR:');
+          console.log('🔍 welcome_message do bot:', botData.welcome_message);
+          console.log('🔍 customMessage será:', botData.welcome_message || '');
+          console.log('🔍 isSavingCustomContent:', false);
+          console.log('🔍 isUploading:', false);
+          
           // Buscar estatísticas complementares
           try {
             // Contagem de usuários (simulado por enquanto)
@@ -1272,8 +1279,12 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
                 <div className="text-sm text-white/60">
                   {customMessage ? '✅ Mensagem configurada' : '⏳ Configure sua mensagem'}
                 </div>
+                {/* Debug constante do estado do botão */}
+                {console.log('🎯 RENDER BOTÃO - customMessage:', customMessage?.length || 0, 'chars')}
+                {console.log('🎯 RENDER BOTÃO - disabled?', isSavingCustomContent || isUploading || !customMessage)}
                 <Button
                   onClick={() => {
+                    alert('TESTE: Botão foi clicado!');
                     console.log('🔥 BOTÃO CLICADO!');
                     console.log('🔥 Disabled?', isSavingCustomContent || isUploading || !customMessage);
                     console.log('🔥 isSavingCustomContent:', isSavingCustomContent);
