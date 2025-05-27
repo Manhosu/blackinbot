@@ -429,8 +429,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 export function useAuth() {
   const context = useContext(AuthContext);
+  
+  // Durante SSR ou se o context não está disponível, retornar valores padrão
   if (context === undefined) {
+    // Verificar se estamos no servidor
+    if (typeof window === 'undefined') {
+      // No servidor, retornar valores padrão seguros
+      return {
+        user: null,
+        isLoading: true,
+        isAuthenticated: false,
+        signIn: async () => ({ error: new Error('Context não disponível') }),
+        logout: async () => {},
+        register: async () => ({ error: new Error('Context não disponível') }),
+        refreshAuth: async () => false
+      };
+    }
+    
+    // No cliente, ainda lançar erro pois isso indica problema real
     throw new Error('useAuth deve ser usado dentro de um AuthProvider');
   }
+  
   return context;
 } 

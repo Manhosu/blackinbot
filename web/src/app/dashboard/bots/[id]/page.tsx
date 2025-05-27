@@ -216,10 +216,10 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
       
       // Limpar cache antigo com campos incorretos
       const cacheKey = `bot_${params.id}`;
-      const cached = localStorage.getItem(cacheKey);
-      if (cached) {
+      const oldCached = localStorage.getItem(cacheKey);
+      if (oldCached) {
         try {
-          const botData = JSON.parse(cached);
+          const botData = JSON.parse(oldCached);
           // Se tem campos antigos, remover do cache
           if (botData.media_url || botData.media_type) {
             localStorage.removeItem(cacheKey);

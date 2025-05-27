@@ -1,5 +1,10 @@
+'use client';
+
 import React from 'react';
 import Link from 'next/link';
+
+// Forçar renderização dinâmica
+export const dynamic = 'force-dynamic';
 
 export default function NotFound() {
   return (

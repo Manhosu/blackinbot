@@ -4,7 +4,7 @@ import "./globals.css";
 import Providers from "@/components/Providers";
 import { metadata as sharedMetadata, viewport as sharedViewport } from "./metadata";
 
-// Layout configurado para produção
+// Layout configurado para produção com otimizações para SSR
 
 const inter = Inter({
   subsets: ["latin"],
@@ -20,6 +20,10 @@ const spaceGrotesk = Space_Grotesk({
 
 export const metadata: Metadata = sharedMetadata;
 export const viewport = sharedViewport;
+
+// Configurações para evitar problemas de SSR
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export default function RootLayout({
   children,
