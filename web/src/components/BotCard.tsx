@@ -92,6 +92,38 @@ export default function BotCard({ bot, onUpdate }: BotCardProps) {
     router.push(`/dashboard/bots/${bot.id}?edit=true`);
   };
 
+  // 🚀 OTIMIZAÇÃO: Função para navegar ao bot
+  const handleBotClick = (e: React.MouseEvent) => {
+    // Não navegar se clicou em menu ou botões
+    if ((e.target as HTMLElement).closest('button') || 
+        (e.target as HTMLElement).closest('.dropdown-menu')) {
+      return;
+    }
+    
+    // 🚀 FEEDBACK VISUAL IMEDIATO
+    setIsLoading(true);
+    
+    // 🚀 PRÉ-CACHE: Salvar dados do bot antes de navegar
+    try {
+      const cacheKey = `bot_${bot.id}`;
+      const cachedData = { 
+        ...bot, 
+        _cached_at: Date.now(),
+        _prefetch: true 
+      };
+      localStorage.setItem(cacheKey, JSON.stringify(cachedData));
+      console.log('⚡ Bot pré-cached para navegação rápida:', bot.id);
+    } catch (error) {
+      console.warn('Aviso: Erro ao fazer pré-cache:', error);
+    }
+    
+    // 🚀 NAVEGAÇÃO OTIMIZADA
+    // Usar setTimeout para garantir que o loading apareça
+    setTimeout(() => {
+      router.push(`/dashboard/bots/${bot.id}`);
+    }, 50);
+  };
+
   // Configurações do bot
   const handleConfigurations = () => {
     setMenuOpen(false);
@@ -207,40 +239,65 @@ export default function BotCard({ bot, onUpdate }: BotCardProps) {
 
   return (
     <>
-      <div className={`glass rounded-xl border border-white/10 overflow-hidden transition-all duration-300 hover:border-accent/30 hover:shadow-xl hover:scale-105 group ${isLoading ? 'opacity-50 pointer-events-none' : ''}`}>
+      <div 
+        className={`relative glass rounded-xl border border-white/10 overflow-hidden transition-all duration-300 hover:border-accent/30 hover:shadow-xl hover:scale-105 group cursor-pointer ${isLoading ? 'opacity-50 pointer-events-none' : ''}`}
+        onClick={handleBotClick}
+      >
+        {/* 🚀 Loading Overlay */}
+        {isLoading && (
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-20">
+            <div className="bg-white/10 rounded-xl p-4 flex items-center gap-3">
+              <div className="w-6 h-6 border-2 border-accent/30 border-t-accent rounded-full animate-spin"></div>
+              <span className="text-white font-medium">Abrindo bot...</span>
+            </div>
+          </div>
+        )}
+        
         <div className="p-6">
           <div className="flex justify-between items-start mb-4">
-            <h3 className="text-xl font-bold text-white truncate flex-1 mr-2">{bot.name}</h3>
+            <h3 className="text-xl font-bold text-white truncate flex-1 mr-2 group-hover:text-accent transition-colors duration-200">{bot.name}</h3>
             
             <div className="relative">
               <button
-                onClick={() => setMenuOpen(!menuOpen)}
-                className="p-2 rounded-lg hover:bg-white/10 text-white/60 hover:text-white transition-colors"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMenuOpen(!menuOpen);
+                }}
+                className="p-2 rounded-lg hover:bg-white/10 text-white/60 hover:text-white transition-all duration-200 hover:scale-110"
                 disabled={isLoading}
               >
                 <FiMoreVertical size={16} />
               </button>
               
               {menuOpen && (
-                <div className="absolute right-0 top-10 w-48 glass rounded-lg border border-white/20 py-2 z-20">
+                <div className="dropdown-menu absolute right-0 top-10 w-48 glass rounded-lg border border-white/20 py-2 z-20 animate-slideDown">
                   <button
-                    onClick={handleEdit}
-                    className="w-full px-4 py-2 text-left text-white/80 hover:text-white hover:bg-white/10 flex items-center gap-3 transition-colors"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleEdit();
+                    }}
+                    className="w-full px-4 py-2 text-left text-white/80 hover:text-white hover:bg-white/10 flex items-center gap-3 transition-all duration-200"
                   >
                     <FiEdit size={14} />
                     Editar
                   </button>
                   <button
-                    onClick={handleCopyBotLink}
-                    className="w-full px-4 py-2 text-left text-white/80 hover:text-white hover:bg-white/10 flex items-center gap-3 transition-colors"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleCopyBotLink();
+                    }}
+                    className="w-full px-4 py-2 text-left text-white/80 hover:text-white hover:bg-white/10 flex items-center gap-3 transition-all duration-200"
                   >
                     <FiLink size={14} />
                     Copiar Link
                   </button>
                   <div className="border-t border-white/10 my-1"></div>
                   <button
-                    onClick={handleConfirmDelete}
-                    className="w-full px-4 py-2 text-left text-red-400 hover:text-red-300 hover:bg-white/10 flex items-center gap-3 transition-colors"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleConfirmDelete();
+                    }}
+                    className="w-full px-4 py-2 text-left text-red-400 hover:text-red-300 hover:bg-white/10 flex items-center gap-3 transition-all duration-200"
                   >
                     <FiTrash2 size={14} />
                     Excluir
@@ -250,12 +307,12 @@ export default function BotCard({ bot, onUpdate }: BotCardProps) {
             </div>
           </div>
 
-          <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border mb-4 ${status.color}`}>
+          <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border mb-4 transition-all duration-200 ${status.color}`}>
             {status.label}
           </div>
 
           {bot.description && (
-            <p className="text-white/60 text-sm mb-4 line-clamp-2">
+            <p className="text-white/60 text-sm mb-4 line-clamp-2 group-hover:text-white/80 transition-colors duration-200">
               {bot.description}
             </p>
           )}
@@ -264,7 +321,7 @@ export default function BotCard({ bot, onUpdate }: BotCardProps) {
             {bot.username && (
               <div className="flex justify-between">
                 <span className="text-white/60">Username:</span>
-                <span className="text-white font-medium">@{bot.username}</span>
+                <span className="text-white font-medium group-hover:text-accent transition-colors duration-200">@{bot.username}</span>
               </div>
             )}
             <div className="flex justify-between">
@@ -273,20 +330,23 @@ export default function BotCard({ bot, onUpdate }: BotCardProps) {
             </div>
             <div className="flex justify-between">
               <span className="text-white/60">Webhook:</span>
-              <span className={`font-medium ${bot.webhook_url || bot.webhook_set_at ? 'text-green-400' : 'text-orange-400'}`}>
+              <span className={`font-medium transition-colors duration-200 ${bot.webhook_url || bot.webhook_set_at ? 'text-green-400' : 'text-orange-400'}`}>
                 {bot.webhook_url ? 'Configurado' : bot.webhook_set_at ? 'Configurado (Dev)' : 'Não configurado'}
               </span>
             </div>
           </div>
         </div>
 
-        <div className="border-t border-white/10 p-4 bg-white/5">
+        <div className="border-t border-white/10 p-4 bg-white/5 group-hover:bg-white/10 transition-all duration-200">
           <div className="flex justify-between gap-3">
             <Button 
               variant="ghost" 
               size="sm"
-              onClick={handleEdit}
-              className="flex-1"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleEdit();
+              }}
+              className="flex-1 transition-all duration-200 hover:scale-105"
               disabled={isLoading}
             >
               {isLoading ? 'Carregando...' : 'Editar'}
@@ -296,8 +356,11 @@ export default function BotCard({ bot, onUpdate }: BotCardProps) {
               <Button 
                 variant="gradient" 
                 size="sm"
-                onClick={handleOpenTelegram}
-                className="flex-1"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleOpenTelegram();
+                }}
+                className="flex-1 transition-all duration-200 hover:scale-105"
                 disabled={isLoading}
               >
                 Abrir no Telegram
@@ -310,7 +373,10 @@ export default function BotCard({ bot, onUpdate }: BotCardProps) {
         {menuOpen && (
           <div 
             className="fixed inset-0 z-10" 
-            onClick={() => setMenuOpen(false)}
+            onClick={(e) => {
+              e.stopPropagation();
+              setMenuOpen(false);
+            }}
           />
         )}
       </div>

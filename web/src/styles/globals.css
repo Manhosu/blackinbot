@@ -1,0 +1,187 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html {
+  font-feature-settings: "cv11", "ss01";
+  font-variation-settings: "opsz" 32;
+  scroll-behavior: smooth;
+}
+
+/* 🚀 Animações fluidas */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes bounceIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  70% {
+    transform: scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Classes de animação */
+.animate-fadeIn {
+  animation: fadeIn 0.5s ease-out forwards;
+}
+
+.animate-slideDown {
+  animation: slideDown 0.3s ease-out forwards;
+}
+
+.animate-scaleIn {
+  animation: scaleIn 0.4s ease-out forwards;
+}
+
+.animate-slideInLeft {
+  animation: slideInLeft 0.4s ease-out forwards;
+}
+
+.animate-slideInRight {
+  animation: slideInRight 0.4s ease-out forwards;
+}
+
+.animate-bounceIn {
+  animation: bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
+}
+
+/* Animação escalonada para listas */
+.animate-staggerChildren > * {
+  opacity: 0;
+  animation: fadeIn 0.5s ease-out forwards;
+}
+
+.animate-staggerChildren > *:nth-child(1) { animation-delay: 0.05s; }
+.animate-staggerChildren > *:nth-child(2) { animation-delay: 0.1s; }
+.animate-staggerChildren > *:nth-child(3) { animation-delay: 0.15s; }
+.animate-staggerChildren > *:nth-child(4) { animation-delay: 0.2s; }
+.animate-staggerChildren > *:nth-child(5) { animation-delay: 0.25s; }
+.animate-staggerChildren > *:nth-child(6) { animation-delay: 0.3s; }
+.animate-staggerChildren > *:nth-child(7) { animation-delay: 0.35s; }
+.animate-staggerChildren > *:nth-child(8) { animation-delay: 0.4s; }
+.animate-staggerChildren > *:nth-child(9) { animation-delay: 0.45s; }
+
+/* Melhorar performance das animações */
+.animate-fadeIn,
+.animate-slideDown,
+.animate-scaleIn,
+.animate-slideInLeft,
+.animate-slideInRight,
+.animate-bounceIn {
+  will-change: opacity, transform;
+}
+
+/* Transições suaves para todos os elementos interativos */
+button, 
+a, 
+input, 
+select, 
+textarea {
+  transition: all 0.2s ease-in-out;
+}
+
+/* Hover effects melhorados */
+.glass {
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.05);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass:hover {
+  background: rgba(255, 255, 255, 0.08);
+  transform: translateY(-2px);
+}
+
+/* Melhorar loading states */
+.loading-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.05) 25%,
+    rgba(255, 255, 255, 0.1) 50%,
+    rgba(255, 255, 255, 0.05) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Scroll suave para toda a aplicação */
+* {
+  scroll-behavior: smooth;
+}
+
+/* Otimizar rendering */
+.optimize-rendering {
+  transform: translateZ(0);
+  will-change: transform;
+} 

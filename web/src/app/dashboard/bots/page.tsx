@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { FiPlus, FiRefreshCw } from 'react-icons/fi';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
@@ -10,100 +10,182 @@ import PageLoading from '@/components/PageLoading';
 import EmptyState from '@/components/EmptyState';
 import { Button } from '@/components/ui/button';
 import DashboardLayout from '@/components/layout/DashboardLayout';
+import { toast } from 'sonner';
+import { Loader2 } from 'lucide-react';
+
+// 🚀 Loading otimizado para página de bots
+const BotsPageSkeleton = () => (
+  <DashboardLayout>
+    <div className="max-w-7xl mx-auto animate-pulse">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+        <div className="space-y-1">
+          <div className="h-8 bg-white/10 rounded-lg w-48"></div>
+          <div className="h-5 bg-white/10 rounded-lg w-64"></div>
+        </div>
+        <div className="flex gap-3">
+          <div className="h-10 bg-white/10 rounded-lg w-24"></div>
+          <div className="h-10 bg-white/10 rounded-lg w-28"></div>
+        </div>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {[...Array(6)].map((_, i) => (
+          <div key={i} className="h-80 bg-white/10 rounded-xl"></div>
+        ))}
+      </div>
+    </div>
+  </DashboardLayout>
+);
 
 export default function BotsPage() {
   const [bots, setBots] = useState<Bot[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [hasInitialized, setHasInitialized] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { user, isAuthenticated, refreshAuth, isLoading: authLoading } = useAuth();
   const router = useRouter();
+  const hasSetupWebhooks = useRef(false);
 
-  // Função para mostrar toast customizado
-  const showToast = (title: string, description: string, type: 'success' | 'error' | 'warning' = 'error') => {
-    // Implementação simples de toast
-    console.log(`${type.toUpperCase()}: ${title} - ${description}`);
+  // 🚀 OTIMIZAÇÃO: Carregamento instantâneo com cache
+  useEffect(() => {
+    if (!authLoading && !hasInitialized) {
+      setHasInitialized(true);
+      
+      // Tentar carregar do cache primeiro para resposta instantânea
+      const cached = loadBotsFromCache();
+      if (cached && cached.length > 0) {
+        console.log('⚡ Bots carregados do cache:', cached.length);
+        setBots(cached);
+        setLoading(false);
+        
+        // Atualizar em background
+        setTimeout(() => {
+          fetchBots(false);
+        }, 100);
+      } else {
+        // Carregar normalmente se não há cache
+        fetchBots(true);
+      }
+    }
+  }, [authLoading, hasInitialized]);
+
+  // 🚀 Função para carregar bots do cache
+  const loadBotsFromCache = (): Bot[] => {
+    try {
+      const cached = localStorage.getItem('my_bots_cache');
+      if (cached) {
+        const data = JSON.parse(cached);
+        const now = Date.now();
+        
+        // Cache válido por 3 minutos
+        if (data.timestamp && (now - data.timestamp) < 3 * 60 * 1000) {
+          return data.bots || [];
+        }
+      }
+    } catch (error) {
+      console.warn('Erro ao carregar cache de bots:', error);
+    }
+    return [];
   };
 
-  // Função para buscar bots
-  const fetchBots = async () => {
+  // 🚀 Função para salvar bots no cache
+  const saveBotsToCache = (bots: Bot[]) => {
+    try {
+      const data = {
+        bots,
+        timestamp: Date.now()
+      };
+      localStorage.setItem('my_bots_cache', JSON.stringify(data));
+    } catch (error) {
+      console.warn('Erro ao salvar cache de bots:', error);
+    }
+  };
+
+  // 🚀 Função otimizada para buscar bots
+  const fetchBots = async (showMainLoading = true) => {
     console.log('🔄 Carregando bots...');
     try {
       setError(null);
+      
+      if (showMainLoading) {
+        setLoading(true);
+      } else {
+        setRefreshing(true);
+      }
+      
       const userBots = await getMyBots();
       console.log(`✅ ${userBots.length} bots encontrados para o usuário`);
+      
       setBots(userBots);
+      saveBotsToCache(userBots);
+      
+      // Configurar webhooks automaticamente apenas uma vez
+      if (!hasSetupWebhooks.current && userBots.length > 0) {
+        hasSetupWebhooks.current = true;
+        setTimeout(() => {
+          setupWebhooksInBackground();
+        }, 1000);
+      }
+      
     } catch (error: any) {
       console.error('❌ Erro ao buscar bots:', error);
       setError('Erro ao carregar bots. Tente novamente.');
       setBots([]);
     } finally {
       setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  // 🚀 Configuração de webhooks em background
+  const setupWebhooksInBackground = async () => {
+    try {
+      console.log('🔧 Configurando webhooks em background...');
+      await setupMissingWebhooks();
+      console.log('✅ Webhooks configurados');
+    } catch (error) {
+      console.error('❌ Erro na configuração de webhooks:', error);
     }
   };
 
   // Função para atualizar lista de bots (callback para BotCard)
   const handleBotUpdate = async () => {
     console.log('🔄 Atualizando lista de bots...');
-    setLoading(true);
+    setRefreshing(true);
+    
     try {
       setError(null);
       
-      // Forçar um delay para garantir que o banco processou a exclusão
+      // Limpar cache para forçar atualização
+      localStorage.removeItem('my_bots_cache');
+      
+      // Aguardar um pouco para garantir que o banco processou
       await new Promise(resolve => setTimeout(resolve, 200));
       
       const userBots = await getMyBots(true); // Forçar refresh
       console.log(`✅ ${userBots.length} bots encontrados após atualização`);
       setBots(userBots);
+      saveBotsToCache(userBots);
     } catch (error: any) {
       console.error('❌ Erro ao buscar bots:', error);
       setError('Erro ao carregar bots. Tente novamente.');
       setBots([]);
     } finally {
-      setLoading(false);
+      setRefreshing(false);
     }
   };
-
-  // Configuração automática de webhooks com reload
-  const setupWebhooksAndRefresh = async () => {
-    try {
-      console.log('🔧 Iniciando configuração automática de webhooks...');
-      const results = await setupMissingWebhooks();
-      
-      if (results && results.length > 0) {
-        console.log('✅ Configuração de webhooks concluída, recarregando lista...');
-        // Aguardar um momento para o banco processar as atualizações
-        setTimeout(async () => {
-          await fetchBots();
-        }, 1000);
-      }
-    } catch (error) {
-      console.error('❌ Erro na configuração automática de webhooks:', error);
-    }
-  };
-
-  // Inicialização quando o contexto de autenticação estiver pronto
-  if (!authLoading && !hasInitialized) {
-    setHasInitialized(true);
-    fetchBots().then(() => {
-      // Após carregar os bots, verificar e configurar webhooks automaticamente
-      setupWebhooksAndRefresh();
-    });
-  }
 
   // Função de refresh manual
   const handleRefresh = async () => {
-    setLoading(true);
-    await fetchBots();
+    localStorage.removeItem('my_bots_cache'); // Limpar cache
+    await fetchBots(false);
+    toast.success('Lista de bots atualizada!');
   };
 
   // Função para criar um novo bot
   const handleCreateBot = () => {
     if (!isAuthenticated) {
-      showToast(
-        'Erro de autenticação',
-        'Você precisa estar logado para criar um bot.'
-      );
+      toast.error('Você precisa estar logado para criar um bot.');
       router.push('/login');
       return;
     }
@@ -111,18 +193,18 @@ export default function BotsPage() {
     router.push('/dashboard/bots/create');
   };
 
-  // Enquanto verifica autenticação, mostrar loading
+  // Loading inicial
   if (authLoading) {
     return <PageLoading message="Verificando autenticação..." />;
   }
 
   if (loading) {
-    return <PageLoading message="Carregando seus bots..." />;
+    return <BotsPageSkeleton />;
   }
   
   return (
     <DashboardLayout>
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-7xl mx-auto animate-fadeIn">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
           <div className="space-y-1">
             <h1 className="text-3xl font-bold text-white">Seus Bots</h1>
@@ -134,23 +216,35 @@ export default function BotsPage() {
             <Button
               variant="outline"
               onClick={handleRefresh}
-              disabled={loading}
-              leftIcon={<FiRefreshCw className={loading ? 'animate-spin' : ''} />}
+              disabled={refreshing}
+              leftIcon={refreshing ? <Loader2 className="animate-spin" /> : <FiRefreshCw />}
+              className="transition-all duration-200 hover:scale-105"
             >
-              Atualizar
+              {refreshing ? 'Atualizando...' : 'Atualizar'}
             </Button>
             <Button
               variant="gradient"
               onClick={handleCreateBot}
               leftIcon={<FiPlus />}
+              className="transition-all duration-200 hover:scale-105"
             >
               Criar Bot
             </Button>
           </div>
         </div>
 
+        {/* Indicador de atualização em background */}
+        {refreshing && (
+          <div className="mb-4 p-3 bg-accent/10 border border-accent/30 rounded-lg animate-slideDown">
+            <div className="flex items-center gap-2 text-accent">
+              <Loader2 className="animate-spin h-4 w-4" />
+              <span className="text-sm">Atualizando lista de bots...</span>
+            </div>
+          </div>
+        )}
+
         {error && (
-          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-xl">
+          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-xl animate-slideDown">
             <div className="flex items-start gap-3">
               <div className="w-5 h-5 rounded-full bg-red-500 flex items-center justify-center flex-shrink-0 mt-0.5">
                 <span className="text-white text-xs">!</span>
@@ -164,16 +258,24 @@ export default function BotsPage() {
         )}
 
         {!error && bots.length === 0 ? (
-          <EmptyState
-            title="Nenhum bot encontrado"
-            description="Você ainda não criou nenhum bot. Crie seu primeiro bot para começar."
-            actionLabel="Criar Bot"
-            onAction={handleCreateBot}
-          />
+          <div className="animate-fadeIn">
+            <EmptyState
+              title="Nenhum bot encontrado"
+              description="Você ainda não criou nenhum bot. Crie seu primeiro bot para começar."
+              actionLabel="Criar Bot"
+              onAction={handleCreateBot}
+            />
+          </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {bots.map((bot) => (
-              <BotCard key={bot.id} bot={bot} onUpdate={handleBotUpdate} />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-staggerChildren">
+            {bots.map((bot, index) => (
+              <div 
+                key={bot.id} 
+                className="animate-scaleIn"
+                style={{ animationDelay: `${index * 50}ms` }}
+              >
+                <BotCard bot={bot} onUpdate={handleBotUpdate} />
+              </div>
             ))}
           </div>
         )}

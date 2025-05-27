@@ -292,8 +292,8 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
       body = await request.json();
     } catch (error) {
       console.warn('⚠️ Corpo da requisição inválido');
-      return NextResponse.json({
-        success: false,
+      return NextResponse.json({ 
+        success: false, 
         error: 'Formato de dados inválido',
         code: 'INVALID_JSON'
       }, { status: 400 });
@@ -304,8 +304,8 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
     // 3. Validar parâmetros obrigatórios
     if (!fileName || !botId || !mediaType || fileSize === undefined) {
       console.warn('⚠️ Parâmetros obrigatórios ausentes');
-      return NextResponse.json({
-        success: false,
+      return NextResponse.json({ 
+        success: false, 
         error: 'Parâmetros obrigatórios: fileName, fileSize, botId, mediaType',
         code: 'MISSING_PARAMETERS'
       }, { status: 400 });
@@ -314,8 +314,8 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
     // 4. Validar tipo de mídia
     if (mediaType !== 'image' && mediaType !== 'video') {
       console.warn('⚠️ Tipo de mídia inválido:', mediaType);
-      return NextResponse.json({
-        success: false,
+      return NextResponse.json({ 
+        success: false, 
         error: 'Tipo de mídia deve ser "image" ou "video"',
         code: 'INVALID_MEDIA_TYPE'
       }, { status: 400 });
@@ -336,8 +336,8 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
     const fileTypeResult = validateFileType(fileName, mediaType);
     if (!fileTypeResult.isValid) {
       console.warn('⚠️ Tipo de arquivo inválido:', fileName);
-      return NextResponse.json({
-        success: false,
+      return NextResponse.json({ 
+        success: false, 
         error: fileTypeResult.error,
         code: 'INVALID_FILE_TYPE'
       }, { status: 400 });
@@ -347,8 +347,8 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
     const fileSizeResult = validateFileSize(fileSize, mediaType);
     if (!fileSizeResult.isValid) {
       console.warn('⚠️ Tamanho de arquivo inválido:', fileSize);
-      return NextResponse.json({
-        success: false,
+      return NextResponse.json({ 
+        success: false, 
         error: fileSizeResult.error,
         code: 'FILE_TOO_LARGE'
       }, { status: 400 });
@@ -366,7 +366,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
     }
     
     // 9. Gerar nome único e caminho do arquivo
-    const fileExt = fileName.split('.').pop() || '';
+      const fileExt = fileName.split('.').pop() || '';
     const uniqueFileName = `${mediaType}_${uuidv4()}.${fileExt}`;
     const filePath = `${botId}/${uniqueFileName}`;
     
@@ -414,13 +414,13 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
     const authResult = await validateAuthentication(request);
     if (!authResult.isValid) {
       console.warn('🚫 Acesso negado - não autenticado');
-      return NextResponse.json({
-        success: false,
+        return NextResponse.json({ 
+          success: false, 
         error: authResult.error || 'Usuário não autenticado',
         code: 'UNAUTHORIZED'
-      }, { status: 401 });
-    }
-    
+        }, { status: 401 });
+      }
+      
     // 2. Obter parâmetros da URL
     const { searchParams } = new URL(request.url);
     const filePath = searchParams.get('filePath');
@@ -473,17 +473,17 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
       .from(CONFIG.BUCKET_NAME)
       .list(folderPath, {
         search: fileName
-      });
-    
-    if (error) {
+        });
+      
+      if (error) {
       console.error('❌ Erro ao verificar arquivo no storage:', error);
-      return NextResponse.json({
-        success: false,
+        return NextResponse.json({ 
+          success: false, 
         error: 'Erro ao verificar arquivo no storage',
         code: 'STORAGE_CHECK_ERROR'
-      }, { status: 500 });
-    }
-    
+        }, { status: 500 });
+      }
+      
     if (!data || data.length === 0) {
       console.warn('⚠️ Arquivo não encontrado no storage:', filePath);
       return NextResponse.json({
@@ -496,13 +496,13 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
     // 5. Obter URL pública do arquivo
     const { data: { publicUrl } } = supabaseAdmin.storage
       .from(CONFIG.BUCKET_NAME)
-      .getPublicUrl(filePath);
-    
+        .getPublicUrl(filePath);
+      
     const duration = Date.now() - startTime;
     console.log(`✅ Upload confirmado com sucesso em ${duration}ms:`, publicUrl);
-    
-    return NextResponse.json({
-      success: true,
+      
+      return NextResponse.json({
+        success: true,
       data: {
         url: publicUrl,
         filePath: filePath
@@ -510,12 +510,12 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
       message: 'Upload confirmado com sucesso'
     }, { status: 200 });
     
-  } catch (error: any) {
+    } catch (error: any) {
     const duration = Date.now() - startTime;
     console.error(`❌ Erro interno após ${duration}ms:`, error);
-    
-    return NextResponse.json({
-      success: false,
+      
+      return NextResponse.json({ 
+        success: false, 
       error: 'Erro interno do servidor',
       code: 'INTERNAL_ERROR'
     }, { status: 500 });
@@ -592,8 +592,8 @@ export async function DELETE(request: NextRequest): Promise<NextResponse<ApiResp
     const duration = Date.now() - startTime;
     console.error(`❌ Erro interno após ${duration}ms:`, error);
     
-    return NextResponse.json({
-      success: false,
+    return NextResponse.json({ 
+      success: false, 
       error: 'Erro interno do servidor',
       code: 'INTERNAL_ERROR'
     }, { status: 500 });

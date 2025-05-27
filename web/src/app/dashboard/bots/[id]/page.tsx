@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import DashboardLayout from '@/components/layout/DashboardLayout';
@@ -10,7 +10,7 @@ import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import Image from 'next/image';
 import Link from 'next/link';
-import { BarChart, Users, CreditCard, Settings, Share2, Plus, RefreshCw, Trash2, ArrowUpRight, Copy, Key, ExternalLink, AlertCircle, Activity, TestTube, MessageSquare, CheckCircle, Eye, Edit3, ImageIcon, Save } from 'lucide-react';
+import { BarChart, Users, CreditCard, Settings, Share2, Plus, RefreshCw, Trash2, ArrowUpRight, Copy, Key, ExternalLink, AlertCircle, Activity, TestTube, MessageSquare, CheckCircle, Eye, Edit3, ImageIcon, Save, Loader2 } from 'lucide-react';
 import { Globe, TicketIcon, DollarSign } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -29,44 +29,54 @@ interface Transaction {
   created_at: string;
 }
 
-// Componente para estatísticas
-const StatCard = ({ title, value, icon, trend = null, description = null }: {
+// 🚀 Componente com animações fluidas
+const StatCard = ({ title, value, icon, trend = null, description = null, isLoading = false }: {
   title: string;
   value: string;
   icon: React.ReactNode;
   trend?: { value: number; label: string } | null;
   description?: string | null;
+  isLoading?: boolean;
 }) => (
-  <div className="bg-card border border-border-light rounded-xl p-6 hover:border-accent/30 transition-all duration-200">
+  <div className="bg-card border border-border-light rounded-xl p-6 hover:border-accent/30 transition-all duration-300 hover:scale-105 transform">
     <div className="flex justify-between items-start mb-4">
       <div>
         <span className="text-white/60 text-sm font-medium">{title}</span>
         {description && <div className="text-white/40 text-xs mt-1">{description}</div>}
       </div>
-      <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center text-accent">
+      <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center text-accent transition-all duration-300">
         {icon}
       </div>
     </div>
     <div className="flex items-end gap-3">
-      <span className="text-3xl font-bold text-white">{value}</span>
-      {trend && (
-        <span className={`text-sm pb-1 font-medium ${trend.value >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-          {trend.value >= 0 ? '+' : ''}{trend.value}% {trend.label}
-        </span>
+      {isLoading ? (
+        <div className="flex items-center gap-2">
+          <Loader2 className="animate-spin h-6 w-6 text-accent" />
+          <span className="text-lg text-white/60">Carregando...</span>
+        </div>
+      ) : (
+        <>
+          <span className="text-3xl font-bold text-white transition-all duration-300">{value}</span>
+          {trend && (
+            <span className={`text-sm pb-1 font-medium transition-all duration-300 ${trend.value >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+              {trend.value >= 0 ? '+' : ''}{trend.value}% {trend.label}
+            </span>
+          )}
+        </>
       )}
     </div>
   </div>
 );
 
-// Componente para um usuário na lista
+// Componente para um usuário na lista com animações
 const UserItem = ({ user }: { user: any }) => {
   return (
-    <div className="flex items-center justify-between py-3 border-b border-border-light">
+    <div className="flex items-center justify-between py-3 border-b border-border-light transition-all duration-200 hover:bg-white/5 rounded-lg px-2">
       <div className="flex items-center gap-3">
         {user.avatar ? (
           <Image src={user.avatar} width={40} height={40} alt={user.name} className="rounded-full" />
         ) : (
-          <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center">
+          <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center transition-all duration-200 hover:bg-accent/20">
             <span className="text-accent font-medium">{user.name.substring(0, 1)}</span>
           </div>
         )}
@@ -76,7 +86,7 @@ const UserItem = ({ user }: { user: any }) => {
         </div>
       </div>
       <div className="flex items-center gap-1">
-        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+        <span className={`px-2 py-1 rounded-full text-xs font-medium transition-all duration-200 ${
           user.status === 'active' ? 'bg-green-500/20 text-green-500' : 
           user.status === 'expired' ? 'bg-red-500/20 text-red-500' : 
           'bg-yellow-500/20 text-yellow-500'
@@ -85,7 +95,7 @@ const UserItem = ({ user }: { user: any }) => {
            user.status === 'expired' ? 'Expirado' : 
            'Pendente'}
         </span>
-        <Button variant="ghost" size="icon" className="text-white/60 hover:text-white">
+        <Button variant="ghost" size="icon" className="text-white/60 hover:text-white transition-all duration-200">
           <ArrowUpRight size={16} />
         </Button>
       </div>
@@ -93,7 +103,7 @@ const UserItem = ({ user }: { user: any }) => {
   );
 };
 
-// Componente para um plano na lista
+// Componente para um plano na lista com animações
 const PlanItem = ({ plan, onEdit, onDelete }: { 
   plan: any; 
   onEdit: (plan: any) => void; 
@@ -109,14 +119,14 @@ const PlanItem = ({ plan, onEdit, onDelete }: {
   };
 
   return (
-    <div className="bg-card border border-border-light rounded-lg p-4 hover:border-accent transition-colors">
+    <div className="bg-card border border-border-light rounded-lg p-4 hover:border-accent transition-all duration-300 hover:scale-105 transform">
       <div className="flex justify-between items-start mb-2">
         <h3 className="font-medium">{plan.name}</h3>
         <div className="flex gap-1">
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onEdit(plan)}>
+          <Button variant="ghost" size="icon" className="h-8 w-8 transition-all duration-200 hover:scale-110" onClick={() => onEdit(plan)}>
             <Settings size={16} />
           </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-red-400 hover:text-red-500" onClick={() => onDelete(plan)}>
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-red-400 hover:text-red-500 transition-all duration-200 hover:scale-110" onClick={() => onDelete(plan)}>
             <Trash2 size={16} />
           </Button>
         </div>
@@ -137,16 +147,38 @@ const PlanItem = ({ plan, onEdit, onDelete }: {
   );
 };
 
-// Página principal
+// 🚀 Loading otimizado
+const PageSkeleton = () => (
+  <DashboardLayout>
+    <div className="animate-pulse space-y-6">
+      <div className="flex justify-between items-center">
+        <div className="h-8 bg-white/10 rounded-lg w-64"></div>
+        <div className="h-10 bg-white/10 rounded-lg w-32"></div>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {[...Array(4)].map((_, i) => (
+          <div key={i} className="h-32 bg-white/10 rounded-xl"></div>
+        ))}
+      </div>
+      <div className="h-96 bg-white/10 rounded-xl"></div>
+    </div>
+  </DashboardLayout>
+);
+
+// Página principal OTIMIZADA
 export default function BotDashboardPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, isLoading: authLoading } = useAuth();
   const [bot, setBot] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
   const [isEditMode, setIsEditMode] = useState(false);
   const [showActivationSuccess, setShowActivationSuccess] = useState(false);
+  const hasInitialized = useRef(false);
+  
+  // Estados para stats com loading independente
   const [stats, setStats] = useState({
     totalUsers: 0,
     activeUsers: 0,
@@ -158,11 +190,9 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
   const [transactions, setTransactions] = useState<any[]>([]);
 
   // Estado para mensagem e mídia personalizadas
-  const [customMessage, setCustomMessage] = useState(bot?.welcome_message || '');
-  const [customMedia, setCustomMedia] = useState(bot?.media_url || '');
-  const [mediaType, setMediaType] = useState<'image' | 'video' | 'none'>(
-    bot?.media_type || 'none'
-  );
+  const [customMessage, setCustomMessage] = useState('');
+  const [customMedia, setCustomMedia] = useState('');
+  const [mediaType, setMediaType] = useState<'image' | 'video' | 'none'>('none');
   const [mediaSource, setMediaSource] = useState<'url' | 'upload'>('url');
   const [mediaFile, setMediaFile] = useState<File | null>(null);
   const [mediaPreview, setMediaPreview] = useState<string | null>(null);
@@ -179,145 +209,266 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
     status: 'active'
   });
 
+  // 🚀 OTIMIZAÇÃO: Carregamento instantâneo com cache local
   useEffect(() => {
-    if (!authLoading && !user) {
-      router.push('/login');
-      return;
-    }
+    if (!hasInitialized.current) {
+      hasInitialized.current = true;
+      
+      // Verificar parâmetros de query
+      const editParam = searchParams.get('edit');
+      const tabParam = searchParams.get('tab');
+      const fromActivation = searchParams.get('from') === 'activation';
+      
+      if (editParam === 'true') {
+        setIsEditMode(true);
+      }
+      
+      if (tabParam) {
+        setActiveTab(tabParam);
+      }
+      
+      if (fromActivation) {
+        setShowActivationSuccess(true);
+        setTimeout(() => setShowActivationSuccess(false), 5000);
+      }
 
-    // Verificar parâmetros de query
-    const editParam = searchParams.get('edit');
-    const tabParam = searchParams.get('tab');
-    const fromActivation = searchParams.get('from') === 'activation';
-    
-    if (editParam === 'true') {
-      setIsEditMode(true);
+      // 🚀 SUPER OTIMIZAÇÃO: Carregamento instantâneo
+      console.log('🚀 Iniciando carregamento super otimizado...');
+      
+      // 1. Primeiro tentar cache instantâneo
+      const cached = loadBotFromCacheSync();
+      if (cached) {
+        console.log('⚡⚡ Bot carregado INSTANTANEAMENTE do cache!');
+        setIsLoading(false);
+        
+        // 🚀 Feedback visual para o usuário
+        toast.success('⚡ Bot carregado instantaneamente!', {
+          description: 'Cache local funcionando perfeitamente',
+          duration: 2000,
+        });
+        
+        // Carregar dados adicionais em background após um tempo
+        setTimeout(() => {
+          fetchBotData(false);
+        }, 200);
+        return;
+      }
+      
+      // 2. Se não há cache, carregar o mais rápido possível
+      console.log('📦 Cache não encontrado, carregando do servidor...');
+      fetchBotDataFast();
     }
-    
-    if (tabParam) {
-      setActiveTab(tabParam);
-    }
-    
-    // Se veio da ativação e bot está ativado, mostrar sucesso
-    if (fromActivation) {
-      setShowActivationSuccess(true);
-      // Esconder notificação após 5 segundos
-      setTimeout(() => setShowActivationSuccess(false), 5000);
-    }
+  }, []);
 
-    const fetchBotData = async () => {
-      try {
-        setIsLoading(true);
+  // 🚀 Função síncrona para carregamento instantâneo do cache
+  const loadBotFromCacheSync = (): boolean => {
+    try {
+      const cacheKey = `bot_${params.id}`;
+      const cached = localStorage.getItem(cacheKey);
+      
+      if (cached) {
+        const botData = JSON.parse(cached);
+        const now = Date.now();
+        const cacheTime = botData._cached_at || 0;
         
-        // Buscar dados do bot diretamente do banco de dados
-        console.log('🔍 Buscando bot do banco de dados:', params.id);
-        
-        try {
-          const { data: botData, error: botError } = await supabase
-            .from('bots')
-            .select(`
-              *,
-              groups:groups(id, name, telegram_id, description, is_active),
-              plans:plans(id, name, price, period_days, description, is_active)
-            `)
-            .eq('id', params.id)
-            .single();
-          
-          if (botError || !botData) {
-            console.log('❌ Bot não encontrado:', botError?.message);
-            toast.error('Bot não encontrado');
-            router.push('/dashboard/bots');
-            return;
-          }
-          
-          console.log('✅ Bot encontrado no banco:', botData);
+        // Cache válido por 10 minutos (aumentei para reduzir requests)
+        if (now - cacheTime < 10 * 60 * 1000) {
+          // Configurar tudo imediatamente
           setBot(botData);
-          
-          // Inicializar formulário de edição
           setEditForm({
             name: botData.name || '',
             description: botData.description || '',
             status: botData.status || 'active'
           });
-          
-          // Atualizar mensagem personalizada se existir
           setCustomMessage(botData.welcome_message || '');
           setCustomMedia(botData.media_url || '');
           setMediaType((botData.media_type || 'none') as 'image' | 'video' | 'none');
           
-          // Buscar estatísticas complementares
-          try {
-            // Contagem de usuários (simulado por enquanto)
-            const totalUsers = 0;
-            const activeUsers = 0;
-            
-            // Receita total (calculada a partir das transações)
-            const { data: transactionsData, error: transactionsError } = await supabase
-              .from('transactions')
-              .select('*')
-              .eq('bot_id', params.id);
-            
-            let totalRevenue = 0;
-            let pendingPayments = 0;
-            
-            if (!transactionsError && transactionsData) {
-              // Calcular receita total e pagamentos pendentes
-              totalRevenue = transactionsData
-                .filter((tx: Transaction) => tx.status === 'completed')
-                .reduce((sum: number, tx: Transaction) => sum + parseFloat(tx.amount || '0'), 0);
-              
-              pendingPayments = transactionsData
-                .filter((tx: Transaction) => tx.status === 'pending')
-                .reduce((sum: number, tx: Transaction) => sum + parseFloat(tx.amount || '0'), 0);
-              
-              // Salvar transações
-              setTransactions(transactionsData);
-            }
-            
-            // Atualizar estatísticas
-            setStats({
-              totalUsers,
-              activeUsers,
-              totalRevenue,
-              pendingPayments
-            });
-            
-            // Buscar usuários do bot (simulado por enquanto)
-            setUsers([]);
-            
-            // Buscar planos
-            const { data: plansData, error: plansError } = await supabase
-              .from('plans')
-              .select('*')
-              .eq('bot_id', params.id);
-            
-            if (!plansError && plansData) {
-              setPlans(plansData);
-            } else {
-              setPlans([]);
-            }
-            
-          } catch (statsError) {
-            console.error('❌ Erro ao buscar estatísticas:', statsError);
+          // Configurar stats com dados do cache se existirem
+          if (botData.cachedStats) {
+            setStats(botData.cachedStats);
           }
           
-        } catch (dbError) {
-          console.error('❌ Erro ao buscar no banco:', dbError);
-          toast.error('Erro ao carregar dados do bot');
-          router.push('/dashboard/bots');
+          return true;
         }
-      } catch (error) {
-        console.error('❌ Erro ao carregar bot:', error);
-        toast.error('Erro ao carregar dados do bot');
-      } finally {
-        setIsLoading(false);
       }
-    };
-
-    if (params.id) {
-      fetchBotData();
+      return false;
+    } catch (error) {
+      console.warn('Erro ao carregar cache síncrono:', error);
+      return false;
     }
-  }, [params.id, router, user, authLoading, searchParams]);
+  };
+
+  // 🚀 Função ultra rápida para buscar dados essenciais do bot
+  const fetchBotDataFast = async () => {
+    try {
+      setIsLoading(true);
+      console.log('🔍 Busca rápida do bot:', params.id);
+      
+      // Buscar apenas dados essenciais primeiro
+      const { data: botData, error: botError } = await supabase
+        .from('bots')
+        .select('id, name, description, status, username, created_at, welcome_message, media_url, media_type, avatar_url, is_activated')
+        .eq('id', params.id)
+        .single();
+      
+      if (botError || !botData) {
+        console.log('❌ Bot não encontrado:', botError?.message);
+        toast.error('Bot não encontrado');
+        router.push('/dashboard/bots');
+        return;
+      }
+      
+      console.log('✅ Dados essenciais carregados em tempo recorde!');
+      
+      // Configurar interface imediatamente
+      setBot(botData);
+      setEditForm({
+        name: botData.name || '',
+        description: botData.description || '',
+        status: botData.status || 'active'
+      });
+      setCustomMessage(botData.welcome_message || '');
+      setCustomMedia(botData.media_url || '');
+      setMediaType((botData.media_type || 'none') as 'image' | 'video' | 'none');
+      
+      // Cache os dados essenciais
+      const cacheKey = `bot_${params.id}`;
+      const cachedData = { ...botData, _cached_at: Date.now() };
+      localStorage.setItem(cacheKey, JSON.stringify(cachedData));
+      
+      setIsLoading(false);
+      
+      // Buscar dados complementares em background
+      setTimeout(() => {
+        fetchFullBotData(botData);
+      }, 300);
+      
+    } catch (error) {
+      console.error('❌ Erro na busca rápida:', error);
+      toast.error('Erro ao carregar dados do bot');
+      setIsLoading(false);
+    }
+  };
+
+  // 🚀 Função para buscar dados complementares em background
+  const fetchFullBotData = async (baseBot: any) => {
+    try {
+      console.log('📊 Carregando dados complementares...');
+      
+      // Buscar dados completos
+      const { data: fullBotData, error } = await supabase
+        .from('bots')
+        .select(`
+          *,
+          groups:groups(id, name, telegram_id, description, is_active),
+          plans:plans(id, name, price, period_days, description, is_active)
+        `)
+        .eq('id', params.id)
+        .single();
+      
+      if (!error && fullBotData) {
+        setBot(fullBotData);
+        
+        // Salvar dados completos no cache
+        const cacheKey = `bot_${params.id}`;
+        const cachedData = { ...fullBotData, _cached_at: Date.now() };
+        localStorage.setItem(cacheKey, JSON.stringify(cachedData));
+        
+        console.log('✅ Dados completos carregados e cacheados');
+      }
+      
+      // Carregar estatísticas em paralelo
+      setTimeout(() => {
+        fetchStatsInBackground();
+      }, 100);
+      
+    } catch (error) {
+      console.error('❌ Erro ao carregar dados completos:', error);
+    }
+  };
+
+  // 🚀 Função de compatibilidade para atualizações
+  const fetchBotData = async (showMainLoading = true) => {
+    if (!showMainLoading) {
+      // Apenas atualizar em background
+      const { data: botData, error } = await supabase
+        .from('bots')
+        .select(`
+          *,
+          groups:groups(id, name, telegram_id, description, is_active),
+          plans:plans(id, name, price, period_days, description, is_active)
+        `)
+        .eq('id', params.id)
+        .single();
+      
+      if (!error && botData) {
+        setBot(botData);
+        const cacheKey = `bot_${params.id}`;
+        const cachedData = { ...botData, _cached_at: Date.now() };
+        localStorage.setItem(cacheKey, JSON.stringify(cachedData));
+      }
+    } else {
+      // Chamar a função rápida
+      fetchBotDataFast();
+    }
+  };
+
+  // 🚀 Função para carregar estatísticas em background
+  const fetchStatsInBackground = async () => {
+    try {
+      // Contagem de usuários (simulado por enquanto)
+      const totalUsers = 0;
+      const activeUsers = 0;
+      
+      // Receita total (calculada a partir das transações)
+      const { data: transactionsData, error: transactionsError } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('bot_id', params.id);
+      
+      let totalRevenue = 0;
+      let pendingPayments = 0;
+      
+      if (!transactionsError && transactionsData) {
+        totalRevenue = transactionsData
+          .filter((tx: Transaction) => tx.status === 'completed')
+          .reduce((sum: number, tx: Transaction) => sum + parseFloat(tx.amount || '0'), 0);
+        
+        pendingPayments = transactionsData
+          .filter((tx: Transaction) => tx.status === 'pending')
+          .reduce((sum: number, tx: Transaction) => sum + parseFloat(tx.amount || '0'), 0);
+        
+        setTransactions(transactionsData);
+      }
+      
+      // Atualizar estatísticas
+      setStats({
+        totalUsers,
+        activeUsers,
+        totalRevenue,
+        pendingPayments
+      });
+      
+      // Buscar usuários do bot (simulado por enquanto)
+      setUsers([]);
+      
+      // Buscar planos
+      const { data: plansData, error: plansError } = await supabase
+        .from('plans')
+        .select('*')
+        .eq('bot_id', params.id);
+      
+      if (!plansError && plansData) {
+        setPlans(plansData);
+      } else {
+        setPlans([]);
+      }
+      
+    } catch (statsError) {
+      console.error('❌ Erro ao buscar estatísticas:', statsError);
+    }
+  };
 
   // Função para editar um plano
   const handleEditPlan = async (plan: any) => {
@@ -764,23 +915,17 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
   };
 
   if (isLoading) {
-    return (
-      <DashboardLayout>
-        <div className="h-full w-full flex items-center justify-center">
-          <div className="animate-spin h-12 w-12 border-4 border-accent border-t-transparent rounded-full"></div>
-        </div>
-      </DashboardLayout>
-    );
+    return <PageSkeleton />;
   }
 
   if (!bot) {
     return (
       <DashboardLayout>
-        <div className="text-center py-12">
+        <div className="text-center py-12 animate-fadeIn">
           <h2 className="text-xl font-bold mb-2">Bot não encontrado</h2>
           <p className="text-white/60 mb-6">O bot que você está procurando não existe ou você não tem permissão para acessá-lo.</p>
           <Link href="/dashboard/bots">
-            <Button>Voltar para Meus Bots</Button>
+            <Button className="transition-all duration-200 hover:scale-105">Voltar para Meus Bots</Button>
           </Link>
         </div>
       </DashboardLayout>
@@ -794,12 +939,24 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
 
   return (
     <DashboardLayout>
-      <div className="max-w-6xl mx-auto py-8">
-        {/* Cabeçalho do Bot */}
-        <div className="bg-card border border-border-light rounded-xl p-6 mb-8">
+      <div className="max-w-6xl mx-auto py-8 animate-fadeIn">
+        {/* Notificação de sucesso da ativação */}
+        {showActivationSuccess && (
+          <div className="mb-6 animate-slideDown">
+            <Alert className="bg-green-500/20 border-green-500/30">
+              <CheckCircle className="h-4 w-4 text-green-400" />
+              <AlertDescription className="text-green-300">
+                🎉 Bot ativado com sucesso! Agora você pode configurar e personalizar seu bot.
+              </AlertDescription>
+            </Alert>
+          </div>
+        )}
+
+        {/* Cabeçalho do Bot com animações */}
+        <div className="bg-card border border-border-light rounded-xl p-6 mb-8 transition-all duration-300 hover:border-accent/30">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
             <div className="flex items-center gap-4">
-              <div className="relative">
+              <div className="relative transition-all duration-300 hover:scale-105">
                 <div className="w-16 h-16 rounded-xl overflow-hidden bg-accent/10 flex items-center justify-center border border-accent/20">
                   {bot.avatar_url ? (
                     <Image 
@@ -813,21 +970,21 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
                     <span className="text-accent text-2xl">🤖</span>
                   )}
                 </div>
-                <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-green-500 rounded-full border-2 border-card flex items-center justify-center">
+                <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-green-500 rounded-full border-2 border-card flex items-center justify-center animate-pulse">
                   <div className="w-2 h-2 bg-white rounded-full"></div>
                 </div>
               </div>
               
               <div className="flex-1">
                 {isEditMode ? (
-                  /* Modo de Edição */
-                  <div className="space-y-3">
+                  /* Modo de Edição com animações */
+                  <div className="space-y-3 animate-slideDown">
                     <div>
                       <Input
                         value={editForm.name}
                         onChange={(e) => setEditForm({...editForm, name: e.target.value})}
                         placeholder="Nome do bot"
-                        className="text-xl font-bold bg-white/5 border-white/20 text-white"
+                        className="text-xl font-bold bg-white/5 border-white/20 text-white transition-all duration-200 focus:border-accent"
                       />
                     </div>
                     <div>
@@ -835,7 +992,7 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
                         value={editForm.description}
                         onChange={(e) => setEditForm({...editForm, description: e.target.value})}
                         placeholder="Descrição do bot (opcional)"
-                        className="bg-white/5 border-white/20 text-white/80 resize-none"
+                        className="bg-white/5 border-white/20 text-white/80 resize-none transition-all duration-200 focus:border-accent"
                         rows={2}
                       />
                     </div>
@@ -845,7 +1002,7 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
                         id="bot-status"
                         value={editForm.status}
                         onChange={(e) => setEditForm({...editForm, status: e.target.value})}
-                        className="bg-white/5 border border-white/20 rounded-lg px-3 py-1 text-white text-sm"
+                        className="bg-white/5 border border-white/20 rounded-lg px-3 py-1 text-white text-sm transition-all duration-200 focus:border-accent"
                       >
                         <option value="active">Ativo</option>
                         <option value="inactive">Inativo</option>
@@ -853,11 +1010,11 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
                     </div>
                   </div>
                 ) : (
-                  /* Modo de Visualização */
-                  <div>
+                  /* Modo de Visualização com animações */
+                  <div className="animate-fadeIn">
                     <div className="flex items-center gap-3 mb-2">
                       <h1 className="text-2xl font-bold text-white">{bot.name}</h1>
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium border ${
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium border transition-all duration-200 ${
                         bot.status === 'active' 
                           ? 'bg-green-500/20 text-green-400 border-green-500/30' 
                           : 'bg-orange-500/20 text-orange-400 border-orange-500/30'
