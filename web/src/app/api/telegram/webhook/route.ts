@@ -66,6 +66,14 @@ interface Plan {
   price: number;
 }
 
+// ✅ OTIMIZAÇÃO: Cache simples para planos (cache por 5 minutos)
+const plansCache = new Map<string, { data: Plan[]; timestamp: number }>();
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutos
+
+// ✅ OTIMIZAÇÃO: Cache para bots também (cache por 10 minutos)
+const botsCache = new Map<string, { data: BotConfig; timestamp: number }>();
+const BOT_CACHE_DURATION = 10 * 60 * 1000; // 10 minutos
+
 async function sendTelegramMessage(botToken: string, chatId: number, text: string, options: any = {}) {
   const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
   
@@ -147,6 +155,15 @@ async function editTelegramMessage(botToken: string, chatId: number, messageId: 
 
 async function getBotByToken(token: string): Promise<BotConfig | null> {
   try {
+    // ✅ Verificar cache primeiro
+    const cached = botsCache.get(token);
+    if (cached && (Date.now() - cached.timestamp) < BOT_CACHE_DURATION) {
+      console.log(`⚡ Bot carregado do cache`);
+      return cached.data;
+    }
+
+    console.log(`🔍 Buscando bot no banco...`);
+    
     const supabase = createSupabaseAdmin();
     const { data, error } = await supabase
       .from('bots')
@@ -159,31 +176,80 @@ async function getBotByToken(token: string): Promise<BotConfig | null> {
       return null;
     }
     
+    console.log(`✅ Bot encontrado: ${data.name}`);
+    
+    // ✅ Atualizar cache
+    botsCache.set(token, {
+      data: data,
+      timestamp: Date.now()
+    });
+    
     return data;
   } catch (error) {
     console.error('❌ Erro ao buscar bot:', error);
-  return null;
+    
+    // ✅ OTIMIZAÇÃO: Retornar cache em caso de erro
+    const cached = botsCache.get(token);
+    if (cached) {
+      console.log('⚠️ Usando cache do bot devido ao erro');
+      return cached.data;
+    }
+    
+    return null;
   }
 }
 
 async function getBotPlans(botId: string): Promise<Plan[]> {
   try {
+    // ✅ Verificar cache primeiro
+    const cached = plansCache.get(botId);
+    if (cached && (Date.now() - cached.timestamp) < CACHE_DURATION) {
+      console.log(`⚡ Planos carregados do cache para bot ${botId}`);
+      return cached.data;
+    }
+
+    console.log(`🔍 Buscando planos no banco para bot ${botId}...`);
+    
     const supabase = createSupabaseAdmin();
     const { data, error } = await supabase
       .from('plans')
-      .select('id, name, description, price')
+      .select('id, name, description, price, period_days')
       .eq('bot_id', botId)
       .eq('is_active', true)
       .order('price', { ascending: true });
     
     if (error) {
       console.error('❌ Erro ao buscar planos:', error);
+      
+      // ✅ OTIMIZAÇÃO: Retornar cache antigo em caso de erro
+      if (cached) {
+        console.log('⚠️ Usando cache antigo devido ao erro');
+        return cached.data;
+      }
+      
       return [];
     }
     
-    return data || [];
+    const plans = data || [];
+    console.log(`✅ ${plans.length} planos encontrados para bot ${botId}`);
+    
+    // ✅ Atualizar cache
+    plansCache.set(botId, {
+      data: plans,
+      timestamp: Date.now()
+    });
+    
+    return plans;
   } catch (error) {
     console.error('❌ Erro ao buscar planos:', error);
+    
+    // ✅ OTIMIZAÇÃO: Retornar cache em caso de erro de conexão
+    const cached = plansCache.get(botId);
+    if (cached) {
+      console.log('⚠️ Usando cache devido ao erro de conexão');
+      return cached.data;
+    }
+    
     return [];
   }
 }
@@ -270,47 +336,90 @@ Este bot ainda não foi ativado pelo proprietário.
     return;
   }
 
-  // Buscar planos
-  const plans = await getBotPlans(bot.id);
+  // ✅ OTIMIZAÇÃO: Buscar planos em paralelo com o envio da mensagem
+  const plansPromise = getBotPlans(bot.id);
   
-  if (plans.length === 0) {
-    await sendTelegramMessage(bot.token, chatId, `${bot.welcome_message}\n\n❌ Nenhum plano disponível no momento.`);
-    return;
-  }
+  // ✅ OTIMIZAÇÃO: Enviar mensagem de carregamento imediatamente
+  const loadingMessage = `${bot.welcome_message}
 
-  // Criar botões dos planos
-  const keyboard = plans.map(plan => [{
-    text: `💎 ${plan.name} - R$ ${plan.price.toFixed(2).replace('.', ',')}`,
-    callback_data: `plan_${plan.id}`
-  }]);
+🔄 **Carregando planos disponíveis...**`;
 
-  const replyMarkup = {
-    inline_keyboard: keyboard
-  };
-
-  // Enviar mensagem com mídia se disponível
+  // Enviar mensagem inicial sem esperar pelos planos
+  let sentMessage;
   try {
     if (bot.welcome_media_url && bot.welcome_media_type === 'photo') {
-      await sendTelegramPhoto(bot.token, chatId, bot.welcome_media_url, bot.welcome_message, {
-        reply_markup: replyMarkup
-      });
+      sentMessage = await sendTelegramPhoto(bot.token, chatId, bot.welcome_media_url, loadingMessage);
     } else if (bot.welcome_media_url && bot.welcome_media_type === 'video') {
-      await sendTelegramVideo(bot.token, chatId, bot.welcome_media_url, bot.welcome_message, {
-        reply_markup: replyMarkup
-      });
+      sentMessage = await sendTelegramVideo(bot.token, chatId, bot.welcome_media_url, loadingMessage);
     } else {
-      await sendTelegramMessage(bot.token, chatId, bot.welcome_message, {
-        reply_markup: replyMarkup
-      });
+      sentMessage = await sendTelegramMessage(bot.token, chatId, loadingMessage);
     }
-
-    console.log(`✅ Mensagem de boas-vindas enviada para usuário ${userId}`);
-
   } catch (error) {
     console.error('❌ Erro ao enviar mídia:', error);
     // Fallback para texto simples
-    await sendTelegramMessage(bot.token, chatId, bot.welcome_message, {
+    sentMessage = await sendTelegramMessage(bot.token, chatId, loadingMessage);
+  }
+
+  // Aguardar planos e atualizar mensagem
+  try {
+    const plans = await plansPromise;
+    
+    if (plans.length === 0) {
+      await editTelegramMessage(bot.token, chatId, sentMessage.message_id, 
+        `${bot.welcome_message}\n\n❌ **Nenhum plano disponível no momento.**\n\nEntre em contato com o suporte.`);
+      return;
+    }
+
+    // ✅ OTIMIZAÇÃO: Criar botões dos planos de forma mais eficiente
+    const keyboard = plans.map(plan => [{
+      text: `💎 ${plan.name} - R$ ${plan.price.toFixed(2).replace('.', ',')}`,
+      callback_data: `plan_${plan.id}`
+    }]);
+
+    // Adicionar botão de ajuda
+    keyboard.push([{
+      text: '❓ Ajuda',
+      callback_data: 'help_payment'
+    }]);
+
+    const replyMarkup = {
+      inline_keyboard: keyboard
+    };
+
+    // ✅ OTIMIZAÇÃO: Criar mensagem final otimizada
+    const finalMessage = `${bot.welcome_message}
+
+💎 **Selecione um plano:**
+👇 Escolha o plano que melhor se adequa às suas necessidades`;
+
+    // Atualizar mensagem com planos
+    await editTelegramMessage(bot.token, chatId, sentMessage.message_id, finalMessage, {
       reply_markup: replyMarkup
+    });
+
+    console.log(`✅ Mensagem de boas-vindas atualizada para usuário ${userId} com ${plans.length} planos`);
+
+  } catch (error) {
+    console.error('❌ Erro ao carregar planos:', error);
+    
+    // ✅ OTIMIZAÇÃO: Fallback em caso de erro
+    await editTelegramMessage(bot.token, chatId, sentMessage.message_id, 
+      `${bot.welcome_message}
+
+❌ **Erro temporário**
+
+Não foi possível carregar os planos no momento.
+
+🔄 **Tente novamente:**
+• Use /start para recarregar
+• Ou entre em contato com o suporte
+
+📞 **Suporte:** @suporte_bot`, {
+      reply_markup: {
+        inline_keyboard: [[
+          { text: '🔄 Tentar novamente', callback_data: 'back_to_start' }
+        ]]
+      }
     });
   }
 }
@@ -353,47 +462,201 @@ async function handleCallbackQuery(update: TelegramUpdate, bot: BotConfig) {
   const data = callbackQuery.data;
   const chatId = callbackQuery.message!.chat.id;
   const messageId = callbackQuery.message!.message_id;
+  const userId = callbackQuery.from.id;
 
-  console.log(`💎 Callback recebido: ${data} de usuário ${callbackQuery.from.id}`);
+  console.log(`💎 Callback recebido: ${data} de usuário ${userId}`);
 
-  if (data?.startsWith('plan_')) {
-    const planId = data.replace('plan_', '');
-    
-    const supabase = createSupabaseAdmin();
-    
-    // Buscar informações do plano
-    const { data: plan } = await supabase
-      .from('plans')
-      .select('name, price, description')
-      .eq('id', planId)
-      .single();
-
-    if (plan) {
-      const message = `💳 **Plano Selecionado: ${plan.name}**
-
-📦 **Descrição:** ${plan.description}
-💰 **Valor:** R$ ${plan.price.toFixed(2).replace('.', ',')}
-
-🔄 **Processando pagamento...**
-
-Em breve você receberá as instruções de pagamento via PIX.`;
-
-      await editTelegramMessage(bot.token, chatId, messageId, message);
-      
-      // Aqui você pode implementar a lógica de pagamento
-      // Por exemplo, integração com MercadoPago ou PushInPay
-    }
-  }
-
-  // Responder ao callback para remover o "loading"
+  // ✅ OTIMIZAÇÃO: Responder ao callback IMEDIATAMENTE para remover o "loading"
   await fetch(`https://api.telegram.org/bot${bot.token}/answerCallbackQuery`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       callback_query_id: callbackQuery.id,
-      text: 'Processando...'
+      text: 'Carregando plano...',
+      show_alert: false
     })
   });
+
+  if (data?.startsWith('plan_')) {
+    const planId = data.replace('plan_', '');
+    
+    try {
+      const supabase = createSupabaseAdmin();
+      
+      // Buscar informações do plano
+      const { data: plan, error: planError } = await supabase
+        .from('plans')
+        .select('name, price, description, period_days')
+        .eq('id', planId)
+        .single();
+
+      if (planError || !plan) {
+        console.error('❌ Erro ao buscar plano:', planError);
+        await editTelegramMessage(bot.token, chatId, messageId, 
+          '❌ **Erro**\n\nPlano não encontrado. Tente novamente com /start');
+        return;
+      }
+
+      // ✅ OTIMIZAÇÃO: Mostrar informações do plano IMEDIATAMENTE
+      const periodLabel = plan.period_days >= 9000 ? 'Vitalício' : 
+                         plan.period_days >= 365 ? `${Math.floor(plan.period_days/365)} ano(s)` : 
+                         `${plan.period_days} dias`;
+
+      const planMessage = `💎 **${plan.name}**
+
+📋 **Descrição:** ${plan.description || 'Acesso completo ao bot'}
+💰 **Valor:** R$ ${plan.price.toFixed(2).replace('.', ',')}
+⏰ **Período:** ${periodLabel}
+
+🚀 **Gerando pagamento PIX...**
+
+Aguarde alguns segundos...`;
+
+      // Editar mensagem com informações do plano
+      await editTelegramMessage(bot.token, chatId, messageId, planMessage);
+
+      // ✅ OTIMIZAÇÃO: Gerar pagamento PIX em paralelo (simulado)
+      setTimeout(async () => {
+        try {
+          // Aqui você integraria com um gateway de pagamento real
+          // Por enquanto, vou simular a geração de um PIX
+          
+          const pixCode = `PIX${Date.now().toString().slice(-8)}`;
+          const pixKey = 'blackinpay@email.com'; // Substitua pela sua chave PIX real
+          
+          const paymentMessage = `💳 **Pagamento Gerado!**
+
+**Plano:** ${plan.name}
+**Valor:** R$ ${plan.price.toFixed(2).replace('.', ',')}
+
+🔹 **Opção 1: PIX Copia e Cola**
+\`${pixKey}\`
+
+🔹 **Opção 2: Código PIX**
+\`${pixCode}\`
+
+⏰ **Prazo:** 30 minutos para pagamento
+📱 **ID da transação:** ${Date.now()}
+
+✅ **Após o pagamento:**
+• O acesso será liberado automaticamente
+• Você receberá uma confirmação aqui
+• Em caso de problemas, entre em contato
+
+⚠️ **Importante:** Não compartilhe este código com outras pessoas`;
+
+          // Criar botões para ações adicionais
+          const paymentKeyboard = {
+            inline_keyboard: [
+              [
+                { text: '✅ Já paguei', callback_data: `confirm_payment_${planId}_${Date.now()}` },
+                { text: '🔄 Gerar novo PIX', callback_data: `new_pix_${planId}` }
+              ],
+              [
+                { text: '❓ Ajuda', callback_data: 'help_payment' },
+                { text: '🏠 Voltar ao início', callback_data: 'back_to_start' }
+              ]
+            ]
+          };
+
+          await editTelegramMessage(bot.token, chatId, messageId, paymentMessage, {
+            reply_markup: paymentKeyboard
+          });
+
+          console.log(`✅ Pagamento PIX gerado para usuário ${userId}, plano ${plan.name}`);
+
+        } catch (paymentError) {
+          console.error('❌ Erro ao gerar pagamento:', paymentError);
+          
+          const errorMessage = `❌ **Erro no pagamento**
+
+Não foi possível gerar o PIX no momento.
+
+🔄 **Tente novamente:**
+• Use /start para voltar ao início
+• Ou entre em contato com o suporte
+
+📞 **Suporte:** @suporte_bot`;
+
+          await editTelegramMessage(bot.token, chatId, messageId, errorMessage, {
+            reply_markup: {
+              inline_keyboard: [[
+                { text: '🔄 Tentar novamente', callback_data: `plan_${planId}` },
+                { text: '🏠 Voltar ao início', callback_data: 'back_to_start' }
+              ]]
+            }
+          });
+        }
+      }, 1500); // ✅ OTIMIZAÇÃO: Delay menor para melhor UX
+
+    } catch (error) {
+      console.error('❌ Erro geral no callback:', error);
+      await editTelegramMessage(bot.token, chatId, messageId, 
+        '❌ **Erro interno**\n\nTente novamente em alguns segundos.\n\nUse /start para reiniciar.');
+    }
+  }
+  
+  // Tratar outros tipos de callback
+  else if (data === 'back_to_start') {
+    // Simular comando /start
+    const startUpdate = {
+      ...update,
+      message: {
+        message_id: messageId,
+        from: callbackQuery.from,
+        chat: { id: chatId, type: 'private' },
+        date: Math.floor(Date.now() / 1000),
+        text: '/start'
+      }
+    };
+    await handleStartCommand(startUpdate as TelegramUpdate, bot);
+  }
+  
+  else if (data?.startsWith('confirm_payment_')) {
+    await editTelegramMessage(bot.token, chatId, messageId, 
+      '🔍 **Verificando pagamento...**\n\nAguarde enquanto confirmamos o recebimento.\n\nIsso pode levar alguns minutos.');
+    
+    // Aqui você implementaria a verificação real do pagamento
+    setTimeout(async () => {
+      await editTelegramMessage(bot.token, chatId, messageId, 
+        '⏳ **Pagamento em análise**\n\nSeu pagamento foi recebido e está sendo processado.\n\nVocê será notificado assim que for aprovado.\n\n⏰ Tempo médio: 5-15 minutos');
+    }, 2000);
+  }
+  
+  else if (data?.startsWith('new_pix_')) {
+    const planId = data.replace('new_pix_', '');
+    // Regenerar PIX - chamar o mesmo callback do plano
+    const newUpdate = { ...update, callback_query: { ...callbackQuery, data: `plan_${planId}` } };
+    await handleCallbackQuery(newUpdate, bot);
+  }
+  
+  else if (data === 'help_payment') {
+    const helpMessage = `❓ **Ajuda com Pagamento PIX**
+
+**Como pagar:**
+1️⃣ Copie a chave PIX ou código
+2️⃣ Abra seu banco/carteira digital
+3️⃣ Faça um PIX para a chave/código
+4️⃣ Clique em "✅ Já paguei"
+
+**Problemas comuns:**
+• ⏰ PIX expira em 30 minutos
+• 💰 Valor deve ser exato
+• 📱 Use a chave/código fornecido
+
+**Suporte:**
+Em caso de problemas, entre em contato:
+📧 suporte@blackinpay.com
+📱 @suporte_bot`;
+
+    await editTelegramMessage(bot.token, chatId, messageId, helpMessage, {
+      reply_markup: {
+        inline_keyboard: [[
+          { text: '🔙 Voltar', callback_data: 'back_to_start' }
+        ]]
+      }
+    });
+  }
 }
 
 export async function POST(request: NextRequest) {

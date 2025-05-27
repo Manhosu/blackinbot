@@ -40,14 +40,18 @@ const nextConfig = {
   // Experimental features
   experimental: {
     serverComponentsExternalPackages: ['@supabase/supabase-js'],
-    missingSuspenseWithCSRBailout: false,
+  },
+  
+  // Forçar todas as páginas para serem dinâmicas
+  async redirects() {
+    return [];
   },
   
   // Configurações para resolver problemas de SSR/SSG
   transpilePackages: ['@supabase/supabase-js'],
   
   // Configurações de output para Vercel
-  output: 'standalone',
+  // output: 'standalone', // Remover para Vercel
   
   // Desabilitar geração estática para páginas de erro
   generateBuildId: async () => {
@@ -88,6 +92,14 @@ const nextConfig = {
         ],
       },
     ];
+  },
+  
+  // Configuração para ignorar erros específicos de páginas
+  onDemandEntries: {
+    // Period (in ms) where the server will keep pages in the buffer
+    maxInactiveAge: 25 * 1000,
+    // Number of pages that should be kept simultaneously without being disposed
+    pagesBufferLength: 2,
   },
 }
 

@@ -298,7 +298,7 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
           });
           setCustomMessage(botData.welcome_message || '');
           setCustomMedia(botData.welcome_media_url || '');
-          setMediaType((botData.welcome_media_type || 'none') as 'image' | 'video' | 'none');
+          setMediaType((botData.welcome_media_type === 'photo' ? 'image' : botData.welcome_media_type || 'none') as 'image' | 'video' | 'none');
           
           // Configurar stats com dados do cache se existirem
           if (botData.cachedStats) {
@@ -346,7 +346,7 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
       });
       setCustomMessage(botData.welcome_message || '');
       setCustomMedia(botData.welcome_media_url || '');
-      setMediaType((botData.welcome_media_type || 'none') as 'image' | 'video' | 'none');
+      setMediaType((botData.welcome_media_type === 'photo' ? 'image' : botData.welcome_media_type || 'none') as 'image' | 'video' | 'none');
       
       // Cache os dados essenciais
       const cacheKey = `bot_${params.id}`;
@@ -797,69 +797,84 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
     }
   };
 
-  // Função para salvar mensagem e mídia personalizadas
+  // Função para salvar mensagem e mídia personalizadas - REFATORADA
   const saveCustomContent = async () => {
-    console.log('🔥 Salvando conteúdo personalizado...', { botId: bot?.id, messageLength: customMessage?.length });
-    
+    // Validações básicas
     if (!bot) {
-      console.log('❌ Bot não encontrado!');
-      toast.error('Bot não encontrado!');
+      toast.error('❌ Bot não encontrado');
       return;
     }
 
+    if (!customMessage.trim()) {
+      toast.error('❌ A mensagem de boas-vindas é obrigatória');
+      return;
+    }
+
+    console.log('💾 Iniciando salvamento da personalização...');
     setIsSavingCustomContent(true);
     
     try {
-      console.log('💬 Preparando dados para salvar...');
-      
-      // Preparar dados para salvar
-      const updateData: any = {
-        welcome_message: customMessage.trim(),
-      };
+      let finalMediaUrl = '';
+      let finalMediaType = 'none';
 
-      // Se há mídia, incluir no update
-      if (mediaType !== 'none' && customMedia) {
-        updateData.welcome_media_url = customMedia;
-        updateData.welcome_media_type = mediaType;
-      } else {
-        // Limpar mídia se não há
-        updateData.welcome_media_url = '';
-        updateData.welcome_media_type = 'none';
-      }
-
-      console.log('📤 Enviando para API:', updateData);
-
-      // Fazer upload do arquivo se necessário
-      if (mediaType !== 'none' && mediaSource === 'upload' && mediaFile) {
-        toast.info('📤 Enviando arquivo...', {
-          description: 'Upload em andamento',
-          duration: 3000
-        });
-
-        try {
-          const uploadedUrl = await uploadFile(mediaFile, {
-            botId: bot.id,
-            mediaType: mediaType,
-            onProgress: (progress) => setUploadProgress(progress)
+      // ETAPA 1: Processar mídia se necessário
+      if (mediaType !== 'none') {
+        if (mediaSource === 'url' && customMedia.trim()) {
+          // Usar URL direta
+          finalMediaUrl = customMedia.trim();
+          finalMediaType = mediaType;
+          console.log('📎 Usando URL direta:', finalMediaUrl);
+        } else if (mediaSource === 'upload' && mediaFile) {
+          // Fazer upload do arquivo
+          console.log('📤 Iniciando upload do arquivo...');
+          toast.info('📤 Enviando arquivo...', { 
+            duration: 3000,
+            description: 'Aguarde o upload ser concluído' 
           });
-          
-          if (uploadedUrl.success && uploadedUrl.url) {
-            updateData.welcome_media_url = uploadedUrl.url;
-            console.log('✅ Arquivo enviado:', uploadedUrl.url);
-          } else {
-            throw new Error(uploadedUrl.error || 'Erro no upload');
+
+          try {
+            const uploadResult = await uploadFile(mediaFile, {
+              botId: bot.id,
+              mediaType: mediaType,
+              onProgress: (progress) => {
+                setUploadProgress(progress);
+                console.log(`📊 Progress do upload: ${progress}%`);
+              }
+            });
+            
+            if (uploadResult.success && uploadResult.url) {
+              finalMediaUrl = uploadResult.url;
+              finalMediaType = mediaType;
+              console.log('✅ Upload concluído:', finalMediaUrl);
+              toast.success('✅ Arquivo enviado com sucesso!');
+            } else {
+              throw new Error(uploadResult.error || 'Falha no upload');
+            }
+          } catch (uploadError: any) {
+            console.error('❌ Erro no upload:', uploadError);
+            toast.error('❌ Erro ao enviar arquivo', {
+              description: uploadError.message || 'Tente novamente ou use uma URL',
+              duration: 5000
+            });
+            return;
           }
-        } catch (uploadError: any) {
-          console.error('❌ Erro no upload:', uploadError);
-          toast.error('❌ Erro ao enviar arquivo', {
-            description: uploadError.message || 'Tente novamente ou use uma URL direta',
-            duration: 4000
-          });
+        } else {
+          // Mídia selecionada mas sem conteúdo válido
+          toast.error('❌ Selecione um arquivo ou insira uma URL válida');
           return;
         }
       }
 
-      // Enviar para API
+      // ETAPA 2: Preparar dados para enviar
+      const updateData = {
+        welcome_message: customMessage.trim(),
+        welcome_media_url: finalMediaUrl,
+        welcome_media_type: finalMediaType === 'image' ? 'photo' : finalMediaType
+      };
+
+      console.log('📡 Enviando dados para API:', updateData);
+
+      // ETAPA 3: Enviar para API
       const response = await fetch(`/api/bots/${bot.id}`, {
         method: 'PATCH',
         headers: { 
@@ -869,35 +884,58 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
         body: JSON.stringify(updateData)
       });
 
-      const result = await response.json();
-      console.log('📤 Resposta da API:', result);
-      
-      if (result.success) {
-        // Atualizar bot no estado
-        setBot((prevBot: any) => ({
-          ...prevBot,
-          welcome_message: updateData.welcome_message,
-          welcome_media_url: updateData.welcome_media_url,
-          welcome_media_type: updateData.welcome_media_type
-        }));
-
-        toast.success('🎉 Personalização salva!', {
-          description: '✅ Mensagem de boas-vindas atualizada com sucesso',
-          duration: 4000
-        });
-
-        console.log('✅ Conteúdo personalizado salvo com sucesso!');
-      } else {
-        throw new Error(result.error || 'Erro na resposta da API');
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Erro na API: ${response.status} - ${errorText}`);
       }
+
+      const result = await response.json();
+      console.log('📥 Resposta da API:', result);
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Resposta inválida da API');
+      }
+
+      // ETAPA 4: Atualizar estado local
+      setBot((prevBot: any) => ({
+        ...prevBot,
+        welcome_message: updateData.welcome_message,
+        welcome_media_url: updateData.welcome_media_url,
+        welcome_media_type: updateData.welcome_media_type
+      }));
+
+      // ETAPA 5: Feedback de sucesso
+      toast.success('🎉 Personalização salva!', {
+        description: '✅ Mensagem de boas-vindas atualizada com sucesso',
+        duration: 4000
+      });
+
+      // Adicionar toast adicional com mais detalhes
+      setTimeout(() => {
+        toast.info('🤖 Bot atualizado!', {
+          description: 'As alterações já estão ativas no Telegram',
+          duration: 3000
+        });
+      }, 1500);
+
+      console.log('✅ Personalização salva com sucesso!');
+
+      // ETAPA 6: Limpar estados de upload se necessário
+      if (mediaSource === 'upload') {
+        setMediaFile(null);
+        setMediaPreview(null);
+        setUploadProgress(0);
+      }
+
     } catch (error: any) {
-      console.error('❌ Erro ao salvar:', error);
+      console.error('❌ Erro ao salvar personalização:', error);
       toast.error('❌ Erro ao salvar personalização', {
         description: error.message || 'Tente novamente em alguns momentos',
-        duration: 4000
+        duration: 5000
       });
     } finally {
       setIsSavingCustomContent(false);
+      setUploadProgress(0);
     }
   };
 
@@ -1452,33 +1490,70 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
               )}
 
               {/* Botão de salvar melhorado */}
-              <div className="flex justify-between items-center pt-4">
-                <div className="text-sm text-white/60">
-                  {customMessage ? '✅ Mensagem configurada' : '⏳ Configure sua mensagem'}
-                </div>
-                
-                <Button
-                  onClick={saveCustomContent}
-                  disabled={isSavingCustomContent || isUploading || !customMessage}
-                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 px-8 py-2 text-white font-medium rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isSavingCustomContent ? (
-                    <div className="flex items-center gap-2">
-                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                      Salvando...
-                    </div>
-                  ) : isUploading ? (
-                    <div className="flex items-center gap-2">
-                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                      Enviando arquivo...
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <Save className="w-4 h-4" />
-                      Salvar personalização
+              <div className="flex justify-between items-center pt-6 border-t border-white/10">
+                <div className="flex flex-col gap-1">
+                  <div className="text-sm text-white/60">
+                    {customMessage.trim() 
+                      ? '✅ Mensagem configurada' 
+                      : '⏳ Configure sua mensagem'
+                    }
+                  </div>
+                  {mediaType !== 'none' && (
+                    <div className="text-xs text-blue-300/70">
+                      {mediaSource === 'url' && customMedia.trim() 
+                        ? '🔗 URL de mídia configurada'
+                        : mediaSource === 'upload' && mediaFile
+                        ? '📎 Arquivo selecionado para upload'
+                        : '⚠️ Mídia não configurada'
+                      }
                     </div>
                   )}
-                </Button>
+                </div>
+                
+                <div className="flex items-center gap-3">
+                  {/* Indicador de progresso durante upload */}
+                  {isUploading && uploadProgress > 0 && (
+                    <div className="flex items-center gap-2 text-blue-300">
+                      <div className="w-4 h-4 border-2 border-blue-300/30 border-t-blue-300 rounded-full animate-spin"></div>
+                      <span className="text-sm">{uploadProgress}%</span>
+                    </div>
+                  )}
+                  
+                  <Button
+                    onClick={saveCustomContent}
+                    disabled={
+                      isSavingCustomContent || 
+                      isUploading || 
+                      !customMessage.trim() ||
+                      (mediaType !== 'none' && mediaSource === 'url' && !customMedia.trim()) ||
+                      (mediaType !== 'none' && mediaSource === 'upload' && !mediaFile)
+                    }
+                    className={`px-8 py-3 text-white font-medium rounded-xl shadow-lg transition-all duration-200 ${
+                      isSavingCustomContent || isUploading
+                        ? 'bg-gray-600 cursor-not-allowed'
+                        : customMessage.trim()
+                        ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 hover:shadow-xl hover:scale-105'
+                        : 'bg-gray-600 cursor-not-allowed opacity-50'
+                    }`}
+                  >
+                    {isSavingCustomContent ? (
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                        <span>Salvando...</span>
+                      </div>
+                    ) : isUploading ? (
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                        <span>Enviando arquivo...</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <Save className="w-4 h-4" />
+                        <span>Salvar personalização</span>
+                      </div>
+                    )}
+                  </Button>
+                </div>
               </div>
             </div>
           </CardContent>
