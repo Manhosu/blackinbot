@@ -22,19 +22,14 @@ export function LoginForm() {
       setErrorMessage("");
       
       // Validações básicas
-      if (!email) {
-        setErrorMessage("Email é obrigatório");
-        return;
-      }
-      
-      if (!password) {
-        setErrorMessage("Senha é obrigatória");
+      if (!email || !password) {
+        setErrorMessage((!email ? "Email" : "Senha") + " é obrigatório");
         return;
       }
       
       console.log('🔐 Tentando login com:', email);
       
-      // Autenticação direta com Supabase
+      // 🚀 OTIMIZAÇÃO: Login mais direto
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -42,50 +37,24 @@ export function LoginForm() {
 
       if (error) {
         console.error("❌ Erro de autenticação:", error.message);
-        setErrorMessage("Credenciais inválidas ou problemas de conexão");
+        setErrorMessage("Credenciais inválidas");
         return;
       }
       
-      console.log("✅ Login bem-sucedido no Auth!");
-      
       if (data.user) {
-        // Buscar dados completos do usuário na tabela users
-        const { data: userData, error: userError } = await supabase
-          .from('users')
-          .select('id, email, name, telegram_id')
-          .eq('id', data.user.id)
-          .single();
-
-        if (userError) {
-          console.warn('⚠️ Usuário não encontrado na tabela users, criando...');
-          
-          // Se o usuário não existe na tabela users, criar
-          const { error: createError } = await supabase
-            .from('users')
-            .insert({
-              id: data.user.id,
-              email: data.user.email,
-              name: data.user.user_metadata?.name || data.user.email?.split('@')[0] || 'Usuário',
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            });
-
-          if (createError) {
-            console.error('❌ Erro ao criar usuário:', createError);
-          }
-        }
-
-        // Salvar dados no localStorage
+        console.log("✅ Login bem-sucedido!");
+        
+        // 🚀 OTIMIZAÇÃO: Salvar dados mínimos no localStorage imediatamente
         const userForStorage = {
           id: data.user.id,
           email: data.user.email || email,
-          name: userData?.name || data.user.user_metadata?.name || email.split('@')[0] || 'Usuário',
+          name: data.user.user_metadata?.name || email.split('@')[0] || 'Usuário',
         };
         
         localStorage.setItem('blackinpay_user', JSON.stringify(userForStorage));
-        console.log('✅ Usuário salvo no localStorage:', userForStorage.id);
+        console.log('✅ Usuário salvo, redirecionando...');
         
-        // Redirecionamento direto via href
+        // 🚀 OTIMIZAÇÃO: Redirecionamento imediato sem verificações extras
         window.location.href = "/dashboard";
       }
       

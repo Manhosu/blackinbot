@@ -148,108 +148,107 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     
-    // Função para verificar a autenticação
+    // Função OTIMIZADA para verificar a autenticação
     const checkAuth = async () => {
       try {
-        setIsLoading(true);
-        
-        // Primeiro, verificar se há usuário salvo no localStorage 
-        // para uma experiência mais rápida
+        // 🚀 OTIMIZAÇÃO: Primeiro verificar localStorage para resposta instantânea
         const localUser = loadLocalUser();
         if (localUser && mounted) {
           setUser(localUser);
-          console.log('🔄 Carregado usuário do localStorage:', localUser.id);
+          setIsLoading(false); // ✅ IMPORTANTE: Liberar loading imediatamente
+          console.log('⚡ Usuario carregado instantaneamente do localStorage:', localUser.id);
+          
+          // Validar em background (sem bloquear a UI)
+          setTimeout(() => {
+            validateUserInBackground(localUser);
+          }, 100);
+          return;
         }
         
-        // Depois, validar com o Supabase
+        // Se não há usuário local, tentar Supabase (mais lento)
         try {
-          // Tentar obter sessão do Supabase (mesmo que já tenhamos usuário local)
-          let { data: { session }, error } = await supabase.auth.getSession();
+          const { data: { session }, error } = await supabase.auth.getSession();
           
-          if (error) {
-            console.warn('❌ Erro ao obter sessão Supabase:', error.message);
-            // Continue com o usuário do localStorage se já estiver definido
+          if (error || !session?.user) {
+            console.log('❌ Sem sessão válida:', error?.message);
             if (mounted) {
+              setUser(null);
               setIsLoading(false);
             }
             return;
           }
           
-          if (session && session.user && mounted) {
-            // Verificar se o token está válido
-            try {
-              // Fazer uma requisição para verificar se o token é válido
-              const { data: userTest, error: userError } = await supabase.auth.getUser();
-              
-              if (userError || !userTest.user) {
-                console.warn('⚠️ Sessão inválida, tentando refresh token...');
-                // Tentar refresh do token
-                const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
-                
-                if (refreshError || !refreshData.session) {
-                  console.error('❌ Falha no refresh token:', refreshError);
-                  if (mounted) {
-                    setUser(null);
-                    localStorage.removeItem('blackinpay_user');
-                  }
-                  return;
-                }
-                
-                // Continuar com a sessão atualizada
-                session = refreshData.session;
-              } else {
-                // O token está válido, podemos confiar na sessão
-                if (mounted) {
-                  const userData = {
-                    id: session.user.id,
-                    email: session.user.email || '',
-                    name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'Usuário',
-                  };
-                  setUser(userData);
-                  saveLocalUser(userData);
-                }
-              }
-            } catch (tokenError) {
-              console.error('❌ Erro ao verificar token:', tokenError);
-              // Manter o usuário do localStorage por segurança
-            }
-          } else if (!session && mounted) {
-            // Sessão não encontrada, mas pode ter usuário no localStorage
-            if (!localUser) {
-              setUser(null);
-            }
+          // Sessão encontrada
+          const userData: AuthUser = {
+            id: session.user.id,
+            email: session.user.email || '',
+            name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'Usuário'
+          };
+          
+          if (mounted) {
+            setUser(userData);
+            saveLocalUser(userData);
+            setIsLoading(false);
+            console.log('✅ Autenticado via Supabase:', userData.id);
           }
         } catch (supaError) {
           console.error('❌ Erro Supabase:', supaError);
-          // Manter o usuário do localStorage por segurança
-        }
-        
-        if (mounted) {
-          setIsLoading(false);
+          if (mounted) {
+            setUser(null);
+            setIsLoading(false);
+          }
         }
       } catch (error) {
         console.error('Erro ao verificar autenticação:', error);
-        // Usar qualquer usuário do localStorage como fallback final
-        const localUser = loadLocalUser();
-        if (localUser && mounted) {
-          setUser(localUser);
-          console.log('⚠️ Fallback para localStorage após erro:', localUser.id);
-        } else {
+        if (mounted) {
           setUser(null);
+          setIsLoading(false);
         }
-        setIsLoading(false);
       }
     };
 
-    // Configurar listener para mudanças de autenticação
+    // Função para validar usuário em background (não bloqueia UI)
+    const validateUserInBackground = async (localUser: AuthUser) => {
+      try {
+        const { data: { user }, error } = await supabase.auth.getUser();
+        
+        if (error || !user) {
+          console.warn('⚠️ Usuário local pode estar desatualizado');
+          // Manter usuário local por enquanto, não forçar logout
+          return;
+        }
+        
+        // Atualizar dados se mudaram
+        const updatedUser: AuthUser = {
+          id: user.id,
+          email: user.email || localUser.email,
+          name: user.user_metadata?.name || localUser.name || 'Usuário'
+        };
+        
+        if (mounted && (
+          updatedUser.email !== localUser.email || 
+          updatedUser.name !== localUser.name
+        )) {
+          setUser(updatedUser);
+          saveLocalUser(updatedUser);
+          console.log('🔄 Dados do usuário atualizados em background');
+        }
+      } catch (error) {
+        console.warn('⚠️ Erro na validação em background:', error);
+        // Não fazer nada, manter usuário local
+      }
+    };
+
+    // 🚀 OTIMIZAÇÃO: Configurar listener de auth de forma mais simples
     const setupAuthListener = () => {
       try {
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
           async (event: any, session: any) => {
             if (!mounted) return;
             
+            console.log('🔐 Evento de auth:', event);
+            
             if (event === 'SIGNED_IN' && session?.user) {
-              console.log('🔐 Evento de login detectado');
               const userData: AuthUser = {
                 id: session.user.id,
                 email: session.user.email || '',
@@ -258,28 +257,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               setUser(userData);
               saveLocalUser(userData);
               
-              // Redirecionar para dashboard após login
-              if (typeof window !== 'undefined' && window.location.pathname.includes('/login')) {
-                router.replace('/dashboard');
+              // Redirecionamento mais eficiente
+              if (typeof window !== 'undefined' && 
+                  (window.location.pathname === '/login' || window.location.pathname === '/register')) {
+                window.location.replace('/dashboard');
               }
             } else if (event === 'SIGNED_OUT') {
-              console.log('🔓 Evento de logout detectado');
               setUser(null);
-              try {
-                if (typeof window !== 'undefined') {
-                  localStorage.removeItem('blackinpay_user');
+              if (typeof window !== 'undefined') {
+                localStorage.removeItem('blackinpay_user');
+                if (isProtectedRoute(window.location.pathname)) {
+                  window.location.replace('/login');
                 }
-              } catch (e) {
-                console.error('Erro ao remover usuário do localStorage:', e);
               }
-              
-              // Redirecionar para login se em rota protegida
-              if (typeof window !== 'undefined' && isProtectedRoute(window.location.pathname)) {
-                router.replace('/login');
-              }
-            } else if (event === 'TOKEN_REFRESHED') {
-              console.log('🔄 Token atualizado, recarregando dados do usuário');
-              await refreshAuth();
             }
           }
         );
