@@ -214,6 +214,22 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
     if (!hasInitialized.current) {
       hasInitialized.current = true;
       
+      // Limpar cache antigo com campos incorretos
+      const cacheKey = `bot_${params.id}`;
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        try {
+          const botData = JSON.parse(cached);
+          // Se tem campos antigos, remover do cache
+          if (botData.media_url || botData.media_type) {
+            localStorage.removeItem(cacheKey);
+            console.log('🧹 Cache antigo com campos incorretos removido');
+          }
+        } catch (e) {
+          localStorage.removeItem(cacheKey);
+        }
+      }
+      
       // Verificar parâmetros de query
       const editParam = searchParams.get('edit');
       const tabParam = searchParams.get('tab');
@@ -281,8 +297,8 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
             status: botData.status || 'active'
           });
           setCustomMessage(botData.welcome_message || '');
-          setCustomMedia(botData.media_url || '');
-          setMediaType((botData.media_type || 'none') as 'image' | 'video' | 'none');
+          setCustomMedia(botData.welcome_media_url || '');
+          setMediaType((botData.welcome_media_type || 'none') as 'image' | 'video' | 'none');
           
           // Configurar stats com dados do cache se existirem
           if (botData.cachedStats) {
@@ -308,7 +324,7 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
       // Buscar apenas dados essenciais primeiro
       const { data: botData, error: botError } = await supabase
         .from('bots')
-        .select('id, name, description, status, username, created_at, welcome_message, media_url, media_type, avatar_url, is_activated')
+        .select('id, name, description, status, username, created_at, welcome_message, welcome_media_url, welcome_media_type, avatar_url, is_activated')
         .eq('id', params.id)
         .single();
       
@@ -329,8 +345,8 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
         status: botData.status || 'active'
       });
       setCustomMessage(botData.welcome_message || '');
-      setCustomMedia(botData.media_url || '');
-      setMediaType((botData.media_type || 'none') as 'image' | 'video' | 'none');
+      setCustomMedia(botData.welcome_media_url || '');
+      setMediaType((botData.welcome_media_type || 'none') as 'image' | 'video' | 'none');
       
       // Cache os dados essenciais
       const cacheKey = `bot_${params.id}`;
