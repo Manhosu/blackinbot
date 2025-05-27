@@ -3,7 +3,7 @@
  * Versão atualizada com chave global por usuário
  */
 
-const PUSHINPAY_BASE_URL = 'https://api.pushinpay.com.br/api/v1';
+const PUSHINPAY_BASE_URL = 'https://api.pushinpay.com.br/api';
 const ADMIN_PUSHINPAY_KEY = process.env.PUSHINPAY_API_KEY; // Chave admin para fallback
 
 interface PushinPayPaymentData {
@@ -163,15 +163,8 @@ export async function createPushinPayment(
   const ownerAmount = totalAmount - totalPlatformFee;
   
   const baseData = {
-    amount: totalAmount,
-    description: paymentData.description,
-    external_reference: paymentData.external_reference,
-    expires_in: paymentData.expires_in_minutes ? paymentData.expires_in_minutes * 60 : 900, // Default 15 min
-    payment_method: 'pix',
-    payer: paymentData.payer,
-    return_url: `${process.env.NEXT_PUBLIC_APP_URL}/payment/success`,
-    cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/payment/cancel`,
-    notification_url: `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/pushinpay`,
+    value: totalAmount, // PushinPay usa 'value' em centavos
+    webhook_url: `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/pushinpay`,
   };
 
   // Se tiver chave do usuário, adicionar split automático
@@ -197,17 +190,18 @@ export async function createPushinPayment(
     console.log('⚠️ Usando chave admin como fallback - sem split');
   }
 
-  const result = await makeRequest('/payments', 'POST', data, userPushinPayKey || ADMIN_PUSHINPAY_KEY);
+  const result = await makeRequest('/pix/cashIn', 'POST', data, userPushinPayKey || ADMIN_PUSHINPAY_KEY);
   
   if (result.success && result.data) {
     console.log('✅ Pagamento PIX criado:', result.data.id);
     
     // Formatar resposta para consistência
+    const expiresInMinutes = paymentData.expires_in_minutes || 15; // Default 15 minutos
     result.data = {
       ...result.data,
-      amount: result.data.amount / 100, // Converter de volta para reais
-      qr_code_image_url: result.data.qr_code_image || result.data.qr_code_url,
-      expires_at: result.data.expires_at || new Date(Date.now() + (data.expires_in * 1000)).toISOString(),
+      amount: result.data.value / 100, // PushinPay retorna 'value', não 'amount'
+      qr_code_image_url: result.data.qr_code_base64 || result.data.qr_code_image || result.data.qr_code_url,
+      expires_at: result.data.expires_at || new Date(Date.now() + (expiresInMinutes * 60 * 1000)).toISOString(),
       split_info: userPushinPayKey ? {
         platform_fee: totalPlatformFee / 100,
         owner_amount: ownerAmount / 100,

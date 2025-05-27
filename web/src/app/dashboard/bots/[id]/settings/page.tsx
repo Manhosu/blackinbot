@@ -201,7 +201,7 @@ export default function BotSettingsPage({ params }: { params: { id: string } }) 
           toast.warning('Configurações salvas, mas houve problema ao atualizar o Telegram', { id: 'telegram-update' });
         }
       } else {
-        toast.success('Configurações gerais salvas com sucesso!');
+      toast.success('Configurações gerais salvas com sucesso!');
       }
       
     } catch (error: any) {

@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
     // Criar pagamento no PushinPay
     const paymentResult = await createPushinPayment({
       amount: amount,
-      description: description || `Pagamento - ${bot.name}`,
+      description: description || `Pagamento - ${bot.name} - ${plan?.name || 'Plano'}`,
       external_reference: `bot_${bot_id}_user_${user_telegram_id}_${Date.now()}`,
       expires_in_minutes: 15,
       payer: user_name ? { name: user_name } : undefined
@@ -101,34 +101,43 @@ export async function POST(request: NextRequest) {
       }, { status: 500 });
     }
     
+    console.log('✅ Pagamento PushinPay criado:', paymentResult.data);
+    
+    // Preparar dados para salvar no banco
+    const paymentToSave = {
+      bot_id: bot_id,
+      plan_id: plan_id,
+      user_telegram_id: user_telegram_id.toString(),
+      user_name: user_name,
+      amount: amount,
+      status: 'pending',
+      method: 'pix',
+      pushinpay_id: paymentResult.data.id,
+      qr_code: paymentResult.data.qr_code,
+      expires_at: new Date(Date.now() + (15 * 60 * 1000)).toISOString(),
+      metadata: {
+        ...(paymentResult.data.split_info || {}),
+        bot_owner_id: bot.owner_id,
+        user_pushinpay_key_used: userPushinPayKey.substring(0, 10) + '...',
+        qr_code_image_url: paymentResult.data.qr_code_image_url // Armazenar no metadata
+      }
+    };
+    
+    console.log('💾 Salvando pagamento no banco:', JSON.stringify(paymentToSave, null, 2));
+    
     // Salvar pagamento no banco
     const { data: payment, error: paymentError } = await supabase
       .from('payments')
-      .insert({
-        bot_id: bot_id,
-        plan_id: plan_id,
-        user_telegram_id: user_telegram_id.toString(),
-        user_name: user_name,
-        amount: amount,
-        status: 'pending',
-        method: 'pix',
-        pushinpay_id: paymentResult.data.id,
-        qr_code: paymentResult.data.qr_code,
-        expires_at: new Date(Date.now() + (15 * 60 * 1000)).toISOString(),
-        metadata: {
-          ...(paymentResult.data.split_info || {}),
-          bot_owner_id: bot.owner_id,
-          user_pushinpay_key_used: userPushinPayKey.substring(0, 10) + '...'
-        }
-      })
+      .insert(paymentToSave)
       .select()
       .single();
     
     if (paymentError) {
       console.error('❌ Erro ao salvar pagamento:', paymentError);
+      console.error('❌ Dados que tentamos salvar:', JSON.stringify(paymentToSave, null, 2));
       return NextResponse.json({
         success: false,
-        error: 'Erro ao salvar pagamento'
+        error: 'Erro ao salvar pagamento: ' + paymentError.message
       }, { status: 500 });
     }
     
