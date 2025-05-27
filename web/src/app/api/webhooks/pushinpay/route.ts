@@ -9,7 +9,7 @@ function createSupabaseAdmin() {
   if (!url || !serviceKey) {
     throw new Error('Missing Supabase environment variables');
   }
-
+  
   return createClient(url, serviceKey);
 }
 

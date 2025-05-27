@@ -1,24 +1,26 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Configuração para Vercel
-  // Configurar para não gerar páginas estáticas problemáticas
+  // Configurações básicas
   trailingSlash: false,
-  // Configurações de build
+  reactStrictMode: false,
+  poweredByHeader: false,
+  
+  // Build config
   typescript: {
-    // Ignorar erros de tipo durante o build (já corrigimos os principais)
     ignoreBuildErrors: false,
   },
   eslint: {
-    // Ignorar erros de ESLint durante o build
     ignoreDuringBuilds: true,
   },
-  // Configurar variáveis de ambiente públicas
+  
+  // Environment variables
   env: {
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL || 'https://blackinbot.vercel.app',
   },
-  reactStrictMode: false,
   
+  // Images config
   images: {
+    unoptimized: true,
     formats: ['image/avif', 'image/webp'],
     minimumCacheTTL: 60,
     remotePatterns: [
@@ -29,18 +31,17 @@ const nextConfig = {
     ],
   },
   
-  poweredByHeader: false,
-  
+  // Compiler config
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production',
   },
   
-  // Permitir imports externos
+  // External packages
   transpilePackages: ['@supabase/supabase-js'],
   
-  // Configurar para não gerar páginas estáticas
-  generateBuildId: async () => {
-    return 'build-' + Date.now()
+  // Experimental features
+  experimental: {
+    serverComponentsExternalPackages: ['@supabase/supabase-js'],
   },
 }
 

@@ -48,6 +48,10 @@ export default function BotsPage() {
     setLoading(true);
     try {
       setError(null);
+      
+      // Forçar um delay para garantir que o banco processou a exclusão
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
       const userBots = await getMyBots(true); // Forçar refresh
       console.log(`✅ ${userBots.length} bots encontrados após atualização`);
       setBots(userBots);

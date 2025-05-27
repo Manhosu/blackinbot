@@ -10,18 +10,18 @@ function createSupabaseAdmin() {
   if (!url || !serviceKey) {
     throw new Error('Missing Supabase environment variables');
   }
-
+  
   return createClient(url, serviceKey);
 }
 
 export async function POST(request: NextRequest) {
   console.log('🚀 API de criação de pagamento chamada');
-  
+
   try {
     const { bot_id, plan_id, user_telegram_id, user_name, amount, description } = await request.json();
     
     console.log('📋 Dados recebidos:', { bot_id, plan_id, user_telegram_id, user_name, amount, description });
-    
+
     if (!bot_id || !user_telegram_id || !amount) {
       return NextResponse.json({
         success: false,
@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = createSupabaseAdmin();
-    
+
     // Buscar dados do bot e do proprietário
     const { data: bot, error: botError } = await supabase
       .from('bots')
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
       `)
       .eq('id', bot_id)
       .single();
-    
+
     if (botError || !bot) {
       console.error('❌ Bot não encontrado:', botError);
       return NextResponse.json({
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
         error: 'Proprietário do bot não possui chave PushinPay configurada'
       }, { status: 400 });
     }
-    
+
     // Buscar plano se fornecido
     let plan = null;
     if (plan_id) {
@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
     }
     
     console.log('💰 Criando pagamento PushinPay com chave do usuário');
-    
+
     // Criar pagamento no PushinPay
     const paymentResult = await createPushinPayment({
       amount: amount,
@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
       expires_in_minutes: 15,
       payer: user_name ? { name: user_name } : undefined
     }, userPushinPayKey);
-    
+
     if (!paymentResult.success) {
       console.error('❌ Erro no PushinPay:', paymentResult.error);
       return NextResponse.json({
@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
         error: 'Erro ao gerar pagamento PIX: ' + paymentResult.error
       }, { status: 500 });
     }
-    
+
     console.log('✅ Pagamento PushinPay criado:', paymentResult.data);
     
     // Preparar dados para salvar no banco
@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
       .insert(paymentToSave)
       .select()
       .single();
-    
+
     if (paymentError) {
       console.error('❌ Erro ao salvar pagamento:', paymentError);
       console.error('❌ Dados que tentamos salvar:', JSON.stringify(paymentToSave, null, 2));
@@ -140,9 +140,9 @@ export async function POST(request: NextRequest) {
         error: 'Erro ao salvar pagamento: ' + paymentError.message
       }, { status: 500 });
     }
-    
+
     console.log('✅ Pagamento criado com sucesso:', payment.id);
-    
+
     return NextResponse.json({
       success: true,
       payment: {
@@ -155,7 +155,7 @@ export async function POST(request: NextRequest) {
         split_info: paymentResult.data.split_info
       }
     });
-    
+
   } catch (error: any) {
     console.error('❌ Erro na API de pagamento:', error);
     return NextResponse.json({

@@ -17,6 +17,10 @@ import { useRouter } from 'next/navigation';
 
 // Configurações do Next.js removidas - causavam erro de build
 
+// Forçar renderização dinâmica
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export default function HomePage() {
   const [isScrolled, setIsScrolled] = useState(false);
   const router = useRouter();

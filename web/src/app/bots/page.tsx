@@ -1,5 +1,9 @@
 'use client';
 
+// Forcar renderizacao dinamica
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 import React, { useEffect, useState } from 'react';
 import { DashboardLayout } from '@/components/layout/dashboard-layout';
 import { BotCard } from '@/components/bots/bot-card';

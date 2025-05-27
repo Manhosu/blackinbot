@@ -15,7 +15,7 @@ function createSupabaseAdmin() {
   if (!url || !key) {
     throw new Error('Missing Supabase environment variables');
   }
-
+  
   return createClient(url, key);
 }
 
@@ -308,8 +308,8 @@ Escolha um dos nossos planos abaixo:`;
       console.warn(`⚠️ Erro ao enviar mídia: ${mediaError}`);
       // Fallback para mensagem de texto
       await sendTelegramMessage(bot.token, chatId, welcomeText, {
-        reply_markup: replyMarkup
-      });
+    reply_markup: replyMarkup
+  });
     }
   } else {
     // Enviar apenas mensagem de texto com planos
@@ -422,9 +422,9 @@ ${plan.description ? `📝 **Descrição:** ${plan.description}` : ''}
 
       // Editar mensagem com instruções de pagamento
       await editTelegramMessage(bot.token, chatId, messageId, paymentMessage, {
-        reply_markup: {
-          inline_keyboard: keyboard
-        }
+          reply_markup: {
+            inline_keyboard: keyboard
+          }
       });
 
       console.log(`✅ Instruções de pagamento enviadas para usuário ${userId}`);
@@ -461,7 +461,7 @@ ${plan.description ? `📝 **Descrição:** ${plan.description}` : ''}
       }
 
       const planName = (payment as any).plans?.name || 'Plano';
-      const qrMessage = `📲 **QR CODE PIX**
+        const qrMessage = `📲 **QR CODE PIX**
 
 💰 **Valor:** R$ ${payment.amount.toFixed(2).replace('.', ',')}
 📦 **Plano:** ${planName}

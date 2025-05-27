@@ -1,5 +1,9 @@
 'use client';
 
+// Forcar renderizacao dinamica
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';

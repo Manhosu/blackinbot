@@ -29,7 +29,13 @@ const LOCAL_USER_ID = 'local_user_' + Date.now();
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isClient, setIsClient] = useState(false);
   const router = useRouter();
+  
+  // Verificar se estamos no cliente para evitar hidration mismatch
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   // Função para checar se estamos em uma rota protegida
   const isProtectedRoute = (path: string): boolean => {
@@ -136,6 +142,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let mounted = true;
+    
+    // Só executar no cliente para evitar problemas de SSR
+    if (!isClient) {
+      return;
+    }
     
     // Função para verificar a autenticação
     const checkAuth = async () => {
@@ -291,7 +302,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         subscription.unsubscribe();
       }
     };
-  }, [router]);
+  }, [router, isClient]);
 
   const signIn = async (email: string, password: string) => {
     try {

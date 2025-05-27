@@ -34,7 +34,7 @@ interface FinancialStats {
 interface UserProfile {
   id: string;
   email: string;
-  name: string;
+    name: string;
   pushinpay_key?: string;
 }
 
@@ -63,14 +63,14 @@ export default function FinanceiroPage() {
         router.push('/login');
         return;
       }
-
+      
       // Carregar perfil do usuário com chave PushinPay
       const { data: userData, error: userError } = await supabase
         .from('users')
         .select('id, email, name, pushinpay_key')
         .eq('id', user.id)
         .single();
-
+      
       if (userError) throw userError;
       setUserProfile(userData);
       setPushinpayKey(userData.pushinpay_key || '');
@@ -111,7 +111,7 @@ export default function FinanceiroPage() {
   useEffect(() => {
     loadData();
   }, []);
-
+      
   // Abrir modal para configurar chave
   const openKeyModal = () => {
     setShowKeyModal(true);
@@ -134,10 +134,10 @@ export default function FinanceiroPage() {
       setError('Chave PushinPay é obrigatória');
       return;
     }
-
+    
     setSaving(true);
     setError('');
-
+    
     try {
       // 1. Primeiro validar a chave PushinPay
       console.log('🔍 Validando chave PushinPay...');
@@ -148,9 +148,9 @@ export default function FinanceiroPage() {
         },
         body: JSON.stringify({ api_key: pushinpayKey.trim() }),
       });
-
+      
       const validationData = await validationResponse.json();
-
+      
       if (!validationData.success) {
         setError(validationData.error || 'Chave PushinPay inválida');
         return;
@@ -207,34 +207,34 @@ export default function FinanceiroPage() {
     <DashboardLayout>
       <div className="space-y-8">
         {/* Header */}
-        <div>
+          <div>
           <h1 className="heading-2">Contas bancárias</h1>
           <p className="text-white/60 mt-2">
             Todos os seus pagamentos são processados automaticamente via PushinPay.
             Os valores são depositados imediatamente na sua conta quando aprovados.
-          </p>
-        </div>
-
+            </p>
+          </div>
+          
         {/* Estatísticas financeiras */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="card bg-gradient-to-br from-blue-500/20 to-blue-600/10 border-blue-500/20">
             <div className="flex items-center justify-between">
-              <div>
+            <div>
                 <p className="text-blue-300 text-sm font-medium">Total de Vendas</p>
                 <p className="text-2xl font-bold text-white mt-1">{stats.total_sales}</p>
               </div>
               <div className="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center">
                 <TrendingUp className="w-6 h-6 text-blue-400" />
               </div>
-            </div>
           </div>
+        </div>
 
           <div className="card bg-gradient-to-br from-green-500/20 to-green-600/10 border-green-500/20">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-green-300 text-sm font-medium">Receita Total</p>
                 <p className="text-2xl font-bold text-white mt-1">{formatCurrency(stats.total_revenue)}</p>
-              </div>
+        </div>
               <div className="w-12 h-12 bg-green-500/20 rounded-xl flex items-center justify-center">
                 <DollarSign className="w-6 h-6 text-green-400" />
               </div>
@@ -290,7 +290,7 @@ export default function FinanceiroPage() {
                 <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-accent rounded-xl flex items-center justify-center">
                   <Key className="w-6 h-6 text-white" />
                 </div>
-                <div>
+              <div>
                   <h3 className="font-medium text-white">Chave PushinPay Global</h3>
                   <div className="flex items-center gap-2 mt-1">
                     {userProfile?.pushinpay_key ? (
@@ -310,10 +310,10 @@ export default function FinanceiroPage() {
                   </div>
                   <p className="text-xs text-white/50 mt-1">
                     Válida para todos os {bots.length} bots da sua conta
-                  </p>
+            </p>
                 </div>
               </div>
-
+              
               <button
                 onClick={openKeyModal}
                 className="button-primary flex items-center gap-2"
@@ -343,10 +343,10 @@ export default function FinanceiroPage() {
                   O sistema aplica automaticamente um split de <strong>R$ 1,48 + 5%</strong> em todas as vendas.
                   O valor restante é depositado diretamente na sua conta PushinPay configurada.
                 </p>
-              </div>
-            </div>
-          </div>
         </div>
+            </div>
+                        </div>
+                      </div>
 
         {/* Lista de bots */}
         <div className="card">
@@ -362,14 +362,14 @@ export default function FinanceiroPage() {
               <p className="text-white/50">Nenhum bot encontrado</p>
             </div>
           ) : (
-            <div className="space-y-4">
+                <div className="space-y-4">
               {bots.map((bot) => (
                 <div key={bot.id} className="flex items-center justify-between p-4 bg-secondary/50 border border-border-light rounded-xl">
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-accent rounded-xl flex items-center justify-center">
                       <span className="text-white font-semibold text-lg">{bot.name.charAt(0).toUpperCase()}</span>
-                    </div>
-                    <div>
+                        </div>
+                        <div>
                       <h3 className="font-medium text-white">{bot.name}</h3>
                       <div className="flex items-center gap-2 mt-1">
                         {userProfile?.pushinpay_key ? (
@@ -387,14 +387,14 @@ export default function FinanceiroPage() {
                     </div>
                   </div>
 
-                  <div className="text-right">
+                      <div className="text-right">
                     <p className="text-sm text-white/60">
                       {userProfile?.pushinpay_key ? 'Pronto para receber' : 'Aguardando configuração'}
-                    </p>
-                  </div>
+                        </p>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
           )}
         </div>
       </div>
@@ -427,9 +427,9 @@ export default function FinanceiroPage() {
             <div className="mb-6">
               <label className="block text-sm font-medium text-white/80 mb-2">
                 Chave PushinPay Global
-              </label>
-              <input
-                type="text"
+                </label>
+                <input
+                  type="text"
                 value={pushinpayKey}
                 onChange={(e) => setPushinpayKey(e.target.value)}
                 placeholder="Digite sua chave PushinPay (ex: pk_live_...)"
@@ -446,36 +446,36 @@ export default function FinanceiroPage() {
                     <span className="text-sm text-blue-400">
                       Validando chave PushinPay...
                     </span>
-                  </div>
+          </div>
                 </div>
               )}
             </div>
 
             <div className="flex gap-3">
-              <button
+                <button
                 onClick={closeKeyModal}
                 className="button-outline flex-1"
                 disabled={saving}
-              >
-                Cancelar
-              </button>
-              <button
+                >
+                  Cancelar
+                </button>
+                <button
                 onClick={handleSaveKey}
                 disabled={saving || !pushinpayKey.trim()}
                 className="button-primary flex-1 flex items-center justify-center gap-2"
-              >
+                >
                 {saving ? (
-                  <>
+                    <>
                     <RefreshCw className="w-4 h-4 animate-spin" />
                     Salvando...
-                  </>
-                ) : (
+                    </>
+                  ) : (
                   <>
                     <Save className="w-4 h-4" />
                     Salvar
                   </>
-                )}
-              </button>
+                  )}
+                </button>
             </div>
           </div>
         </div>

@@ -51,8 +51,8 @@ const MemberItem = ({ member }: { member: any }) => {
   };
 
   return (
-          <div className="flex items-center justify-between py-3 border-b border-border-light last:border-b-0">
-        <div className="flex items-center gap-3">
+    <div className="flex items-center justify-between py-3 border-b border-border-light last:border-b-0">
+      <div className="flex items-center gap-3">
           <div className={`w-10 h-10 rounded-full flex items-center justify-center overflow-hidden ${
             member.isAdmin ? 'ring-2 ring-blue-500/50' : ''
           }`}>
@@ -78,10 +78,10 @@ const MemberItem = ({ member }: { member: any }) => {
             >
               <span className={`text-sm font-medium ${member.isAdmin ? 'text-blue-400' : ''}`}>
                 {member.isAdmin ? '👑' : (member.users?.name || member.name ? (member.users?.name || member.name).charAt(0).toUpperCase() : 'U')}
-              </span>
+          </span>
             </div>
-          </div>
-          <div>
+        </div>
+        <div>
             <div className="flex items-center gap-2">
               <p className="font-medium">{member.users?.name || member.name || 'Nome não disponível'}</p>
               {member.isAdmin && (
@@ -97,7 +97,7 @@ const MemberItem = ({ member }: { member: any }) => {
             <p className="text-sm text-white/60">@{member.users?.username || member.username || 'sem_username'}</p>
             <p className="text-xs text-white/40">ID: {member.telegram_user_id || member.telegram_id}</p>
           </div>
-        </div>
+      </div>
       
       <div className="flex items-center gap-3">
         <div className="text-right">
@@ -361,8 +361,8 @@ export default function MarketingPage() {
     return (
       <DashboardLayout>
         <div className="h-full w-full flex items-center justify-center">
-          <div className="animate-spin h-12 w-12 border-4 border-accent border-t-transparent rounded-full"></div>
-        </div>
+        <div className="animate-spin h-12 w-12 border-4 border-accent border-t-transparent rounded-full"></div>
+      </div>
       </DashboardLayout>
     );
   }
@@ -377,8 +377,8 @@ export default function MarketingPage() {
       <div className="mb-6">
         <h1 className="heading-2">Remarketing</h1>
         <p className="text-white/60">Gerencie todos os membros dos seus grupos e configure mensagens automáticas</p>
-      </div>
-
+        </div>
+        
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="groups">Grupos e Membros</TabsTrigger>
@@ -402,66 +402,66 @@ export default function MarketingPage() {
                 variant="outline"
                 size="sm"
                 disabled={updatingProfiles || loading}
-              >
+          >
                 <Users size={16} className={updatingProfiles ? 'animate-spin mr-2' : 'mr-2'} />
                 {updatingProfiles ? 'Atualizando...' : 'Atualizar Perfis'}
               </Button>
-              
+          
               <Button 
                 onClick={handleSyncAdmins}
                 variant="outline"
                 size="sm"
                 disabled={syncingAdmins || loading}
-              >
+          >
                 <Crown size={16} className={syncingAdmins ? 'animate-spin mr-2' : 'mr-2'} />
                 {syncingAdmins ? 'Sincronizando...' : 'Sincronizar Admins'}
               </Button>
-              
+          
               <Button 
                 onClick={fetchMarketingData}
                 variant="outline"
                 size="sm"
                 disabled={loading}
-              >
+            >
                 <RefreshCw size={16} className={loading ? 'animate-spin mr-2' : 'mr-2'} />
                 Atualizar
               </Button>
-            </div>
-          </div>
-
+        </div>
+      </div>
+      
           {/* Cards de estatísticas */}
           <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
-            <StatCard
-              title="Total de Membros"
-              value={stats.total.toString()}
-              icon={<Users size={20} />}
-              color="blue"
-            />
+        <StatCard
+          title="Total de Membros"
+          value={stats.total.toString()}
+          icon={<Users size={20} />}
+          color="blue"
+        />
             <StatCard
               title="Administradores"
               value={(stats.admins || 0).toString()}
               icon={<Crown size={20} />}
               color="blue"
             />
-            <StatCard
-              title="Membros Ativos"
-              value={stats.active.toString()}
-              icon={<CheckCircle size={20} />}
-              color="green"
-            />
-            <StatCard
-              title="Expirando em Breve"
-              value={stats.expiring_soon.toString()}
-              icon={<Clock size={20} />}
-              color="orange"
-            />
-            <StatCard
-              title="Expirados"
-              value={stats.expired.toString()}
-              icon={<XCircle size={20} />}
-              color="red"
-            />
-          </div>
+        <StatCard
+          title="Membros Ativos"
+          value={stats.active.toString()}
+          icon={<CheckCircle size={20} />}
+          color="green"
+        />
+        <StatCard
+          title="Expirando em Breve"
+          value={stats.expiring_soon.toString()}
+          icon={<Clock size={20} />}
+          color="orange"
+        />
+        <StatCard
+          title="Expirados"
+          value={stats.expired.toString()}
+          icon={<XCircle size={20} />}
+          color="red"
+        />
+      </div>
 
           {/* Lista de grupos */}
           <div className="space-y-6">
@@ -481,7 +481,7 @@ export default function MarketingPage() {
                     <p>• Seus bots estão configurados e ativos</p>
                     <p>• Os bots foram adicionados aos grupos do Telegram</p>
                     <p>• Há vendas/membros nos seus grupos</p>
-                  </div>
+              </div>
                 </CardContent>
               </Card>
             )}
@@ -515,7 +515,7 @@ export default function MarketingPage() {
                     <option key={bot.id} value={bot.id}>
                       {bot.name}
                     </option>
-                  ))}
+          ))}
                 </select>
               </div>
 
@@ -535,8 +535,8 @@ export default function MarketingPage() {
                       Esta mensagem será enviada automaticamente pelo sistema via Telegram para membros que 
                       tenham o plano expirando em 1 dia.
                     </p>
-                  </div>
-
+          </div>
+          
                   <div className="flex justify-end">
                     <Button 
                       onClick={handleSaveRemarketingMessage}
@@ -564,9 +564,9 @@ export default function MarketingPage() {
                   <h3 className="text-lg font-semibold mb-2">Nenhum bot encontrado</h3>
                   <p className="text-white/60">
                     Crie e configure seus bots primeiro para definir mensagens de remarketing.
-                  </p>
-                </div>
-              )}
+          </p>
+        </div>
+      )}
             </CardContent>
           </Card>
         </TabsContent>

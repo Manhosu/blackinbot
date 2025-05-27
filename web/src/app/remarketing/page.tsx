@@ -1,5 +1,9 @@
 'use client';
 
+// Forcar renderizacao dinamica
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 

@@ -165,8 +165,20 @@ export default function BotCard({ bot, onUpdate }: BotCardProps) {
           'success'
         );
         
-        // Atualizar a lista de bots
+        // Estratégia de atualização múltipla para garantir que a lista seja atualizada
+        // Primeira atualização imediata
         onUpdate();
+        
+        // Segunda atualização após 500ms para garantir que o banco processou
+        setTimeout(() => {
+          onUpdate();
+        }, 500);
+        
+        // Terceira atualização após 1.5s como backup final
+        setTimeout(() => {
+          onUpdate();
+        }, 1500);
+        
       } else {
         const errorMessage = result.error || `Erro HTTP ${response.status}`;
         throw new Error(errorMessage);

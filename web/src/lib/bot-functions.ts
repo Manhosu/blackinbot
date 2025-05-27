@@ -140,6 +140,7 @@ export async function getMyBots(forceRefresh = false) {
       if (savedUser) {
         const userData = JSON.parse(savedUser);
         userId = userData.id;
+        console.log(`👤 Usuário encontrado no localStorage: ${userId}`);
       }
     } catch (localError) {
       console.error('Erro ao ler localStorage:', localError);
@@ -151,6 +152,7 @@ export async function getMyBots(forceRefresh = false) {
         const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
         if (!sessionError && sessionData.session && sessionData.session.user) {
           userId = sessionData.session.user.id;
+          console.log(`👤 Usuário encontrado na sessão Supabase: ${userId}`);
         }
       } catch (sessionErr) {
         console.error('Erro na sessão Supabase:', sessionErr);
@@ -162,58 +164,88 @@ export async function getMyBots(forceRefresh = false) {
       return [];
     }
 
-    // Se forceRefresh for true, adicionar timestamp para evitar cache
-    const cacheKey = forceRefresh ? `bots_${userId}_${Date.now()}` : `bots_${userId}`;
     console.log(`🔄 Buscando bots para usuário ${userId} ${forceRefresh ? '(refresh forçado)' : ''}`);
+    console.log(`🔍 Timestamp da busca: ${new Date().toISOString()}`);
     
-    // Busca DIRETA sem RLS - vamos fazer a consulta mais simples possível
-    const { data, error } = await supabase
+    // Primeira tentativa: usar função RPC mais confiável
+    try {
+      console.log(`🚀 Usando função RPC get_user_bots para usuário ${userId}`);
+      const { data: rpcData, error: rpcError } = await supabase.rpc('get_user_bots', {
+        user_id: userId
+      });
+      
+      if (!rpcError && rpcData) {
+        console.log(`📊 RPC retornou ${rpcData.length} bots`);
+        if (rpcData.length > 0) {
+          rpcData.forEach((bot: any) => {
+            console.log(`📋 Bot RPC: ${bot.name} (${bot.id}) - status: ${bot.status}`);
+          });
+        }
+        return rpcData;
+      } else {
+        console.warn(`⚠️ RPC falhou:`, rpcError);
+      }
+    } catch (rpcError) {
+      console.warn(`⚠️ Erro na função RPC:`, rpcError);
+    }
+    
+    // Fallback: busca direta com filtro para não retornar bots excluídos
+    console.log(`🔄 Fallback: busca direta com query builder`);
+    const query = supabase
       .from('bots')
       .select('*')
       .eq('owner_id', userId)
+      .neq('status', 'deleted') // Filtrar bots excluídos
       .order('created_at', { ascending: false });
     
+    // Se forceRefresh for true, adicionar um timestamp para evitar cache
+    if (forceRefresh) {
+      query.limit(1000); // Adicionar um limite para forçar nova query
+      console.log(`🚀 Forçando refresh com limit 1000`);
+    }
+    
+    const { data, error } = await query;
+    
     if (error) {
-      console.error('Erro na busca direta:', error);
+      console.error('❌ Erro na busca direta:', error);
       
-      // Fallback: buscar TODOS os bots e filtrar no cliente
+      // Último fallback: buscar TODOS os bots e filtrar no cliente
+      console.log('🔄 Último fallback: buscar todos os bots');
       const { data: allBots, error: allError } = await supabase
         .from('bots')
         .select('*')
         .order('created_at', { ascending: false });
         
       if (allError) {
-        console.error('Erro na busca geral:', allError);
+        console.error('❌ Erro na busca geral:', allError);
         return [];
       }
       
-      // Filtrar no cliente
-      const userBots = allBots?.filter(bot => bot.owner_id === userId) || [];
-      console.log(`✅ ${userBots.length} bots encontrados via fallback`);
+      console.log(`📊 Total de bots no banco: ${allBots?.length || 0}`);
+      
+      // Filtrar no cliente - owner_id correto E status diferente de 'deleted'
+      const userBots = allBots?.filter(bot => {
+        const isOwner = bot.owner_id === userId;
+        const notDeleted = bot.status !== 'deleted';
+        console.log(`🔍 Bot ${bot.name}: owner=${isOwner}, notDeleted=${notDeleted}, status=${bot.status}`);
+        return isOwner && notDeleted;
+      }) || [];
+      console.log(`✅ ${userBots.length} bots encontrados via último fallback (excluindo deletados)`);
       return userBots;
     }
 
-    console.log(`✅ ${data?.length || 0} bots encontrados`);
+    console.log(`📊 Dados retornados da query: ${data?.length || 0} bots`);
+    if (data && data.length > 0) {
+      data.forEach(bot => {
+        console.log(`📋 Bot encontrado: ${bot.name} (${bot.id}) - status: ${bot.status}`);
+      });
+    }
+    
+    console.log(`✅ ${data?.length || 0} bots encontrados (excluindo deletados)`);
     return data || [];
     
   } catch (error: any) {
-    console.error('Erro geral ao buscar bots:', error);
-    
-    // Último recurso: buscar por ID específico que sabemos que existe
-    try {
-      const { data: specificBot, error: specificError } = await supabase
-        .from('bots')
-        .select('*')
-        .eq('id', '300c2ea8-4557-4d57-8050-c28359e9dbd6')
-        .single();
-        
-      if (!specificError && specificBot) {
-        return [specificBot];
-      }
-    } catch (lastErr) {
-      console.error('Falha no último recurso:', lastErr);
-    }
-    
+    console.error('❌ Erro geral ao buscar bots:', error);
     return [];
   }
 }

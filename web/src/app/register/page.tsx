@@ -1,5 +1,9 @@
 'use client';
 
+// Forçar renderização dinâmica
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
