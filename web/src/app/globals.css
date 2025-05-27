@@ -42,6 +42,15 @@
   .card {
     @apply bg-card rounded-2xl p-6 shadow-md transition-all duration-300 hover:shadow-lg border;
     border-color: var(--border-light);
+    background-color: #0c0e16 !important;
+  }
+
+  /* Modal específico com fundo sólido */
+  .modal-card {
+    background-color: #0c0e16 !important;
+    border: 1px solid rgba(42, 45, 62, 0.3) !important;
+    backdrop-filter: blur(8px) !important;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.1) !important;
   }
 
   .button-primary {
@@ -252,8 +261,6 @@ body {
   animation: gradient 8s ease infinite;
 }
 
-
-
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -309,8 +316,6 @@ body {
     --chart-5: 340 75% 55%;
   }
 }
-
-
 
 @layer base {
   * {

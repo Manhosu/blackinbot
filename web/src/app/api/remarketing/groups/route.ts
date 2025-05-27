@@ -106,12 +106,102 @@ export async function GET(req: NextRequest) {
       };
     });
 
-    // Para cada grupo, buscar membros reais
+    // Para cada grupo, buscar membros reais e sincronizar donos automaticamente
     console.log('📡 Buscando membros dos grupos...');
     const groupsWithMembers = await Promise.all(
       groupsWithBots.map(async (group) => {
         console.log(`🔍 Buscando membros do grupo: ${group.name}`);
         
+        // Primeiro, tentar sincronizar o dono do grupo automaticamente
+        try {
+          const bot = userBots.find(b => b.id === group.bot_id);
+          if (bot && bot.token) {
+            console.log(`🔄 Sincronizando dono do grupo ${group.name} automaticamente...`);
+            
+            // Buscar administradores via API do Telegram
+            const telegramResponse = await fetch(`https://api.telegram.org/bot${bot.token}/getChatAdministrators`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                chat_id: group.telegram_id
+              })
+            });
+            
+            const telegramResult = await telegramResponse.json();
+            
+            if (telegramResult.ok) {
+              const administrators = telegramResult.result || [];
+              const groupCreator = administrators.find(admin => admin.status === 'creator');
+              
+              if (groupCreator && !groupCreator.user.is_bot) {
+                // Buscar foto do perfil
+                let avatarUrl = null;
+                try {
+                  const photoResponse = await fetch(`https://api.telegram.org/bot${bot.token}/getUserProfilePhotos`, {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                      user_id: groupCreator.user.id,
+                      limit: 1
+                    })
+                  });
+                  
+                  const photoResult = await photoResponse.json();
+                  if (photoResult.ok && photoResult.result.photos.length > 0) {
+                    const photo = photoResult.result.photos[0][0];
+                    
+                    const fileResponse = await fetch(`https://api.telegram.org/bot${bot.token}/getFile`, {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json'
+                      },
+                      body: JSON.stringify({
+                        file_id: photo.file_id
+                      })
+                    });
+                    
+                    const fileResult = await fileResponse.json();
+                    if (fileResult.ok) {
+                      avatarUrl = `https://api.telegram.org/file/bot${bot.token}/${fileResult.result.file_path}`;
+                    }
+                  }
+                } catch (photoError) {
+                  console.warn(`⚠️ Erro ao buscar foto do dono do grupo ${group.name}:`, photoError);
+                }
+                
+                // Salvar dono na base de dados
+                const ownerData = {
+                  group_id: group.id,
+                  telegram_user_id: groupCreator.user.id.toString(),
+                  name: `${groupCreator.user.first_name || ''} ${groupCreator.user.last_name || ''}`.trim() || 'Dono do Grupo',
+                  username: groupCreator.user.username || null,
+                  avatar_url: avatarUrl,
+                  joined_at: new Date().toISOString(),
+                  status: 'active',
+                  is_admin: true,
+                  member_type: 'group_creator',
+                  expires_at: null
+                };
+                
+                await supabaseAdmin
+                  .from('group_members')
+                  .upsert(ownerData, {
+                    onConflict: 'group_id,telegram_user_id'
+                  });
+                
+                console.log(`✅ Dono do grupo ${group.name} sincronizado: ${ownerData.name}`);
+              }
+            }
+          }
+        } catch (syncError) {
+          console.warn(`⚠️ Erro ao sincronizar dono do grupo ${group.name}:`, syncError);
+        }
+        
+        // Agora buscar todos os membros do grupo
         const { data: members, error: membersError } = await supabaseAdmin
           .from('group_members')
           .select('*')
@@ -139,6 +229,43 @@ export async function GET(req: NextRequest) {
 
         // Processar status dos membros reais
         const processedMembers = members.map(member => {
+          // Se é admin, não precisa de validação de expiração
+          if (member.is_admin || member.member_type === 'admin' || member.member_type === 'bot_owner') {
+            return {
+              ...member,
+              users: { 
+                name: member.name || 'Nome não disponível', 
+                username: member.username || 'sem_username', 
+                avatar_url: member.avatar_url 
+              },
+              status: 'admin',
+              statusLabel: 'ADMIN',
+              statusColor: 'blue',
+              daysUntilExpiry: null,
+              shouldBeRemoved: false,
+              isAdmin: true
+            };
+          }
+
+          // Para membros regulares, verificar expiração
+          if (!member.expires_at) {
+            // Sem data de expiração - pode ser admin ou membro sem plano
+            return {
+              ...member,
+              users: { 
+                name: member.name || 'Nome não disponível', 
+                username: member.username || 'sem_username', 
+                avatar_url: member.avatar_url 
+              },
+              status: 'no_plan',
+              statusLabel: 'Sem Plano',
+              statusColor: 'gray',
+              daysUntilExpiry: null,
+              shouldBeRemoved: false,
+              isAdmin: false
+            };
+          }
+
           const expiresAt = new Date(member.expires_at);
           const now = new Date();
           const diffTime = expiresAt.getTime() - now.getTime();
@@ -173,15 +300,17 @@ export async function GET(req: NextRequest) {
             statusLabel,
             statusColor,
             daysUntilExpiry: diffDays,
-            shouldBeRemoved: status === 'expired' && diffDays < -2
+            shouldBeRemoved: status === 'expired' && diffDays < -2,
+            isAdmin: false
           };
         });
 
         const stats = {
           total: processedMembers.length,
-          active: processedMembers.filter(m => m.status === 'active').length,
+          active: processedMembers.filter(m => m.status === 'active' || m.status === 'admin').length,
           expiring_soon: processedMembers.filter(m => m.status === 'expiring_soon').length,
-          expired: processedMembers.filter(m => m.status === 'expired').length
+          expired: processedMembers.filter(m => m.status === 'expired').length,
+          admins: processedMembers.filter(m => m.status === 'admin').length
         };
 
         console.log(`📊 Stats do grupo ${group.name}:`, stats);

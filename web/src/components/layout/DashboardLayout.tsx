@@ -29,8 +29,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       <aside className="w-72 bg-primary fixed h-full z-10 border-r border-border-light">
         <div className="p-6">
           <Link href="/dashboard" className="flex items-center gap-3">
-            <Image src="/logo.png" alt="BLACKINPAY" width={40} height={40} className="object-contain" />
-            <span className="text-white text-2xl font-bold font-heading">BLACKINPAY</span>
+            <Image src="/logo.png" alt="BLACKINBOT" width={40} height={40} className="object-contain" />
+            <span className="text-white text-2xl font-bold font-heading">BLACKINBOT</span>
           </Link>
         </div>
         

@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
     
-    // Buscar bot pelo token
+    // Buscar bot pelo token (incluindo dados do proprietário)
     const { data: bot, error: botError } = await supabase
       .from('bots')
       .select(`
@@ -31,7 +31,13 @@ export async function POST(request: NextRequest) {
         name,
         token,
         owner_id,
-        status
+        status,
+        users:owner_id (
+          id,
+          name,
+          email,
+          pushinpay_key
+        )
       `)
       .eq('token', bot_token)
       .eq('status', 'active')
@@ -43,6 +49,15 @@ export async function POST(request: NextRequest) {
         success: false,
         error: 'Bot não encontrado ou inativo'
       }, { status: 404 });
+    }
+
+    // Verificar se o proprietário do bot tem chave PushinPay configurada
+    if (!bot.users?.pushinpay_key) {
+      console.error('❌ Proprietário do bot sem chave PushinPay configurada:', bot.owner_id);
+      return NextResponse.json({
+        success: false,
+        error: 'Proprietário do bot não possui chave PushinPay configurada. Configure em Financeiro > Contas bancárias.'
+      }, { status: 400 });
     }
     
     // Buscar plano
@@ -62,24 +77,20 @@ export async function POST(request: NextRequest) {
       }, { status: 404 });
     }
     
-    // Calcular split (R$ 1,48 + 5%)
-    const totalAmount = plan.price;
-    const platformFee = 1.48 + (totalAmount * 0.05);
-    const ownerAmount = totalAmount - platformFee;
-    
-    console.log('💰 Cálculo do split:', {
-      totalAmount,
-      platformFee: platformFee.toFixed(2),
-      ownerAmount: ownerAmount.toFixed(2)
+    console.log('💰 Criando pagamento com split automático:', {
+      bot_id: bot.id,
+      plan_price: plan.price,
+      bot_owner: bot.owner_id,
+      user_pushinpay_key: bot.users.pushinpay_key.substring(0, 10) + '...'
     });
     
-    // Criar pagamento no PushinPay
+    // Criar pagamento no PushinPay com chave do usuário e split automático
     const paymentResult = await createPushinPayment({
-      amount: totalAmount,
+      amount: plan.price,
       description: `${plan.name} - ${bot.name}`,
       external_reference: `bot_${bot.id}_plan_${plan.id}_user_${user_id}`,
       expires_in_minutes: 15
-    });
+    }, bot.users.pushinpay_key);
     
     if (!paymentResult.success) {
       console.error('❌ Erro ao criar pagamento no PushinPay:', paymentResult.error);
@@ -97,53 +108,47 @@ export async function POST(request: NextRequest) {
         plan_id: plan.id,
         user_telegram_id: user_id.toString(),
         user_name: user_name,
-        amount: totalAmount,
+        amount: plan.price,
         status: 'pending',
         pushinpay_id: paymentResult.data.id,
         qr_code: paymentResult.data.qr_code,
         pix_code: paymentResult.data.pix_code,
         expires_at: new Date(Date.now() + (15 * 60 * 1000)).toISOString(), // 15 minutos
         metadata: {
-          platform_fee: platformFee,
-          owner_amount: ownerAmount,
+          ...(paymentResult.data.split_info || {}),
           split_calculated: true,
-          bot_owner_id: bot.owner_id
+          bot_owner_id: bot.owner_id,
+          user_pushinpay_key_used: bot.users.pushinpay_key.substring(0, 10) + '...' // Log parcial para auditoria
         }
       })
       .select()
       .single();
-    
+
     if (paymentError) {
       console.error('❌ Erro ao salvar pagamento:', paymentError);
       return NextResponse.json({
         success: false,
-        error: 'Erro ao registrar pagamento'
+        error: 'Erro ao salvar dados do pagamento'
       }, { status: 500 });
     }
-    
+
     console.log('✅ Pagamento criado com sucesso:', payment.id);
-    
-    // Resposta para o bot
-    const response = {
+
+    return NextResponse.json({
       success: true,
-      payment_id: payment.id,
-      pushinpay_id: paymentResult.data.id,
-      amount: totalAmount,
-      plan_name: plan.name,
-      bot_name: bot.name,
-      expires_minutes: 15,
-      pix_code: paymentResult.data.pix_code,
-      qr_code_url: paymentResult.data.qr_code_image_url,
-      metadata: {
-        platform_fee: platformFee.toFixed(2),
-        owner_amount: ownerAmount.toFixed(2)
+      payment: {
+        id: payment.id,
+        amount: payment.amount,
+        qr_code: paymentResult.data.qr_code,
+        qr_code_image_url: paymentResult.data.qr_code_image_url,
+        pix_code: paymentResult.data.pix_code,
+        expires_at: payment.expires_at,
+        split_info: paymentResult.data.split_info
       }
-    };
-    
-    return NextResponse.json(response);
-    
+    });
+
   } catch (error: any) {
-    console.error('❌ Erro ao processar pagamento:', error);
+    console.error('❌ Erro na API de pagamento:', error);
     return NextResponse.json({
       success: false,
       error: 'Erro interno do servidor'

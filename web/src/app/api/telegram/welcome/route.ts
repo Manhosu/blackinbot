@@ -142,6 +142,59 @@ export async function POST(request: NextRequest) {
 }
 
 /**
+ * API PUT para atualizar mensagem de boas vindas
+ */
+export async function PUT(request: NextRequest) {
+  try {
+    const { bot_id, welcome_message } = await request.json();
+    
+    console.log('🔄 Atualizando mensagem de boas vindas:', {
+      bot_id,
+      message_length: welcome_message?.length || 0
+    });
+    
+    if (!bot_id || !welcome_message) {
+      return NextResponse.json({
+        success: false,
+        error: 'bot_id e welcome_message são obrigatórios'
+      }, { status: 400 });
+    }
+    
+    // Atualizar mensagem no banco
+    const { error } = await supabase
+      .from('bots')
+      .update({
+        welcome_message: welcome_message.trim(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', bot_id);
+    
+    if (error) {
+      console.error('❌ Erro ao atualizar mensagem:', error);
+      return NextResponse.json({
+        success: false,
+        error: 'Erro ao atualizar mensagem no banco de dados'
+      }, { status: 500 });
+    }
+    
+    console.log('✅ Mensagem de boas vindas atualizada com sucesso');
+    
+    return NextResponse.json({
+      success: true,
+      message: 'Mensagem de boas vindas atualizada com sucesso',
+      updated_at: new Date().toISOString()
+    });
+    
+  } catch (error: any) {
+    console.error('❌ Erro ao atualizar mensagem de boas vindas:', error);
+    return NextResponse.json({
+      success: false,
+      error: 'Erro interno do servidor'
+    }, { status: 500 });
+  }
+}
+
+/**
  * API GET para testar conectividade
  */
 export async function GET() {

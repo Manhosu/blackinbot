@@ -4,8 +4,13 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { Users, AlertTriangle, Clock, CheckCircle, XCircle, RefreshCw, Trash2, Download } from 'lucide-react';
+import { Users, AlertTriangle, Clock, CheckCircle, XCircle, RefreshCw, Settings, Save, MessageSquare, Crown, Sync } from 'lucide-react';
 import { toast } from 'sonner';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 // Componente para estatísticas
 const StatCard = ({ title, value, icon, color = 'blue' }: {
@@ -41,21 +46,55 @@ const MemberItem = ({ member }: { member: any }) => {
     orange: 'bg-orange-500/20 text-orange-500',
     red: 'bg-red-500/20 text-red-500',
     yellow: 'bg-yellow-500/20 text-yellow-500',
+    blue: 'bg-blue-500/20 text-blue-500',
+    gray: 'bg-gray-500/20 text-gray-400',
   };
 
   return (
-    <div className="flex items-center justify-between py-3 border-b border-border-light last:border-b-0">
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
-          <span className="text-sm font-medium">
-            {member.users?.name ? member.users.name.charAt(0).toUpperCase() : 'U'}
-          </span>
+          <div className="flex items-center justify-between py-3 border-b border-border-light last:border-b-0">
+        <div className="flex items-center gap-3">
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center overflow-hidden ${
+            member.isAdmin ? 'ring-2 ring-blue-500/50' : ''
+          }`}>
+            {member.avatar_url ? (
+              <img 
+                src={member.avatar_url} 
+                alt={member.users?.name || member.name} 
+                className="w-full h-full object-cover rounded-full"
+                onError={(e) => {
+                  // Fallback para quando a imagem não carrega
+                  e.currentTarget.style.display = 'none';
+                  e.currentTarget.nextElementSibling.style.display = 'flex';
+                }}
+              />
+            ) : null}
+            <div 
+              className={`w-full h-full rounded-full flex items-center justify-center ${
+                member.isAdmin ? 'bg-blue-500/20' : 'bg-primary/20'
+              } ${member.avatar_url ? 'hidden' : ''}`}
+            >
+              <span className={`text-sm font-medium ${member.isAdmin ? 'text-blue-400' : ''}`}>
+                {member.isAdmin ? '👑' : (member.users?.name || member.name ? (member.users?.name || member.name).charAt(0).toUpperCase() : 'U')}
+              </span>
+            </div>
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <p className="font-medium">{member.users?.name || member.name || 'Nome não disponível'}</p>
+              {member.isAdmin && (
+                <span className={`px-2 py-0.5 rounded-full text-xs font-bold border ${
+                  member.member_type === 'group_creator' 
+                    ? 'bg-purple-500/20 text-purple-400 border-purple-500/30' 
+                    : 'bg-blue-500/20 text-blue-400 border-blue-500/30'
+                }`}>
+                  {member.member_type === 'group_creator' ? 'DONO' : 'ADMIN'}
+                </span>
+              )}
+            </div>
+            <p className="text-sm text-white/60">@{member.users?.username || member.username || 'sem_username'}</p>
+            <p className="text-xs text-white/40">ID: {member.telegram_user_id || member.telegram_id}</p>
+          </div>
         </div>
-        <div>
-          <p className="font-medium">{member.users?.name || 'Nome não disponível'}</p>
-          <p className="text-sm text-white/60">@{member.users?.username || 'sem_username'}</p>
-        </div>
-      </div>
       
       <div className="flex items-center gap-3">
         <div className="text-right">
@@ -77,6 +116,10 @@ const MemberItem = ({ member }: { member: any }) => {
         {member.shouldBeRemoved && (
           <div className="w-2 h-2 bg-red-500 rounded-full" title="Será removido automaticamente" />
         )}
+        
+        {member.daysUntilExpiry === 1 && !member.isAdmin && (
+          <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse" title="Receberá mensagem de remarketing" />
+        )}
       </div>
     </div>
   );
@@ -92,22 +135,26 @@ const GroupCard = ({ group }: { group: any }) => {
         <div>
           <h3 className="text-lg font-semibold">{group.name}</h3>
           <p className="text-white/60 text-sm">Bot: {group.bots?.name || 'Bot não encontrado'}</p>
-          <p className="text-white/60 text-sm">ID: {group.telegram_id}</p>
+          <p className="text-white/60 text-sm">ID do Grupo: {group.telegram_id}</p>
         </div>
         
         <button
           onClick={() => setExpanded(!expanded)}
           className="px-3 py-1 rounded-lg bg-primary/20 hover:bg-primary/30 text-sm transition-colors"
         >
-          {expanded ? 'Ocultar' : 'Ver'} Membros
+          {expanded ? 'Ocultar' : 'Ver'} Membros ({group.stats.total})
         </button>
       </div>
 
       {/* Estatísticas do grupo */}
-      <div className="grid grid-cols-4 gap-2 mb-4">
+      <div className="grid grid-cols-5 gap-2 mb-4">
         <div className="text-center">
           <div className="text-lg font-bold">{group.stats.total}</div>
           <div className="text-xs text-white/60">Total</div>
+        </div>
+        <div className="text-center">
+          <div className="text-lg font-bold text-blue-500">{group.stats.admins || 0}</div>
+          <div className="text-xs text-white/60">Admins</div>
         </div>
         <div className="text-center">
           <div className="text-lg font-bold text-green-500">{group.stats.active}</div>
@@ -127,9 +174,9 @@ const GroupCard = ({ group }: { group: any }) => {
       {expanded && (
         <div className="border-t border-border-light pt-4">
           {group.members && group.members.length > 0 ? (
-            <div className="space-y-1">
+            <div className="space-y-1 max-h-96 overflow-y-auto">
               {group.members.map((member: any) => (
-                <MemberItem key={member.id} member={member} />
+                <MemberItem key={`${member.id}-${member.telegram_id}`} member={member} />
               ))}
             </div>
           ) : (
@@ -158,16 +205,36 @@ export default function MarketingPage() {
     active_members: 0,
     members_to_remove: 0
   });
-  const [autoRemoving, setAutoRemoving] = useState(false);
-  const [syncing, setSyncing] = useState(false);
-  const [lastSync, setLastSync] = useState<string | null>(null);
+  const [bots, setBots] = useState<any[]>([]);
+  const [selectedBot, setSelectedBot] = useState<string>('');
+  const [remarketingMessage, setRemarketingMessage] = useState('');
+  const [savingMessage, setSavingMessage] = useState(false);
+  const [activeTab, setActiveTab] = useState('groups');
+  const [syncingAdmins, setSyncingAdmins] = useState(false);
+  const [updatingProfiles, setUpdatingProfiles] = useState(false);
 
   useEffect(() => {
     if (user) {
       fetchMarketingData();
-      checkSyncStatus();
+      fetchBots();
     }
   }, [user]);
+
+  const fetchBots = async () => {
+    try {
+      const response = await fetch(`/api/bots?user_id=${user?.id}`);
+      if (response.ok) {
+        const data = await response.json();
+        setBots(data.bots || []);
+        if (data.bots && data.bots.length > 0) {
+          setSelectedBot(data.bots[0].id);
+          setRemarketingMessage(data.bots[0].remarketing_message || '');
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao buscar bots:', error);
+    }
+  };
 
   const fetchMarketingData = async () => {
     try {
@@ -180,148 +247,119 @@ export default function MarketingPage() {
         setStats(data.total_stats || { total: 0, active: 0, expiring_soon: 0, expired: 0 });
         setSummary(data.summary || { total_groups: 0, total_members: 0, active_members: 0, members_to_remove: 0 });
       } else {
-        // Em caso de erro, mostrar dados simulados para demo
-        console.log('Erro ao buscar dados, usando dados simulados');
-        setGroups([]);
-        setStats({ total: 0, active: 0, expiring_soon: 0, expired: 0 });
-        setSummary({ total_groups: 0, total_members: 0, active_members: 0, members_to_remove: 0 });
+        console.error('Erro ao buscar dados de remarketing');
+        toast.error('Erro ao carregar dados de remarketing');
       }
     } catch (error) {
       console.error('Erro ao buscar dados de marketing:', error);
-      // Dados simulados em caso de erro
-      setGroups([]);
-      setStats({ total: 0, active: 0, expiring_soon: 0, expired: 0 });
-      setSummary({ total_groups: 0, total_members: 0, active_members: 0, members_to_remove: 0 });
+      toast.error('Erro ao carregar dados');
     } finally {
       setLoading(false);
     }
   };
 
-  const checkSyncStatus = async () => {
-    try {
-      const response = await fetch(`/api/remarketing/sync-telegram?user_id=${user?.id}`);
-      if (response.ok) {
-        const data = await response.json();
-        setLastSync(data.last_check);
-      }
-    } catch (error) {
-      console.error('Erro ao verificar status de sincronização:', error);
-    }
+  const handleBotChange = (botId: string) => {
+    setSelectedBot(botId);
+    const bot = bots.find(b => b.id === botId);
+    setRemarketingMessage(bot?.remarketing_message || '');
   };
 
-  const handleSyncTelegram = async () => {
-    if (!confirm('Deseja sincronizar com os dados reais do Telegram? Isso pode demorar alguns minutos.')) {
+  const handleSaveRemarketingMessage = async () => {
+    if (!selectedBot) {
+      toast.error('Selecione um bot');
       return;
     }
 
-    setSyncing(true);
     try {
-      const response = await fetch('/api/remarketing/sync-telegram', {
+      setSavingMessage(true);
+      
+      const response = await fetch(`/api/bots/${selectedBot}/remarketing`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          remarketing_message: remarketingMessage.trim()
+        })
+      });
+
+      if (response.ok) {
+        toast.success('Mensagem de remarketing salva com sucesso!');
+        
+        // Atualizar bot local
+        setBots(prev => prev.map(bot => 
+          bot.id === selectedBot 
+            ? { ...bot, remarketing_message: remarketingMessage.trim() }
+            : bot
+        ));
+      } else {
+        const error = await response.json();
+        toast.error(error.error || 'Erro ao salvar mensagem');
+      }
+    } catch (error) {
+      console.error('Erro ao salvar mensagem:', error);
+      toast.error('Erro ao salvar mensagem');
+    } finally {
+      setSavingMessage(false);
+    }
+  };
+
+  const handleSyncAdmins = async () => {
+    try {
+      setSyncingAdmins(true);
+      
+      const response = await fetch('/api/groups/sync-admins', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           user_id: user?.id
-        }),
+        })
       });
 
       if (response.ok) {
-        const data = await response.json();
-        toast.success(`Sincronização concluída! ${data.summary.total_groups_found} grupos e ${data.summary.total_members_found} membros encontrados.`);
-        
-        // Recarregar dados após sincronização
-        await fetchMarketingData();
-        await checkSyncStatus();
-      } else {
-        const error = await response.json();
-        toast.error(error.error || 'Erro na sincronização com Telegram');
-      }
-    } catch (error) {
-      console.error('Erro na sincronização:', error);
-      toast.error('Erro na sincronização com Telegram');
-    } finally {
-      setSyncing(false);
-    }
-  };
-
-  const handleRealSync = async () => {
-    if (!confirm('Deseja fazer uma sincronização REAL com grupos do Telegram? Esta função busca dados reais dos grupos onde seus bots estão.')) {
-      return;
-    }
-
-    setSyncing(true);
-    try {
-      const response = await fetch('/api/remarketing/real-sync', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          user_id: user?.id
-        }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        toast.success(`Sincronização REAL concluída! ${data.summary.total_groups_found} grupos e ${data.summary.total_members_found} membros reais encontrados.`);
-        
-        // Recarregar dados após sincronização
-        await fetchMarketingData();
-        await checkSyncStatus();
-      } else {
-        const error = await response.json();
-        toast.error(error.error || 'Erro na sincronização real');
-      }
-    } catch (error) {
-      console.error('Erro na sincronização real:', error);
-      toast.error('Erro na sincronização real');
-    } finally {
-      setSyncing(false);
-    }
-  };
-
-  const handleAutoRemoveMembers = async () => {
-    if (!confirm('Tem certeza que deseja remover automaticamente todos os membros expirados há mais de 2 dias?')) {
-      return;
-    }
-
-    setAutoRemoving(true);
-    try {
-      const response = await fetch('/api/remarketing/groups', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          user_id: user?.id,
-          auto_remove: true
-        }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        toast.success(data.message || 'Remoção automática concluída');
+        const result = await response.json();
+        toast.success(`${result.total_admins_added} administradores sincronizados!`);
         
         // Recarregar dados
-        fetchMarketingData();
+        await fetchMarketingData();
       } else {
         const error = await response.json();
-        toast.error(error.error || 'Erro na remoção automática');
+        toast.error(error.error || 'Erro ao sincronizar administradores');
       }
     } catch (error) {
-      console.error('Erro na remoção automática:', error);
-      toast.error('Erro na remoção automática');
+      console.error('Erro ao sincronizar administradores:', error);
+      toast.error('Erro ao sincronizar administradores');
     } finally {
-      setAutoRemoving(false);
+      setSyncingAdmins(false);
+    }
+  };
+
+  const handleUpdateProfiles = async () => {
+    try {
+      setUpdatingProfiles(true);
+      toast.info('Atualizando perfis dos donos dos grupos...');
+      
+      // A API de remarketing já sincroniza automaticamente os donos
+      await fetchMarketingData();
+      
+      toast.success('Perfis dos donos atualizados com sucesso!');
+    } catch (error) {
+      console.error('Erro ao atualizar perfis:', error);
+      toast.error('Erro ao atualizar perfis');
+    } finally {
+      setUpdatingProfiles(false);
     }
   };
 
   if (isLoading || loading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-background">
-        <div className="animate-spin h-12 w-12 border-4 border-accent border-t-transparent rounded-full"></div>
-      </div>
+      <DashboardLayout>
+        <div className="h-full w-full flex items-center justify-center">
+          <div className="animate-spin h-12 w-12 border-4 border-accent border-t-transparent rounded-full"></div>
+        </div>
+      </DashboardLayout>
     );
   }
 
@@ -332,156 +370,203 @@ export default function MarketingPage() {
 
   return (
     <DashboardLayout>
-      <div className="flex justify-between items-center mb-6">
-        <div>
+      <div className="mb-6">
         <h1 className="heading-2">Remarketing</h1>
-          <p className="text-white/60">Gerencie todos os membros dos seus grupos</p>
-        </div>
-        
-        <div className="flex gap-3">
-          <button 
-            onClick={fetchMarketingData}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary/20 hover:bg-primary/30 text-white transition-colors"
-            disabled={loading}
-          >
-            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
-            Atualizar
-          </button>
-          
-          <button 
-            onClick={handleSyncTelegram}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors"
-            disabled={syncing}
-          >
-            <Download size={16} className={syncing ? 'animate-pulse' : ''} />
-            {syncing ? 'Sincronizando...' : 'Sincronizar Telegram'}
-          </button>
-          
-          <button 
-            onClick={handleRealSync}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white transition-colors"
-            disabled={syncing}
-          >
-            <Download size={16} className={syncing ? 'animate-pulse' : ''} />
-            {syncing ? 'Sincronizando...' : 'Sincronizar REAL'}
-          </button>
-          
-          {summary.members_to_remove > 0 && (
-            <button 
-              onClick={handleAutoRemoveMembers}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white transition-colors"
-              disabled={autoRemoving}
-            >
-              <Trash2 size={16} />
-              {autoRemoving ? 'Removendo...' : `Remover ${summary.members_to_remove} Expirados`}
-            </button>
-          )}
-        </div>
-      </div>
-      
-      {/* Estatísticas gerais */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <StatCard
-          title="Total de Membros"
-          value={stats.total.toString()}
-          icon={<Users size={20} />}
-          color="blue"
-        />
-        <StatCard
-          title="Membros Ativos"
-          value={stats.active.toString()}
-          icon={<CheckCircle size={20} />}
-          color="green"
-        />
-        <StatCard
-          title="Expirando em Breve"
-          value={stats.expiring_soon.toString()}
-          icon={<Clock size={20} />}
-          color="orange"
-        />
-        <StatCard
-          title="Expirados"
-          value={stats.expired.toString()}
-          icon={<XCircle size={20} />}
-          color="red"
-        />
+        <p className="text-white/60">Gerencie todos os membros dos seus grupos e configure mensagens automáticas</p>
       </div>
 
-      {/* Resumo */}
-      <div className="bg-card border border-border-light rounded-xl p-6 mb-6">
-        <h2 className="text-lg font-semibold mb-4">Resumo</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-          <div>
-            <span className="text-white/60">Total de Grupos:</span>
-            <span className="ml-2 font-medium">{summary.total_groups}</span>
-          </div>
-          <div>
-            <span className="text-white/60">Total de Membros:</span>
-            <span className="ml-2 font-medium">{summary.total_members}</span>
-        </div>
-          <div>
-            <span className="text-white/60">Membros Ativos:</span>
-            <span className="ml-2 font-medium text-green-500">{summary.active_members}</span>
-          </div>
-          <div>
-            <span className="text-white/60">Para Remover:</span>
-            <span className="ml-2 font-medium text-red-500">{summary.members_to_remove}</span>
-          </div>
-        </div>
-      </div>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="groups">Grupos e Membros</TabsTrigger>
+          <TabsTrigger value="settings">Configurações de Remarketing</TabsTrigger>
+        </TabsList>
 
-      {/* Informações de Sincronização */}
-      <div className="bg-card border border-border-light rounded-xl p-6 mb-6">
-        <div className="flex justify-between items-center">
-          <div>
-            <h3 className="text-lg font-semibold mb-2">Sincronização com Telegram</h3>
-            <p className="text-white/60 text-sm">
-              {lastSync 
-                ? `Última verificação: ${new Date(lastSync).toLocaleString('pt-BR')}`
-                : 'Nunca sincronizado'
-              }
-            </p>
+        {/* Aba de Grupos e Membros */}
+        <TabsContent value="groups" className="space-y-6">
+          <div className="flex justify-between items-center">
+            <div className="text-sm text-white/60">
+              {summary.total_groups > 0 ? (
+                <>Mostrando dados reais de {summary.total_groups} grupos</>
+              ) : (
+                <>Nenhum grupo encontrado. Configure seus bots primeiro.</>
+              )}
+            </div>
+            
+            <div className="flex gap-2">
+              <Button 
+                onClick={handleUpdateProfiles}
+                variant="outline"
+                size="sm"
+                disabled={updatingProfiles || loading}
+              >
+                <Users size={16} className={updatingProfiles ? 'animate-spin mr-2' : 'mr-2'} />
+                {updatingProfiles ? 'Atualizando...' : 'Atualizar Perfis'}
+              </Button>
+              
+              <Button 
+                onClick={handleSyncAdmins}
+                variant="outline"
+                size="sm"
+                disabled={syncingAdmins || loading}
+              >
+                <Crown size={16} className={syncingAdmins ? 'animate-spin mr-2' : 'mr-2'} />
+                {syncingAdmins ? 'Sincronizando...' : 'Sincronizar Admins'}
+              </Button>
+              
+              <Button 
+                onClick={fetchMarketingData}
+                variant="outline"
+                size="sm"
+                disabled={loading}
+              >
+                <RefreshCw size={16} className={loading ? 'animate-spin mr-2' : 'mr-2'} />
+                Atualizar
+              </Button>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            {syncing ? (
-              <div className="flex items-center gap-2 text-blue-500">
-                <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-                <span className="text-sm">Sincronizando...</span>
-              </div>
+
+          {/* Cards de estatísticas */}
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+            <StatCard
+              title="Total de Membros"
+              value={stats.total.toString()}
+              icon={<Users size={20} />}
+              color="blue"
+            />
+            <StatCard
+              title="Administradores"
+              value={(stats.admins || 0).toString()}
+              icon={<Crown size={20} />}
+              color="blue"
+            />
+            <StatCard
+              title="Membros Ativos"
+              value={stats.active.toString()}
+              icon={<CheckCircle size={20} />}
+              color="green"
+            />
+            <StatCard
+              title="Expirando em Breve"
+              value={stats.expiring_soon.toString()}
+              icon={<Clock size={20} />}
+              color="orange"
+            />
+            <StatCard
+              title="Expirados"
+              value={stats.expired.toString()}
+              icon={<XCircle size={20} />}
+              color="red"
+            />
+          </div>
+
+          {/* Lista de grupos */}
+          <div className="space-y-6">
+            {groups.length > 0 ? (
+              groups.map((group) => (
+                <GroupCard key={group.id} group={group} />
+              ))
             ) : (
-              <div className="flex items-center gap-2 text-green-500">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span className="text-sm">Pronto para sincronizar</span>
-              </div>
+              <Card>
+                <CardContent className="text-center py-12">
+                  <Users className="mx-auto h-12 w-12 text-white/40 mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">Nenhum grupo encontrado</h3>
+                  <p className="text-white/60 mb-4">
+                    Para ver os membros dos seus grupos aqui, certifique-se de que:
+                  </p>
+                  <div className="text-left max-w-md mx-auto space-y-2 text-sm text-white/70">
+                    <p>• Seus bots estão configurados e ativos</p>
+                    <p>• Os bots foram adicionados aos grupos do Telegram</p>
+                    <p>• Há vendas/membros nos seus grupos</p>
+                  </div>
+                </CardContent>
+              </Card>
             )}
           </div>
-        </div>
-        <div className="mt-4 text-sm text-white/60">
-          <p>• A sincronização busca grupos reais onde seus bots estão ativos</p>
-          <p>• Apenas administradores dos grupos são incluídos como membros</p>
-          <p>• Dados são atualizados automaticamente no banco</p>
-        </div>
-      </div>
-            
-      {/* Lista de grupos */}
-      {groups.length > 0 ? (
-        <div className="space-y-4">
-          {groups.map((group) => (
-            <GroupCard key={group.id} group={group} />
-          ))}
+        </TabsContent>
+
+        {/* Aba de Configurações */}
+        <TabsContent value="settings" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <MessageSquare size={20} />
+                Mensagem de Remarketing Automática
+              </CardTitle>
+              <CardDescription>
+                Configure a mensagem que será enviada automaticamente 1 dia antes do plano do membro vencer.
+                Use {'{nome}'} para incluir o nome do membro na mensagem.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="bot-select">Selecionar Bot</Label>
+                <select
+                  id="bot-select"
+                  value={selectedBot}
+                  onChange={(e) => handleBotChange(e.target.value)}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <option value="">Selecione um bot...</option>
+                  {bots.map((bot) => (
+                    <option key={bot.id} value={bot.id}>
+                      {bot.name}
+                    </option>
+                  ))}
+                </select>
               </div>
-      ) : (
-        <div className="flex flex-col items-center justify-center py-20">
-          <div className="bg-card bg-opacity-50 rounded-full p-8 mb-6">
-            <Users size={48} className="text-white/40" />
-          </div>
-          
-          <h2 className="text-3xl font-bold mb-3">Nenhum grupo encontrado</h2>
-          <p className="text-white/70 mb-6 text-center">
-            Crie alguns bots primeiro para ver os grupos e membros aqui.
-          </p>
-        </div>
-      )}
+
+              {selectedBot && (
+                <>
+                  <div>
+                    <Label htmlFor="remarketing-message">Mensagem de Remarketing</Label>
+                    <Textarea
+                      id="remarketing-message"
+                      value={remarketingMessage}
+                      onChange={(e) => setRemarketingMessage(e.target.value)}
+                      placeholder="Olá {nome}! 👋 Seu acesso ao nosso grupo VIP expira amanhã. Renove já para não perder nenhuma oportunidade! 🚀"
+                      rows={6}
+                      className="mt-2"
+                    />
+                    <p className="text-xs text-white/60 mt-2">
+                      Esta mensagem será enviada automaticamente pelo sistema via Telegram para membros que 
+                      tenham o plano expirando em 1 dia.
+                    </p>
+                  </div>
+
+                  <div className="flex justify-end">
+                    <Button 
+                      onClick={handleSaveRemarketingMessage}
+                      disabled={savingMessage || !remarketingMessage.trim()}
+                    >
+                      {savingMessage ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                          Salvando...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="w-4 h-4 mr-2" />
+                          Salvar Mensagem
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </>
+              )}
+
+              {bots.length === 0 && (
+                <div className="text-center py-8">
+                  <Settings className="mx-auto h-12 w-12 text-white/40 mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">Nenhum bot encontrado</h3>
+                  <p className="text-white/60">
+                    Crie e configure seus bots primeiro para definir mensagens de remarketing.
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </DashboardLayout>
   );
 } 

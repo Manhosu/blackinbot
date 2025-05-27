@@ -172,7 +172,37 @@ export default function BotSettingsPage({ params }: { params: { id: string } }) 
 
       // Atualizar estado local
       setBot((prev: any) => ({ ...prev, ...generalForm }));
-      toast.success('Configurações gerais salvas com sucesso!');
+      
+      // Se a mensagem de boas vindas foi alterada, atualizar no Telegram
+      if (generalForm.welcome_message.trim() !== bot?.welcome_message) {
+        try {
+          toast.loading('Atualizando bot no Telegram...', { id: 'telegram-update' });
+          
+          const telegramResponse = await fetch(`/api/telegram/welcome`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              bot_id: params.id,
+              welcome_message: generalForm.welcome_message.trim()
+            })
+          });
+
+          const telegramResult = await telegramResponse.json();
+          
+          if (telegramResult.success) {
+            toast.success('Bot atualizado no Telegram com sucesso!', { id: 'telegram-update' });
+          } else {
+            toast.warning('Configurações salvas, mas houve problema ao atualizar o Telegram', { id: 'telegram-update' });
+          }
+        } catch (telegramError) {
+          console.error('❌ Erro ao atualizar Telegram:', telegramError);
+          toast.warning('Configurações salvas, mas houve problema ao atualizar o Telegram', { id: 'telegram-update' });
+        }
+      } else {
+        toast.success('Configurações gerais salvas com sucesso!');
+      }
       
     } catch (error: any) {
       console.error('❌ Erro ao salvar configurações gerais:', error);

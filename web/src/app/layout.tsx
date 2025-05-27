@@ -31,7 +31,7 @@ export default function RootLayout({
       lang="pt-BR"
       suppressHydrationWarning 
       data-mcp-browser="true"
-      className={`${inter.variable} ${spaceGrotesk.variable}`}
+      className={`dark ${inter.variable} ${spaceGrotesk.variable}`}
     >
       <head>
         <link

@@ -1,10 +1,10 @@
 /**
  * Biblioteca PushinPay para integração com pagamentos PIX
- * Versão atualizada com suporte a saques
+ * Versão atualizada com chave global por usuário
  */
 
-const PUSHINPAY_API_KEY = process.env.PUSHINPAY_API_KEY;
 const PUSHINPAY_BASE_URL = 'https://api.pushinpay.com.br/api/v1';
+const ADMIN_PUSHINPAY_KEY = process.env.PUSHINPAY_API_KEY; // Chave admin para fallback
 
 interface PushinPayPaymentData {
   amount: number;
@@ -15,6 +15,12 @@ interface PushinPayPaymentData {
     name?: string;
     email?: string;
     document?: string;
+  };
+  // Novo: Split automático
+  split?: {
+    percentage: number;
+    fixed_amount: number;
+    recipient_key: string;
   };
 }
 
@@ -36,15 +42,18 @@ interface PushinPayResponse<T = any> {
 }
 
 /**
- * Realizar requisição para API do PushinPay
+ * Realizar requisição para API do PushinPay com chave dinâmica
  */
 async function makeRequest(
   endpoint: string, 
   method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'GET',
-  data?: any
+  data?: any,
+  apiKey?: string
 ): Promise<PushinPayResponse> {
   try {
-    if (!PUSHINPAY_API_KEY) {
+    const key = apiKey || ADMIN_PUSHINPAY_KEY;
+    
+    if (!key) {
       throw new Error('API Key do PushinPay não configurada');
     }
 
@@ -53,7 +62,7 @@ async function makeRequest(
     const config: RequestInit = {
       method,
       headers: {
-        'Authorization': `Bearer ${PUSHINPAY_API_KEY}`,
+        'Authorization': `Bearer ${key}`,
         'Content-Type': 'application/json',
         'Accept': 'application/json',
       },
@@ -93,13 +102,68 @@ async function makeRequest(
 }
 
 /**
- * Criar pagamento PIX
+ * Validar chave PushinPay fazendo uma chamada de teste à API
  */
-export async function createPushinPayment(paymentData: PushinPayPaymentData): Promise<PushinPayResponse> {
+export async function validatePushinPayKey(apiKey: string): Promise<PushinPayResponse> {
+  console.log('🔍 Validando chave PushinPay...');
+  
+  if (!apiKey || apiKey.trim().length === 0) {
+    return {
+      success: false,
+      error: 'Chave PushinPay é obrigatória'
+    };
+  }
+
+  try {
+    // Fazer uma chamada simples para verificar se a chave é válida
+    // Vamos tentar buscar o saldo da conta (endpoint que requer autenticação)
+    const result = await makeRequest('/account/balance', 'GET', undefined, apiKey.trim());
+    
+    if (result.success) {
+      console.log('✅ Chave PushinPay válida');
+      return {
+        success: true,
+        data: {
+          valid: true,
+          balance: result.data?.balance || 0,
+          message: 'Chave PushinPay válida e conectada com sucesso'
+        }
+      };
+    } else {
+      console.log('❌ Chave PushinPay inválida:', result.error);
+      return {
+        success: false,
+        error: result.error || 'Chave PushinPay inválida'
+      };
+    }
+  } catch (error: any) {
+    console.error('❌ Erro ao validar chave PushinPay:', error);
+    return {
+      success: false,
+      error: 'Erro ao conectar com PushinPay. Verifique sua chave.'
+    };
+  }
+}
+
+/**
+ * Criar pagamento PIX com chave do usuário e split automático
+ */
+export async function createPushinPayment(
+  paymentData: PushinPayPaymentData, 
+  userPushinPayKey?: string
+): Promise<PushinPayResponse> {
   console.log('💳 Criando pagamento PIX via PushinPay...');
   
+  const totalAmount = Math.round(paymentData.amount * 100); // Converter para centavos
+  
+  // Calcular split automático: R$ 1,48 + 5%
+  const platformFeeFixed = 148; // R$ 1,48 em centavos
+  const platformFeePercentage = Math.round(totalAmount * 0.05); // 5%
+  const totalPlatformFee = platformFeeFixed + platformFeePercentage;
+  const ownerAmount = totalAmount - totalPlatformFee;
+  
   const data = {
-    amount: Math.round(paymentData.amount * 100), // Converter para centavos
+    amount: totalAmount,
     description: paymentData.description,
     external_reference: paymentData.external_reference,
     expires_in: paymentData.expires_in_minutes ? paymentData.expires_in_minutes * 60 : 900, // Default 15 min
@@ -107,10 +171,31 @@ export async function createPushinPayment(paymentData: PushinPayPaymentData): Pr
     payer: paymentData.payer,
     return_url: `${process.env.NEXT_PUBLIC_APP_URL}/payment/success`,
     cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/payment/cancel`,
-    notification_url: `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/pushinpay`
+    notification_url: `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/pushinpay`,
+    // Split automático
+    splits: [
+      {
+        // Admin (plataforma)
+        recipient_key: "7689157266:AAFbkgijANxbFayQN1oqPdEaNknObS0Ooy0",
+        amount: totalPlatformFee,
+        description: "Taxa da plataforma BlackinBot"
+      },
+      {
+        // Dono do bot (usuário)
+        recipient_key: userPushinPayKey,
+        amount: ownerAmount,
+        description: "Pagamento para o proprietário do bot"
+      }
+    ]
   };
 
-  const result = await makeRequest('/payments', 'POST', data);
+  // Se não tiver chave do usuário, usar apenas a chave admin (fallback)
+  if (!userPushinPayKey) {
+    delete data.splits;
+    console.log('⚠️ Usando chave admin como fallback - sem split');
+  }
+
+  const result = await makeRequest('/payments', 'POST', data, userPushinPayKey || ADMIN_PUSHINPAY_KEY);
   
   if (result.success && result.data) {
     console.log('✅ Pagamento PIX criado:', result.data.id);
@@ -120,7 +205,12 @@ export async function createPushinPayment(paymentData: PushinPayPaymentData): Pr
       ...result.data,
       amount: result.data.amount / 100, // Converter de volta para reais
       qr_code_image_url: result.data.qr_code_image || result.data.qr_code_url,
-      expires_at: result.data.expires_at || new Date(Date.now() + (data.expires_in * 1000)).toISOString()
+      expires_at: result.data.expires_at || new Date(Date.now() + (data.expires_in * 1000)).toISOString(),
+      split_info: userPushinPayKey ? {
+        platform_fee: totalPlatformFee / 100,
+        owner_amount: ownerAmount / 100,
+        total_amount: totalAmount / 100
+      } : null
     };
   }
 
@@ -130,10 +220,10 @@ export async function createPushinPayment(paymentData: PushinPayPaymentData): Pr
 /**
  * Consultar status de um pagamento
  */
-export async function checkPushinPaymentStatus(paymentId: string): Promise<PushinPayResponse> {
+export async function checkPushinPaymentStatus(paymentId: string, apiKey?: string): Promise<PushinPayResponse> {
   console.log('🔍 Consultando status do pagamento:', paymentId);
   
-  const result = await makeRequest(`/payments/${paymentId}`);
+  const result = await makeRequest(`/payments/${paymentId}`, 'GET', undefined, apiKey);
   
   if (result.success && result.data) {
     console.log('📊 Status do pagamento:', result.data.status);
@@ -429,6 +519,7 @@ export const pushinPayAPI = {
   listPushinWithdrawals,
   getPushinBalance,
   validatePixKey,
+  validatePushinPayKey,
   createWithdrawalWebhookHandler,
   Utils: PushinPayUtils
 };
@@ -441,6 +532,7 @@ export default {
   listPushinWithdrawals,
   getPushinBalance,
   validatePixKey,
+  validatePushinPayKey,
   createWithdrawalWebhookHandler,
   Utils: PushinPayUtils
 }; 

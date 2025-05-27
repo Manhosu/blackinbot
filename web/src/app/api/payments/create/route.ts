@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { pushinPayAPI, convertToCents } from '@/lib/pushinpay';
+import { createPushinPayment, convertToCents } from '@/lib/pushinpay';
 import { createClient } from '@supabase/supabase-js';
 
 // Função para criar cliente Supabase com Service Role Key
@@ -11,43 +11,40 @@ function createSupabaseServiceClient() {
 }
 
 export async function POST(request: NextRequest) {
+  console.log('🚀 API de criação de pagamento chamada');
+  
   try {
-    console.log('💳 Iniciando criação de pagamento PIX');
-
-    const body = await request.json();
-    console.log('📋 Dados recebidos:', { ...body, telegram_user_id: body.telegram_user_id ? 'XXX' : 'null' });
-
-    const {
-      bot_id,
-      plan_id,
-      telegram_user_id,
-      telegram_username,
-      user_name,
-      value_reais, // Valor em reais (ex: 19.90)
-    } = body;
-
-    // Validação básica
-    if (!bot_id || !plan_id || !telegram_user_id || !value_reais) {
+    const { bot_id, plan_id, user_telegram_id, user_name, amount, description } = await request.json();
+    
+    console.log('📋 Dados recebidos:', { bot_id, plan_id, user_telegram_id, user_name, amount, description });
+    
+    if (!bot_id || !user_telegram_id || !amount) {
       return NextResponse.json({
         success: false,
-        error: 'Dados obrigatórios: bot_id, plan_id, telegram_user_id, value_reais'
+        error: 'Campos obrigatórios: bot_id, user_telegram_id, amount'
       }, { status: 400 });
     }
 
-    // Converter valor para centavos
-    const valueInCents = convertToCents(value_reais);
-    console.log(`💰 Valor: R$ ${value_reais} = ${valueInCents} centavos`);
-
-    // Criar cliente Supabase
     const supabase = createSupabaseServiceClient();
-
-    // Buscar informações do bot e plano
+    
+    // Buscar dados do bot e do proprietário
     const { data: bot, error: botError } = await supabase
       .from('bots')
-      .select('*')
+      .select(`
+        id,
+        name,
+        owner_id,
+        status,
+        users:owner_id (
+          id,
+          name,
+          email,
+          pushinpay_key
+        )
+      `)
       .eq('id', bot_id)
       .single();
-
+    
     if (botError || !bot) {
       console.error('❌ Bot não encontrado:', botError);
       return NextResponse.json({
@@ -56,104 +53,97 @@ export async function POST(request: NextRequest) {
       }, { status: 404 });
     }
 
-    const { data: plan, error: planError } = await supabase
-      .from('plans')
-      .select('*')
-      .eq('id', plan_id)
-      .single();
-
-    if (planError || !plan) {
-      console.error('❌ Plano não encontrado:', planError);
+    // Verificar se o proprietário tem chave PushinPay configurada
+    if (!bot.users?.pushinpay_key) {
+      console.error('❌ Proprietário sem chave PushinPay:', bot.owner_id);
       return NextResponse.json({
         success: false,
-        error: 'Plano não encontrado'
-      }, { status: 404 });
+        error: 'Proprietário do bot não possui chave PushinPay configurada'
+      }, { status: 400 });
     }
-
-    // Gerar ID único para o pagamento
-    const paymentId = `payment_${Date.now()}_${telegram_user_id}`;
-
-    // Criar PIX no PushinPay
-    const pixResponse = await pushinPayAPI.createPushinPayment({
-      amount: value_reais,
-      description: `Pagamento - ${bot.name} - ${plan.name}`,
-      external_reference: paymentId,
-      expires_in_minutes: 30
-    });
-
-    if (!pixResponse.success || !pixResponse.data) {
-      console.error('❌ Erro ao criar PIX:', pixResponse.error);
+    
+    // Buscar plano se fornecido
+    let plan = null;
+    if (plan_id) {
+      const { data: planData, error: planError } = await supabase
+        .from('plans')
+        .select('*')
+        .eq('id', plan_id)
+        .eq('bot_id', bot_id)
+        .single();
+      
+      if (!planError) {
+        plan = planData;
+      }
+    }
+    
+    console.log('💰 Criando pagamento PushinPay com chave do usuário');
+    
+    // Criar pagamento no PushinPay
+    const paymentResult = await createPushinPayment({
+      amount: amount,
+      description: description || `Pagamento - ${bot.name}`,
+      external_reference: `bot_${bot_id}_user_${user_telegram_id}_${Date.now()}`,
+      expires_in_minutes: 15,
+      payer: user_name ? { name: user_name } : undefined
+    }, bot.users.pushinpay_key);
+    
+    if (!paymentResult.success) {
+      console.error('❌ Erro no PushinPay:', paymentResult.error);
       return NextResponse.json({
         success: false,
-        error: pixResponse.error || 'Erro ao gerar PIX'
+        error: 'Erro ao gerar pagamento PIX: ' + paymentResult.error
       }, { status: 500 });
     }
-
-    console.log('✅ PIX criado com sucesso:', pixResponse.data.id);
-
-    // Salvar pagamento no banco de dados
+    
+    // Salvar pagamento no banco
     const { data: payment, error: paymentError } = await supabase
       .from('payments')
       .insert({
-        id: paymentId,
-        bot_id,
-        plan_id,
-        telegram_user_id,
-        telegram_username: telegram_username || null,
-        user_name: user_name || null,
-        amount: valueInCents,
-        currency: 'BRL',
+        bot_id: bot_id,
+        plan_id: plan_id,
+        user_telegram_id: user_telegram_id.toString(),
+        user_name: user_name,
+        amount: amount,
         status: 'pending',
-        payment_method: 'pix',
-        pushinpay_id: pixResponse.data.id,
-        qr_code: pixResponse.data.qr_code,
-        qr_code_base64: pixResponse.data.qr_code_base64,
-        expires_at: pixResponse.data.expires_at,
-        created_at: new Date().toISOString(),
+        method: 'pix',
+        pushinpay_id: paymentResult.data.id,
+        qr_code: paymentResult.data.qr_code,
+        expires_at: new Date(Date.now() + (15 * 60 * 1000)).toISOString(),
+        metadata: {
+          ...(paymentResult.data.split_info || {}),
+          bot_owner_id: bot.owner_id,
+          user_pushinpay_key_used: bot.users.pushinpay_key.substring(0, 10) + '...'
+        }
       })
       .select()
       .single();
-
+    
     if (paymentError) {
       console.error('❌ Erro ao salvar pagamento:', paymentError);
-      
-      // Log do erro - PIX será cancelado automaticamente por expiração
-
       return NextResponse.json({
         success: false,
-        error: 'Erro ao processar pagamento'
+        error: 'Erro ao salvar pagamento'
       }, { status: 500 });
     }
-
-    console.log('✅ Pagamento salvo no banco:', payment.id);
-
-    // Retornar dados do pagamento
+    
+    console.log('✅ Pagamento criado com sucesso:', payment.id);
+    
     return NextResponse.json({
       success: true,
-      payment_id: payment.id,
-      pix_code: payment.qr_code,
-      qr_code_base64: payment.qr_code_base64,
-      amount: payment.amount / 100, // Converter de volta para reais
-      amount_formatted: (payment.amount / 100).toLocaleString('pt-BR', {
-        style: 'currency',
-        currency: 'BRL'
-      }),
-      expires_at: payment.expires_at,
-      status: payment.status,
-      bot_name: bot.name,
-      plan_name: plan.name,
       payment: {
         id: payment.id,
-        qr_code: payment.qr_code,
-        qr_code_base64: payment.qr_code_base64,
+        pushinpay_id: paymentResult.data.id,
         amount: payment.amount,
+        qr_code: paymentResult.data.qr_code,
+        qr_code_image_url: paymentResult.data.qr_code_image_url,
         expires_at: payment.expires_at,
-        status: payment.status,
+        split_info: paymentResult.data.split_info
       }
     });
-
+    
   } catch (error: any) {
-    console.error('❌ Erro na criação de pagamento:', error);
+    console.error('❌ Erro na API de pagamento:', error);
     return NextResponse.json({
       success: false,
       error: 'Erro interno do servidor'

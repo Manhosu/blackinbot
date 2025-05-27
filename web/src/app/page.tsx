@@ -56,13 +56,13 @@ export default function HomePage() {
           <div className="flex items-center gap-3">
             <Image 
               src={`/logo.png?v=${new Date().getTime()}`} 
-              alt="BLACKINPAY" 
+              alt="BLACKINBOT" 
               width={36} 
               height={36} 
               style={{ width: 36, height: "auto", objectFit: 'contain', borderRadius: 8, background: '#fff' }}
               priority
             />
-            <span className="text-white text-2xl font-bold font-heading tracking-tight" style={{lineHeight: '36px'}}>BLACKINPAY</span>
+            <span className="text-white text-2xl font-bold font-heading tracking-tight" style={{lineHeight: '36px'}}>BLACKINBOT</span>
           </div>
           <div className="flex items-center gap-6">
             <Link href="/login" className="text-white/80 hover:text-white transition-all">
@@ -97,7 +97,7 @@ export default function HomePage() {
             </h1>
             
             <p className="text-xl mb-8 text-white/70 leading-relaxed">
-              Configure o BLACKINPAY em apenas 5 passos simples e comece a faturar com seu grupo VIP ainda hoje, sem complicações.
+              Configure o BLACKINBOT em apenas 5 passos simples e comece a faturar com seu grupo VIP ainda hoje, sem complicações.
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4 mb-8">
@@ -175,7 +175,7 @@ export default function HomePage() {
             <div className="inline-block px-4 py-1.5 mb-4 rounded-full bg-white/5 border border-white/10 text-sm font-medium">
               <span className="text-accent">Recursos</span> imperdíveis
             </div>
-            <h2 className="text-4xl font-bold font-heading">Por que escolher o BLACKINPAY?</h2>
+            <h2 className="text-4xl font-bold font-heading">Por que escolher o BLACKINBOT?</h2>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -424,7 +424,7 @@ export default function HomePage() {
                 <p className="text-white/70 mb-8">
                   Não encontrou sua dúvida? Entre em contato com nosso suporte 24h.
                 </p>
-                <p className="text-xl font-medium">contato@blackinpay.com.br</p>
+                <p className="text-xl font-medium">contato@blackinbot.com.br</p>
               </div>
             </div>
             
@@ -471,7 +471,7 @@ export default function HomePage() {
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-4xl md:text-5xl font-bold mb-6 font-heading">Pronto para automatizar seu negócio?</h2>
           <p className="text-xl mb-8 text-white/80 max-w-2xl mx-auto">
-            Configure o BLACKINPAY em minutos e comece a faturar com seu grupo VIP ainda hoje. Sem complicações.
+            Configure o BLACKINBOT em minutos e comece a faturar com seu grupo VIP ainda hoje. Sem complicações.
           </p>
           
           <div className="flex flex-col sm:flex-row gap-6 justify-center">
@@ -495,9 +495,9 @@ export default function HomePage() {
             <div className="mb-8 md:mb-0">
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-10 h-10 rounded-full bg-accent flex items-center justify-center">
-                  <Image src="/logo.svg" alt="BLACKINPAY" width={40} height={40} />
+                  <Image src="/logo.svg" alt="BLACKINBOT" width={40} height={40} />
                 </div>
-                <span className="text-white text-xl font-bold font-heading">BLACKINPAY</span>
+                <span className="text-white text-xl font-bold font-heading">BLACKINBOT</span>
               </div>
               <p className="text-white/60 max-w-xs">
                 A solução completa para automatizar o acesso e a monetização dos seus grupos VIP no Telegram.
@@ -515,18 +515,18 @@ export default function HomePage() {
               </div>
               
               <div>
-                <h4 className="font-bold mb-4 text-white">Legal</h4>
+                <h4 className="font-bold mb-4 text-white">Suporte</h4>
                 <ul className="space-y-2">
-                  <li><Link href="/termos" className="text-white/60 hover:text-white transition-colors">Termos de Uso</Link></li>
-                  <li><Link href="/privacidade" className="text-white/60 hover:text-white transition-colors">Privacidade</Link></li>
+                  <li><a href="mailto:contato@blackinbot.com.br" className="text-white/60 hover:text-white transition-colors">Dúvidas</a></li>
+                  <li><a href="https://t.me/blackinbot" className="text-white/60 hover:text-white transition-colors">Chat de Ajuda</a></li>
                 </ul>
               </div>
               
               <div>
                 <h4 className="font-bold mb-4 text-white">Contato</h4>
                 <ul className="space-y-2">
-                  <li><a href="mailto:contato@blackinpay.com.br" className="text-white/60 hover:text-white transition-colors">Email</a></li>
-                  <li><a href="https://t.me/blackinpay" className="text-white/60 hover:text-white transition-colors">Telegram</a></li>
+                  <li><a href="mailto:contato@blackinbot.com.br" className="text-white/60 hover:text-white transition-colors">Email</a></li>
+                  <li><a href="https://t.me/blackinbot" className="text-white/60 hover:text-white transition-colors">Telegram</a></li>
                 </ul>
               </div>
             </div>
@@ -534,7 +534,7 @@ export default function HomePage() {
           
           <div className="border-t border-white/10 mt-12 pt-6 flex flex-col md:flex-row justify-between items-center">
             <p className="text-white/40 text-sm mb-4 md:mb-0">
-              &copy; {new Date().getFullYear()} BLACKINPAY. Todos os direitos reservados.
+              &copy; {new Date().getFullYear()} BLACKINBOT. Todos os direitos reservados.
             </p>
             
             <div className="flex items-center gap-4">
