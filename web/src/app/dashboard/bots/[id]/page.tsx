@@ -245,13 +245,6 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
           setCustomMedia(botData.media_url || '');
           setMediaType((botData.media_type || 'none') as 'image' | 'video' | 'none');
           
-          // Debug: verificar estado do botão
-          console.log('🔍 DEBUG BOTÃO SALVAR:');
-          console.log('🔍 welcome_message do bot:', botData.welcome_message);
-          console.log('🔍 customMessage será:', botData.welcome_message || '');
-          console.log('🔍 isSavingCustomContent:', false);
-          console.log('🔍 isUploading:', false);
-          
           // Buscar estatísticas complementares
           try {
             // Contagem de usuários (simulado por enquanto)
@@ -639,18 +632,7 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
 
   // Função para salvar mensagem e mídia personalizadas
   const saveCustomContent = async () => {
-    console.log('🔥 FUNÇÃO SAVECONTENTCUSTOM CHAMADA!');
-    console.log('🔥 Bot:', bot?.id);
-    console.log('🔥 Custom message:', customMessage);
-    console.log('🔥 Custom media:', customMedia);
-    
-    // TESTE VERCEL - Apenas mostrar alert
-    alert(`TESTE VERCEL: Função chamada!\nBot ID: ${bot?.id}\nMensagem: ${customMessage?.substring(0, 50)}...`);
-    
-    toast.success('🎉 TESTE: Função de salvar foi executada!', {
-      description: `Bot: ${bot?.name} | Mensagem: ${customMessage?.length} caracteres`,
-      duration: 5000
-    });
+    console.log('🔥 Salvando conteúdo personalizado...', { botId: bot?.id, messageLength: customMessage?.length });
     
     if (!bot) {
       console.log('❌ Bot não encontrado!');
@@ -661,37 +643,83 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
     setIsSavingCustomContent(true);
     
     try {
-      console.log('💬 Salvando conteúdo personalizado...');
+      console.log('💬 Preparando dados para salvar...');
       
-      // TESTE SIMPLIFICADO - apenas a chamada da API
+      // Preparar dados para salvar
+      const updateData: any = {
+        welcome_message: customMessage.trim(),
+      };
+
+      // Se há mídia, incluir no update
+      if (mediaType !== 'none' && customMedia) {
+        updateData.media_url = customMedia;
+        updateData.media_type = mediaType;
+      } else {
+        // Limpar mídia se não há
+        updateData.media_url = '';
+        updateData.media_type = 'none';
+      }
+
+      console.log('📤 Enviando para API:', updateData);
+
+      // Fazer upload do arquivo se necessário
+      if (mediaType !== 'none' && mediaSource === 'upload' && mediaFile) {
+        toast.info('📤 Enviando arquivo...', {
+          description: 'Upload em andamento',
+          duration: 3000
+        });
+
+        try {
+          const uploadedUrl = await uploadFile(mediaFile, 'bot-media');
+          updateData.media_url = uploadedUrl;
+          console.log('✅ Arquivo enviado:', uploadedUrl);
+        } catch (uploadError) {
+          console.error('❌ Erro no upload:', uploadError);
+          toast.error('❌ Erro ao enviar arquivo', {
+            description: 'Tente novamente ou use uma URL direta',
+            duration: 4000
+          });
+          return;
+        }
+      }
+
+      // Enviar para API
       const response = await fetch(`/api/bots/${bot.id}`, {
         method: 'PATCH',
         headers: { 
           'Content-Type': 'application/json'
         },
         credentials: 'include',
-        body: JSON.stringify({
-          welcome_message: customMessage,
-        })
+        body: JSON.stringify(updateData)
       });
 
       const result = await response.json();
       console.log('📤 Resposta da API:', result);
       
       if (result.success) {
-        toast.success('🎉 Sucesso no teste!', {
-          description: 'API respondeu com sucesso',
+        // Atualizar bot no estado
+        setBot((prevBot: any) => ({
+          ...prevBot,
+          welcome_message: updateData.welcome_message,
+          media_url: updateData.media_url,
+          media_type: updateData.media_type
+        }));
+
+        toast.success('🎉 Personalização salva!', {
+          description: '✅ Mensagem de boas-vindas atualizada com sucesso',
           duration: 4000
         });
+
+        console.log('✅ Conteúdo personalizado salvo com sucesso!');
       } else {
-        toast.error('❌ Erro no teste', {
-          description: result.error || 'API retornou erro',
-          duration: 4000
-        });
+        throw new Error(result.error || 'Erro na resposta da API');
       }
-    } catch (error) {
-      console.error('❌ Erro no teste:', error);
-      toast.error('Erro no teste: ' + error.message);
+    } catch (error: any) {
+      console.error('❌ Erro ao salvar:', error);
+      toast.error('❌ Erro ao salvar personalização', {
+        description: error.message || 'Tente novamente em alguns momentos',
+        duration: 4000
+      });
     } finally {
       setIsSavingCustomContent(false);
     }
@@ -1245,16 +1273,6 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
               <div className="flex justify-between items-center pt-4">
                 <div className="text-sm text-white/60">
                   {customMessage ? '✅ Mensagem configurada' : '⏳ Configure sua mensagem'}
-                </div>
-                
-                {/* DEBUG VERCEL */}
-                <div className="text-xs bg-red-900 text-white p-2 rounded mb-2 border">
-                  <div>🔍 DEBUG VERCEL:</div>
-                  <div>• customMessage: {customMessage ? `"${customMessage.substring(0, 50)}..." (${customMessage.length} chars)` : 'VAZIO'}</div>
-                  <div>• isSavingCustomContent: {isSavingCustomContent ? 'TRUE' : 'FALSE'}</div>
-                  <div>• isUploading: {isUploading ? 'TRUE' : 'FALSE'}</div>
-                  <div>• botId: {bot?.id || 'UNDEFINED'}</div>
-                  <div>• disabled: {(isSavingCustomContent || isUploading || !customMessage) ? 'TRUE' : 'FALSE'}</div>
                 </div>
                 
                 <Button
