@@ -10,7 +10,7 @@ import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import Image from 'next/image';
 import Link from 'next/link';
-import { BarChart, Users, CreditCard, Settings, Share2, Plus, RefreshCw, Trash2, ArrowUpRight, Copy, Key, ExternalLink, AlertCircle, Activity, TestTube, MessageSquare, CheckCircle } from 'lucide-react';
+import { BarChart, Users, CreditCard, Settings, Share2, Plus, RefreshCw, Trash2, ArrowUpRight, Copy, Key, ExternalLink, AlertCircle, Activity, TestTube, MessageSquare, CheckCircle, Eye, Edit3, ImageIcon, Save } from 'lucide-react';
 import { Globe, TicketIcon, DollarSign } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -654,13 +654,19 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
           if (uploadResult.success && uploadResult.url) {
             mediaUrl = uploadResult.url;
             console.log('✅ Upload direto realizado com sucesso:', mediaUrl);
-            toast.success('Arquivo enviado com sucesso!');
+            toast.success('📤 Arquivo enviado com sucesso!', {
+              description: 'Agora salvando as configurações...',
+              duration: 3000
+            });
           } else {
             throw new Error(uploadResult.error || 'Erro no upload');
           }
         } catch (uploadError) {
           console.error('❌ Erro no upload direto:', uploadError);
-          toast.error('Erro ao enviar arquivo. Tente novamente ou use uma URL.');
+          toast.error('❌ Falha no envio do arquivo', {
+            description: 'Verifique o arquivo e tente novamente ou use uma URL direta',
+            duration: 5000
+          });
           setIsSavingCustomContent(false);
           return;
         }
@@ -681,10 +687,25 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
       const result = await response.json();
       
       if (result.success) {
-        toast.success('Conteúdo personalizado salvo!');
+        // Feedback visual aprimorado
+        toast.success('🎉 Mensagem de boas-vindas atualizada com sucesso!', {
+          description: 'Seus usuários agora receberão a nova mensagem personalizada',
+          duration: 4000
+        });
+        
+        // Atualizar estados locais
+        setCustomMedia(mediaUrl);
+        if (mediaSource === 'upload' && mediaFile) {
+          setMediaFile(null);
+          setMediaPreview(null);
+        }
+        
         await loadBot();
       } else {
-        toast.error(result.error || 'Erro ao salvar conteúdo.');
+        toast.error('❌ Erro ao salvar configuração', {
+          description: result.error || 'Tente novamente em alguns instantes',
+          duration: 4000
+        });
       }
     } catch (error) {
       console.error('❌ Erro ao salvar conteúdo:', error);
@@ -1001,126 +1022,186 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
           />
         </div>
         
-        {/* Personalização do Bot */}
-        <Card className="border-blue-200 bg-blue-50/20 mb-8">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-blue-800">
-              <MessageSquare className="h-5 w-5" />
-              Personalização de Mensagens
-            </CardTitle>
-            <CardDescription className="text-blue-600">
-              Configure a mensagem e mídia que seu bot enviará aos usuários
-            </CardDescription>
+        {/* Personalização do Bot - MELHORADA */}
+        <Card className="bg-gradient-to-br from-blue-900/20 to-purple-900/20 border-blue-500/30 backdrop-blur-sm mb-8">
+          <CardHeader className="pb-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
+                  <MessageSquare className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <CardTitle className="text-white text-xl flex items-center gap-2">
+                    Mensagem de Boas-vindas
+                    <span className="text-xs bg-blue-500/20 text-blue-300 px-2 py-1 rounded-full">Personalizar</span>
+                  </CardTitle>
+                  <p className="text-blue-200/80 text-sm">Configure a primeira impressão do seu bot</p>
+                </div>
+              </div>
+              
+              {/* Indicador de status */}
+              <div className="flex items-center gap-2">
+                <div className={`w-3 h-3 rounded-full ${customMessage ? 'bg-green-400' : 'bg-yellow-400'} animate-pulse`}></div>
+                <span className="text-sm text-white/70">
+                  {customMessage ? 'Configurado' : 'Padrão'}
+                </span>
+              </div>
+            </div>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="customMessage" className="text-blue-700">Mensagem de Boas-Vindas</Label>
+          
+          <CardContent className="space-y-8">
+            {/* Preview da mensagem */}
+            {customMessage && (
+              <div className="bg-white/5 border border-blue-400/30 rounded-xl p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Eye className="w-4 h-4 text-blue-400" />
+                  <span className="text-sm font-medium text-blue-300">Pré-visualização da mensagem</span>
+                </div>
+                <div className="bg-white/10 rounded-lg p-3 text-white/90 text-sm leading-relaxed">
+                  {customMessage}
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-6">
+              {/* Campo de mensagem */}
+              <div className="space-y-3">
+                <Label htmlFor="customMessage" className="text-white font-medium flex items-center gap-2">
+                  <Edit3 className="w-4 h-4" />
+                  Mensagem Personalizada
+                </Label>
                 <Textarea
                   id="customMessage"
                   value={customMessage}
                   onChange={(e) => setCustomMessage(e.target.value)}
-                  placeholder="Olá {nome}! Bem-vindo ao grupo exclusivo..."
-                  className="h-32 bg-white border-blue-200"
+                  placeholder="Olá! 👋 Bem-vindo ao nosso bot! Como posso te ajudar hoje?"
+                  rows={4}
+                  className="bg-white/10 border-white/20 text-white placeholder:text-white/50 focus:border-blue-400 focus:ring-blue-400/20 transition-all duration-200"
                 />
-                <p className="text-sm text-blue-600 mt-1">
-                  Use {'{'}'nome{'}'}' para incluir o nome do usuário na mensagem.
-                </p>
+                <div className="flex items-center justify-between text-xs">
+                  <p className="text-blue-200/70">
+                    💡 Use emojis e seja acolhedor para criar uma boa primeira impressão
+                  </p>
+                  <span className="text-white/60">{customMessage.length} caracteres</span>
+                </div>
               </div>
-              
-              <div>
-                <Label className="text-blue-700">Tipo de Mídia</Label>
-                <div className="flex items-center space-x-4 mt-2">
-                  <label className="flex items-center space-x-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="mediaType"
-                      value="none"
-                      checked={mediaType === 'none'}
-                      onChange={() => setMediaType('none')}
-                      className="w-4 h-4"
-                />
-                    <span className="text-blue-700">Sem mídia</span>
-                  </label>
-                  <label className="flex items-center space-x-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="mediaType"
-                      value="image"
-                      checked={mediaType === 'image'}
-                      onChange={() => setMediaType('image')}
-                      className="w-4 h-4"
-                />
-                    <span className="text-blue-700">Imagem</span>
-                  </label>
-                  <label className="flex items-center space-x-2 cursor-pointer">
+
+              {/* Seleção de tipo de mídia */}
+              <div className="space-y-4">
+                <Label className="text-white font-medium flex items-center gap-2">
+                  <ImageIcon className="w-4 h-4" />
+                  Mídia de acompanhamento
+                </Label>
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    { value: 'none', label: 'Apenas texto', icon: '📝' },
+                    { value: 'image', label: 'Com imagem', icon: '🖼️' },
+                    { value: 'video', label: 'Com vídeo', icon: '🎬' }
+                  ].map((option) => (
+                    <label key={option.value} className="cursor-pointer">
                       <input
                         type="radio"
-                      name="mediaType"
-                      value="video"
-                      checked={mediaType === 'video'}
-                      onChange={() => setMediaType('video')}
-                        className="w-4 h-4"
+                        name="mediaType"
+                        value={option.value}
+                        checked={mediaType === option.value}
+                        onChange={() => setMediaType(option.value as any)}
+                        className="sr-only"
                       />
-                    <span className="text-blue-700">Vídeo</span>
+                      <div className={`p-4 rounded-xl border-2 transition-all duration-200 text-center ${
+                        mediaType === option.value
+                          ? 'bg-blue-500/20 border-blue-400 text-white'
+                          : 'bg-white/5 border-white/20 text-white/70 hover:bg-white/10'
+                      }`}>
+                        <div className="text-2xl mb-2">{option.icon}</div>
+                        <div className="text-sm font-medium">{option.label}</div>
+                      </div>
                     </label>
+                  ))}
                 </div>
               </div>
               
+              {/* Configuração de mídia */}
               {mediaType !== 'none' && (
-                <div className="space-y-4">
-                  <div>
-                    <Label className="text-blue-700">Fonte da {mediaType === 'image' ? 'Imagem' : 'Vídeo'}</Label>
-                    <div className="flex items-center space-x-4 mt-2">
-                      <label className="flex items-center space-x-2 cursor-pointer">
-                        <input
-                          type="radio"
-                          name="mediaSource"
-                          value="url"
-                          checked={mediaSource === 'url'}
-                          onChange={() => setMediaSource('url')}
-                          className="w-4 h-4"
-                        />
-                        <span className="text-blue-700">URL</span>
-                      </label>
-                      <label className="flex items-center space-x-2 cursor-pointer">
-                        <input
-                          type="radio"
-                          name="mediaSource"
-                          value="upload"
-                          checked={mediaSource === 'upload'}
-                          onChange={() => setMediaSource('upload')}
-                          className="w-4 h-4"
-                        />
-                        <span className="text-blue-700">Upload de arquivo</span>
-                      </label>
+                <div className="space-y-6 bg-white/5 rounded-xl p-6 border border-white/10">
+                  <div className="space-y-4">
+                    <Label className="text-white font-medium">
+                      Como deseja adicionar a {mediaType === 'image' ? 'imagem' : 'vídeo'}?
+                    </Label>
+                    <div className="grid grid-cols-2 gap-3">
+                      {[
+                        { value: 'url', label: 'Link/URL', icon: '🔗' },
+                        { value: 'upload', label: 'Fazer upload', icon: '📤' }
+                      ].map((option) => (
+                        <label key={option.value} className="cursor-pointer">
+                          <input
+                            type="radio"
+                            name="mediaSource"
+                            value={option.value}
+                            checked={mediaSource === option.value}
+                            onChange={() => setMediaSource(option.value as any)}
+                            className="sr-only"
+                          />
+                          <div className={`p-3 rounded-lg border transition-all duration-200 text-center ${
+                            mediaSource === option.value
+                              ? 'bg-blue-500/20 border-blue-400 text-white'
+                              : 'bg-white/5 border-white/20 text-white/70 hover:bg-white/10'
+                          }`}>
+                            <div className="text-lg mb-1">{option.icon}</div>
+                            <div className="text-sm">{option.label}</div>
+                          </div>
+                        </label>
+                      ))}
                     </div>
                   </div>
 
                   {mediaSource === 'url' && (
-                    <div>
-                      <Label htmlFor="mediaUrl" className="text-blue-700">URL da {mediaType === 'image' ? 'Imagem' : 'Vídeo'}</Label>
+                    <div className="space-y-3">
+                      <Label htmlFor="mediaUrl" className="text-white">
+                        URL da {mediaType === 'image' ? 'imagem' : 'vídeo'}
+                      </Label>
                       <Input
                         id="mediaUrl"
                         value={customMedia}
                         onChange={(e) => setCustomMedia(e.target.value)}
                         placeholder={mediaType === 'image' ? 'https://exemplo.com/imagem.jpg' : 'https://exemplo.com/video.mp4'}
-                        className="bg-white border-blue-200"
+                        className="bg-white/10 border-white/20 text-white placeholder:text-white/50"
                       />
-                      <p className="text-sm text-blue-600 mt-1">
-                        {mediaType === 'image' ? 'Forneça o link para uma imagem (JPG, PNG)' : 'Forneça o link para um vídeo (MP4)'}
+                      <p className="text-sm text-blue-200/70">
+                        {mediaType === 'image' 
+                          ? '🖼️ Formatos aceitos: JPG, PNG, GIF, WebP' 
+                          : '🎬 Formatos aceitos: MP4, MOV, AVI, MKV, WebM'
+                        }
                       </p>
                     </div>
                   )}
 
                   {mediaSource === 'upload' && (
-                    <div>
-                      <Label htmlFor="mediaFile" className="text-blue-700">Faça upload do arquivo</Label>
-                      <div className="mt-2">
+                    <div className="space-y-4">
+                      <Label htmlFor="mediaFile" className="text-white">
+                        Fazer upload do arquivo
+                      </Label>
+                      
+                      {/* Progress bar durante upload */}
+                      {isUploading && (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-blue-300">Enviando arquivo...</span>
+                            <span className="text-white">{uploadProgress}%</span>
+                          </div>
+                          <div className="w-full bg-white/10 rounded-full h-2">
+                            <div 
+                              className="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full transition-all duration-300"
+                              style={{ width: `${uploadProgress}%` }}
+                            ></div>
+                          </div>
+                        </div>
+                      )}
+                      
+                      <div className="border-2 border-dashed border-white/20 rounded-xl p-6 hover:border-blue-400/50 transition-colors duration-200">
                         <input
                           type="file"
                           id="mediaFile"
-                          accept={mediaType === 'image' ? 'image/jpeg,image/png,image/gif' : 'video/mp4,video/quicktime'}
+                          accept={mediaType === 'image' ? 'image/*' : 'video/*'}
                           onChange={(e) => {
                             const file = e.target.files?.[0] || null;
                             setMediaFile(file);
@@ -1134,51 +1215,78 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
                               setMediaPreview(null);
                             }
                           }}
-                          className="block w-full text-sm text-blue-700 
+                          className="block w-full text-sm text-white/70
                             file:mr-4 file:py-2 file:px-4
-                            file:rounded-md file:border-0
+                            file:rounded-lg file:border-0
                             file:text-sm file:font-medium
-                            file:bg-blue-50 file:text-blue-700
-                            hover:file:bg-blue-100"
+                            file:bg-blue-500/20 file:text-blue-300
+                            hover:file:bg-blue-500/30 transition-all duration-200"
                         />
+                        <div className="text-center mt-2">
+                          <p className="text-sm text-white/60">
+                            {mediaType === 'image' 
+                              ? '📸 Máximo 10MB - JPG, PNG, GIF, WebP'
+                              : '🎬 Máximo 100MB - MP4, MOV, AVI, MKV, WebM'
+                            }
+                          </p>
+                        </div>
                       </div>
-                      {mediaPreview && mediaType === 'image' && (
-                        <div className="mt-3 border border-blue-200 rounded-md p-2">
-                          <p className="text-sm text-blue-600 mb-2">Pré-visualização:</p>
-                          <img 
-                            src={mediaPreview} 
-                            alt="Pré-visualização" 
-                            className="max-h-48 max-w-full object-contain rounded-md"
-                          />
+                      
+                      {/* Preview do arquivo */}
+                      {mediaPreview && (
+                        <div className="bg-white/5 border border-blue-400/30 rounded-xl p-4">
+                          <div className="flex items-center gap-2 mb-3">
+                            <Eye className="w-4 h-4 text-blue-400" />
+                            <span className="text-sm font-medium text-blue-300">Pré-visualização do arquivo</span>
+                          </div>
+                          {mediaType === 'image' ? (
+                            <img 
+                              src={mediaPreview} 
+                              alt="Pré-visualização" 
+                              className="max-h-48 max-w-full object-contain rounded-lg mx-auto"
+                            />
+                          ) : (
+                            <video 
+                              src={mediaPreview} 
+                              controls 
+                              className="max-h-48 max-w-full rounded-lg mx-auto"
+                            />
+                          )}
                         </div>
                       )}
-                      {mediaPreview && mediaType === 'video' && (
-                        <div className="mt-3 border border-blue-200 rounded-md p-2">
-                          <p className="text-sm text-blue-600 mb-2">Pré-visualização:</p>
-                          <video 
-                            src={mediaPreview} 
-                            controls 
-                            className="max-h-48 max-w-full rounded-md"
-                          />
-                        </div>
-                      )}
-                      <p className="text-sm text-blue-600 mt-1">
-                        {mediaType === 'image' ? 'Selecione uma imagem do seu dispositivo (JPG, PNG, GIF)' : 'Selecione um vídeo do seu dispositivo (MP4)'}
-                      </p>
                     </div>
                   )}
                 </div>
               )}
 
-              <div className="pt-2">
-              <Button
+              {/* Botão de salvar melhorado */}
+              <div className="flex justify-between items-center pt-4">
+                <div className="text-sm text-white/60">
+                  {customMessage ? '✅ Mensagem configurada' : '⏳ Configure sua mensagem'}
+                </div>
+                <Button
                   onClick={saveCustomContent}
-                  disabled={isSavingCustomContent}
-                  className="bg-blue-600 hover:bg-blue-700"
-              >
-                  {isSavingCustomContent ? 'Salvando...' : 'Salvar Personalização'}
-              </Button>
-            </div>
+                  disabled={isSavingCustomContent || isUploading || !customMessage}
+                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 px-8 py-2 text-white font-medium rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSavingCustomContent ? (
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                      Salvando...
+                    </div>
+                  ) : isUploading ? (
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                      Enviando arquivo...
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <Save className="w-4 h-4" />
+                      Salvar personalização
+                    </div>
+                  )}
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
