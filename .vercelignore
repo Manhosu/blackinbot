@@ -1,0 +1,46 @@
+# Arquivos e diretórios a serem ignorados no deploy Vercel
+
+# Bot Python (não usado no deploy web)
+bot/
+*.py
+*.pyc
+__pycache__/
+
+# Logs e arquivos temporários
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
+
+# Arquivos de desenvolvimento
+.env.example
+README.md
+.gitignore
+
+# Cache do Node.js
+node_modules/.cache/
+.npm/
+.yarn/
+
+# Arquivos de teste
+test/
+tests/
+*.test.js
+*.test.ts
+*.spec.js
+*.spec.ts
+
+# Documentação
+docs/
+documentation/
+
+# Arquivos de configuração local
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Arquivos grandes desnecessários
+*.zip
+*.tar.gz
+*.rar 
