@@ -20,6 +20,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { FiEdit } from 'react-icons/fi';
+import { useSupabaseUpload } from '@/hooks/useSupabaseUpload';
 
 interface Transaction {
   id: string;
@@ -166,6 +167,10 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
   const [mediaFile, setMediaFile] = useState<File | null>(null);
   const [mediaPreview, setMediaPreview] = useState<string | null>(null);
   const [isSavingCustomContent, setIsSavingCustomContent] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  
+  // Hook para upload direto ao Supabase
+  const { uploadFile, isUploading } = useSupabaseUpload();
 
   // Estados para edição
   const [editForm, setEditForm] = useState({
@@ -635,32 +640,27 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
       
       let mediaUrl = customMedia;
       
-      // Se for upload de arquivo, primeiro fazer o upload
+      // Se for upload de arquivo, primeiro fazer o upload direto ao Supabase
       if (mediaSource === 'upload' && mediaFile) {
         try {
-          // Criar FormData para upload
-          const formData = new FormData();
-          formData.append('file', mediaFile);
-          formData.append('bot_id', bot.id);
-          formData.append('type', mediaType);
+          console.log('🚀 Iniciando upload direto para Supabase Storage...');
           
-          // Enviar para API de upload
-          const uploadResponse = await fetch('/api/media/upload', {
-            method: 'POST',
-            body: formData
+          const uploadResult = await uploadFile(mediaFile, {
+            botId: bot.id,
+            mediaType: mediaType as 'image' | 'video',
+            onProgress: setUploadProgress
           });
-          
-          const uploadResult = await uploadResponse.json();
           
           if (uploadResult.success && uploadResult.url) {
             mediaUrl = uploadResult.url;
-            console.log('✅ Arquivo enviado com sucesso:', mediaUrl);
+            console.log('✅ Upload direto realizado com sucesso:', mediaUrl);
+            toast.success('Arquivo enviado com sucesso!');
           } else {
-            throw new Error(uploadResult.error || 'Erro ao enviar arquivo');
+            throw new Error(uploadResult.error || 'Erro no upload');
           }
         } catch (uploadError) {
-          console.error('❌ Erro ao fazer upload do arquivo:', uploadError);
-          toast.error('Erro ao enviar arquivo. Tente usar URL ou um arquivo menor.');
+          console.error('❌ Erro no upload direto:', uploadError);
+          toast.error('Erro ao enviar arquivo. Tente novamente ou use uma URL.');
           setIsSavingCustomContent(false);
           return;
         }

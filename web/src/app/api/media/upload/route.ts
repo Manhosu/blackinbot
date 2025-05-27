@@ -1,140 +1,143 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
 
+// Cliente admin do Supabase para operações de storage
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+
+const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+  auth: {
+    autoRefreshToken: false,
+    persistSession: false
+  }
+});
+
 // Função para validar o tipo do arquivo
-function isValidFileType(file: File, type: string): boolean {
+function isValidFileType(fileName: string, type: string): boolean {
+  const ext = fileName.toLowerCase().split('.').pop();
+  
   if (type === 'image') {
-    return file.type.startsWith('image/');
+    return ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext || '');
   } else if (type === 'video') {
-    return file.type.startsWith('video/');
+    return ['mp4', 'mov', 'avi', 'mkv', 'webm'].includes(ext || '');
   }
   return false;
 }
 
-// Endpoint para upload de arquivos
+// Endpoint para gerar URL assinado para upload direto
 export async function POST(request: NextRequest) {
-  console.log('📤 POST /api/media/upload: Iniciando upload de arquivo');
+  console.log('📤 POST /api/media/upload: Gerando URL assinado para upload direto');
   
   try {
-    const formData = await request.formData();
-    const file = formData.get('file') as File;
-    const botId = formData.get('bot_id') as string;
-    const type = formData.get('type') as string;
+    const body = await request.json();
+    const { fileName, fileSize, fileType, botId, mediaType } = body;
     
-    if (!file) {
+    // Validações básicas
+    if (!fileName || !botId || !mediaType) {
       return NextResponse.json({ 
         success: false, 
-        error: 'Nenhum arquivo enviado' 
+        error: 'Parâmetros obrigatórios: fileName, botId, mediaType' 
       }, { status: 400 });
     }
     
-    if (!botId) {
+    if (!mediaType || (mediaType !== 'image' && mediaType !== 'video')) {
       return NextResponse.json({ 
         success: false, 
-        error: 'ID do bot não fornecido' 
-      }, { status: 400 });
-    }
-    
-    if (!type || (type !== 'image' && type !== 'video')) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Tipo de mídia inválido' 
+        error: 'Tipo de mídia inválido (image ou video)' 
       }, { status: 400 });
     }
     
     // Validar tipo do arquivo
-    if (!isValidFileType(file, type)) {
+    if (!isValidFileType(fileName, mediaType)) {
+      const validTypes = mediaType === 'image' 
+        ? 'jpg, jpeg, png, gif, webp' 
+        : 'mp4, mov, avi, mkv, webm';
       return NextResponse.json({ 
         success: false, 
-        error: `Formato de ${type === 'image' ? 'imagem' : 'vídeo'} inválido` 
+        error: `Formato de ${mediaType === 'image' ? 'imagem' : 'vídeo'} inválido. Tipos aceitos: ${validTypes}` 
       }, { status: 400 });
     }
     
-    // Verificar tamanho do arquivo (max 10MB)
-    const maxSize = 10 * 1024 * 1024; // 10MB
-    if (file.size > maxSize) {
+    // Verificar tamanho do arquivo
+    const maxSize = mediaType === 'image' ? 10 * 1024 * 1024 : 100 * 1024 * 1024; // 10MB para imagem, 100MB para vídeo
+    if (fileSize && fileSize > maxSize) {
+      const maxSizeMB = maxSize / (1024 * 1024);
       return NextResponse.json({ 
         success: false, 
-        error: `O tamanho máximo do arquivo é 10MB` 
+        error: `Tamanho máximo para ${mediaType === 'image' ? 'imagens' : 'vídeos'} é ${maxSizeMB}MB` 
       }, { status: 400 });
     }
     
-    // Em ambiente de desenvolvimento, simular sucesso sem realmente fazer upload
-    if (process.env.NODE_ENV === 'development') {
-      console.log('🔧 Modo de desenvolvimento: simulando upload de arquivo');
-      
-      // Criar URL de arquivo simulada
-      const fileName = file.name;
-      const fileExt = fileName.split('.').pop() || '';
-      const randomId = uuidv4().substring(0, 8);
-      const simulatedUrl = `https://storage.example.com/${botId}/${type}_${randomId}.${fileExt}`;
-      
-      console.log('✅ Upload simulado com sucesso:', simulatedUrl);
-      
-      // Retornar URL simulada
-      return NextResponse.json({
-        success: true,
-        url: simulatedUrl,
-        message: 'Arquivo enviado com sucesso (simulado)'
-      });
-    }
-    
-    // Em produção, usar Supabase Storage para upload real
     try {
-      // Autenticar usuário
-      const cookieStore = cookies();
-      const supabaseClient = createRouteHandlerClient({ cookies: () => cookieStore });
-      const { data: { user } } = await supabaseClient.auth.getUser();
+      // Gerar nome único para o arquivo
+      const fileExt = fileName.split('.').pop() || '';
+      const uniqueFileName = `${mediaType}_${uuidv4()}.${fileExt}`;
+      const filePath = `${botId}/${uniqueFileName}`;
       
-      if (!user) {
-        return NextResponse.json({ 
-          success: false, 
-          error: 'Usuário não autenticado' 
-        }, { status: 401 });
+      // Verificar/criar bucket se não existir
+      const bucketName = 'bot-media';
+      
+      // Tentar obter info do bucket
+      const { data: bucketInfo, error: bucketError } = await supabaseAdmin.storage.getBucket(bucketName);
+      
+      if (bucketError && bucketError.message.includes('not found')) {
+        console.log('📦 Criando bucket bot-media...');
+        
+        // Criar bucket se não existir
+        const { error: createError } = await supabaseAdmin.storage.createBucket(bucketName, {
+          public: true,
+          allowedMimeTypes: [
+            'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp',
+            'video/mp4', 'video/mov', 'video/avi', 'video/mkv', 'video/webm'
+          ],
+          fileSizeLimit: 100 * 1024 * 1024 // 100MB
+        });
+        
+        if (createError) {
+          console.error('❌ Erro ao criar bucket:', createError);
+          return NextResponse.json({ 
+            success: false, 
+            error: 'Erro ao configurar storage' 
+          }, { status: 500 });
+        }
+        
+        console.log('✅ Bucket criado com sucesso');
       }
       
-      // Preparar para upload
-      const fileName = `${type}_${uuidv4()}`;
-      const fileExt = file.name.split('.').pop() || '';
-      const fullFileName = `${fileName}.${fileExt}`;
-      const filePath = `${botId}/${fullFileName}`;
-      
-      // Converter File para ArrayBuffer
-      const arrayBuffer = await file.arrayBuffer();
-      
-      // Fazer upload para Supabase Storage
-      const { data, error } = await supabaseClient.storage
-        .from('bot-media')
-        .upload(filePath, arrayBuffer, {
-          contentType: file.type,
+      // Gerar URL assinado para upload
+      const { data: signedData, error: signedError } = await supabaseAdmin.storage
+        .from(bucketName)
+        .createSignedUploadUrl(filePath, {
           upsert: false
         });
       
-      if (error) {
-        console.error('❌ Erro ao fazer upload:', error);
+      if (signedError) {
+        console.error('❌ Erro ao gerar URL assinado:', signedError);
         return NextResponse.json({ 
           success: false, 
-          error: error.message 
+          error: 'Erro ao gerar URL de upload' 
         }, { status: 500 });
       }
       
-      // Obter URL pública do arquivo
-      const { data: { publicUrl } } = supabaseClient.storage
-        .from('bot-media')
+      // Gerar URL pública que será usada após o upload
+      const { data: { publicUrl } } = supabaseAdmin.storage
+        .from(bucketName)
         .getPublicUrl(filePath);
       
-      console.log('✅ Upload realizado com sucesso:', publicUrl);
+      console.log('✅ URL assinado gerado com sucesso para:', filePath);
       
       return NextResponse.json({
         success: true,
-        url: publicUrl,
-        message: 'Arquivo enviado com sucesso'
+        uploadUrl: signedData.signedUrl,
+        token: signedData.token,
+        publicUrl: publicUrl,
+        filePath: filePath,
+        message: 'URL de upload gerado com sucesso'
       });
+      
     } catch (error: any) {
-      console.error('❌ Erro no processo de upload:', error);
+      console.error('❌ Erro no processo de geração da URL:', error);
       
       return NextResponse.json({ 
         success: false, 
@@ -143,7 +146,60 @@ export async function POST(request: NextRequest) {
     }
     
   } catch (error: any) {
-    console.error('❌ Erro ao processar requisição de upload:', error);
+    console.error('❌ Erro ao processar requisição:', error);
+    
+    return NextResponse.json({ 
+      success: false, 
+      error: error.message || 'Erro desconhecido'
+    }, { status: 500 });
+  }
+}
+
+// Endpoint GET para confirmar upload e obter URL final
+export async function GET(request: NextRequest) {
+  console.log('📥 GET /api/media/upload: Confirmando upload');
+  
+  try {
+    const { searchParams } = new URL(request.url);
+    const filePath = searchParams.get('filePath');
+    
+    if (!filePath) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Caminho do arquivo não fornecido' 
+      }, { status: 400 });
+    }
+    
+    // Verificar se o arquivo existe no storage
+    const bucketName = 'bot-media';
+    const { data, error } = await supabaseAdmin.storage
+      .from(bucketName)
+      .list(filePath.split('/')[0], {
+        search: filePath.split('/')[1]
+      });
+    
+    if (error || !data || data.length === 0) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Arquivo não encontrado no storage' 
+      }, { status: 404 });
+    }
+    
+    // Obter URL pública
+    const { data: { publicUrl } } = supabaseAdmin.storage
+      .from(bucketName)
+      .getPublicUrl(filePath);
+    
+    console.log('✅ Upload confirmado:', publicUrl);
+    
+    return NextResponse.json({
+      success: true,
+      url: publicUrl,
+      message: 'Upload confirmado com sucesso'
+    });
+    
+  } catch (error: any) {
+    console.error('❌ Erro ao confirmar upload:', error);
     
     return NextResponse.json({ 
       success: false, 
