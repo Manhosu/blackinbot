@@ -57,9 +57,7 @@ const nextConfig = {
     return [];
   },
   
-  // Configurações para resolver problemas de SSR/SSG
-  transpilePackages: ['@supabase/supabase-js'],
-  
+  // Configurações para resolver problemas de SSR/SSG  
   // Configurações de output para Vercel
   // output: 'standalone', // Remover para Vercel
   
