@@ -123,21 +123,113 @@ async function sendTelegramPhoto(botToken: string, chatId: number, photo: string
 async function sendTelegramVideo(botToken: string, chatId: number, video: string, caption: string, options: any = {}) {
   const url = `https://api.telegram.org/bot${botToken}/sendVideo`;
   
+  console.log(`🎬 Tentando enviar vídeo: ${video.substring(0, 100)}...`);
+  
   const response = await fetch(url, {
-        method: 'POST',
+    method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-        body: JSON.stringify({
-          chat_id: chatId,
+    body: JSON.stringify({
+      chat_id: chatId,
       video: video,
       caption: caption,
       parse_mode: 'Markdown',
+      supports_streaming: true,
+      width: 640,
+      height: 480,
       ...options
-        })
-      });
+    })
+  });
+  
+  const result = await response.json();
+  console.log(`📤 Resposta sendVideo:`, result);
+  
+  return result;
+}
+
+// ✅ NOVA FUNÇÃO: Enviar vídeo como documento (para vídeos grandes)
+async function sendTelegramDocument(botToken: string, chatId: number, document: string, caption: string, options: any = {}) {
+  const url = `https://api.telegram.org/bot${botToken}/sendDocument`;
+  
+  console.log(`📁 Enviando vídeo como documento: ${document.substring(0, 100)}...`);
+  
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      chat_id: chatId,
+      document: document,
+      caption: caption,
+      parse_mode: 'Markdown',
+      ...options
+    })
+  });
+  
+  const result = await response.json();
+  console.log(`📤 Resposta sendDocument:`, result);
+  
+  return result;
+}
+
+// ✅ NOVA FUNÇÃO: Enviar vídeo com fallbacks inteligentes
+async function sendVideoWithFallbacks(botToken: string, chatId: number, videoUrl: string, caption: string, options: any = {}) {
+  console.log(`🎬 Iniciando envio de vídeo com fallbacks`);
+  
+  try {
+    // Primeiro: tentar como vídeo normal
+    console.log(`🎯 Tentativa 1: sendVideo`);
+    const videoResult = await sendTelegramVideo(botToken, chatId, videoUrl, caption, options);
+    
+    if (videoResult.ok) {
+      console.log(`✅ Vídeo enviado com sucesso via sendVideo`);
+      return videoResult;
+    }
+    
+    // Se falhou, verificar erro
+    console.log(`⚠️ sendVideo falhou:`, videoResult);
+    
+    // Se é erro de tamanho, tentar como documento
+    if (videoResult.error_code === 413 || 
+        (videoResult.description && videoResult.description.includes('too large')) ||
+        (videoResult.description && videoResult.description.includes('file size'))) {
       
-  return response.json();
+      console.log(`📁 Tentativa 2: sendDocument (vídeo muito grande)`);
+      const docResult = await sendTelegramDocument(botToken, chatId, videoUrl, `🎬 **Vídeo**\n\n${caption}`, options);
+      
+      if (docResult.ok) {
+        console.log(`✅ Vídeo enviado como documento`);
+        return docResult;
+      }
+      
+      console.log(`❌ sendDocument também falhou:`, docResult);
+    }
+    
+    // Se ainda falhou, tentar como link
+    console.log(`🔗 Tentativa 3: enviar como link de texto`);
+    const linkMessage = `🎬 **Vídeo de boas-vindas**
+
+${caption}
+
+🔗 **Link do vídeo:** ${videoUrl}
+
+_Clique no link acima para assistir ao vídeo_`;
+    
+    const textResult = await sendTelegramMessage(botToken, chatId, linkMessage, options);
+    
+    if (textResult.ok) {
+      console.log(`✅ Vídeo enviado como link de texto`);
+      return textResult;
+    }
+    
+    throw new Error('Todas as tentativas de envio falharam');
+    
+  } catch (error) {
+    console.error('❌ Erro em sendVideoWithFallbacks:', error);
+    throw error;
+  }
 }
 
 async function editTelegramMessage(botToken: string, chatId: number, messageId: number, text: string, options: any = {}) {
@@ -367,7 +459,7 @@ Este bot ainda não foi ativado pelo proprietário.
       sentMessage = await sendTelegramPhoto(bot.token, chatId, bot.welcome_media_url, loadingMessage);
     } else if (bot.welcome_media_url && bot.welcome_media_type === 'video') {
       console.log(`🎬 Enviando VÍDEO: ${bot.welcome_media_url}`);
-      sentMessage = await sendTelegramVideo(bot.token, chatId, bot.welcome_media_url, loadingMessage);
+      sentMessage = await sendVideoWithFallbacks(bot.token, chatId, bot.welcome_media_url, loadingMessage);
     } else {
       console.log(`📝 Enviando apenas TEXTO (sem mídia)`);
       sentMessage = await sendTelegramMessage(bot.token, chatId, loadingMessage);

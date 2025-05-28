@@ -34,6 +34,7 @@
   "regions": ["gru1"],
   "framework": "nextjs",
   "limits": {
-    "duration": 30000
+    "duration": 30000,
+    "payload": "26214400"
   }
 } 

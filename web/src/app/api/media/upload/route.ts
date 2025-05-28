@@ -22,7 +22,7 @@ const supabaseAdmin = createClient(supabaseUrl!, supabaseServiceKey!, {
 // Configurações de limite e tipos de arquivo
 const CONFIG = {
   MAX_IMAGE_SIZE: 10 * 1024 * 1024, // 10MB
-  MAX_VIDEO_SIZE: 100 * 1024 * 1024, // 100MB
+  MAX_VIDEO_SIZE: 25 * 1024 * 1024, // 25MB (otimizado para Telegram)
   BUCKET_NAME: 'bot-media',
   ALLOWED_IMAGE_TYPES: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
   ALLOWED_VIDEO_TYPES: ['mp4', 'mov', 'avi', 'mkv', 'webm'],

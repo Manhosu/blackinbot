@@ -113,7 +113,7 @@ export function useSupabaseUpload() {
     }
 
     // Validar tamanho do arquivo
-    const maxSize = mediaType === 'image' ? 10 * 1024 * 1024 : 100 * 1024 * 1024; // 10MB para imagem, 100MB para vídeo
+    const maxSize = mediaType === 'image' ? 10 * 1024 * 1024 : 25 * 1024 * 1024; // 10MB para imagem, 25MB para vídeo
     
     if (file.size > maxSize) {
       const maxSizeMB = maxSize / (1024 * 1024);

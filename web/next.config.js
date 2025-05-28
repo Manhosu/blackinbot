@@ -14,6 +14,8 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
   
+
+  
   // Environment variables
   env: {
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL || 'https://blackinbot.vercel.app',
@@ -21,10 +23,10 @@ const nextConfig = {
   
   // Configurações para upload de arquivos
   serverRuntimeConfig: {
-    maxFileSize: 10 * 1024 * 1024, // 10MB
+    maxFileSize: 25 * 1024 * 1024, // 25MB para vídeos
   },
   publicRuntimeConfig: {
-    maxFileSize: 10 * 1024 * 1024, // 10MB
+    maxFileSize: 25 * 1024 * 1024, // 25MB para vídeos
   },
   
   // Images config
@@ -65,6 +67,9 @@ const nextConfig = {
   generateBuildId: async () => {
     return 'build-' + Date.now();
   },
+  
+  // Configuração para ignorar problemas de prerendering
+  staticPageGenerationTimeout: 60,
   
   // Configurações específicas para problemas de React Context
   webpack: (config, { isServer }) => {

@@ -1461,7 +1461,7 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
                           <p className="text-sm text-white/60">
                             {mediaType === 'image' 
                               ? '📸 Máximo 10MB - JPG, PNG, GIF, WebP'
-                              : '🎬 Máximo 100MB - MP4, MOV, AVI, MKV, WebM'
+                              : '🎬 Máximo 25MB - MP4, MOV, AVI, MKV, WebM'
                             }
                           </p>
                         </div>

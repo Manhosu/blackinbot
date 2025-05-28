@@ -1,5 +1,8 @@
 'use client';
 
+// Forçar renderização dinâmica
+export const dynamic = 'force-dynamic';
+
 export default function GlobalError({
   error,
   reset,
@@ -12,15 +15,15 @@ export default function GlobalError({
       <div className="max-w-md w-full mx-4 text-center space-y-6">
         <div className="space-y-2">
           <h1 className="text-6xl font-bold text-red-500">500</h1>
-          <h2 className="text-xl font-semibold">Algo deu errado!</h2>
+          <h2 className="text-xl font-semibold">Erro Global!</h2>
           <p className="text-gray-400">
-            Ocorreu um erro inesperado. Tente novamente.
+            Ocorreu um erro crítico. Tente recarregar a página.
           </p>
         </div>
         
         <button
           onClick={reset}
-          className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
         >
           Tentar novamente
         </button>
