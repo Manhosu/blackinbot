@@ -16,11 +16,6 @@
   "env": {
     "NODE_ENV": "production"
   },
-  "build": {
-    "env": {
-      "NODE_ENV": "production"
-    }
-  },
   "functions": {
     "web/src/app/api/**/*.ts": {
       "maxDuration": 30,
@@ -32,9 +27,5 @@
     }
   },
   "regions": ["gru1"],
-  "framework": "nextjs",
-  "limits": {
-    "duration": 30000,
-    "payload": "26214400"
-  }
+  "framework": "nextjs"
 } 

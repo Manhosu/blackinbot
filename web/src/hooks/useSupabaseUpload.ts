@@ -61,7 +61,7 @@ export function useSupabaseUpload() {
           if (renewData?.session?.access_token) {
             console.log('✅ Token renovado com sucesso');
             return renewData.session.access_token;
-          }
+      }
         } catch (parseError) {
           console.error('❌ Erro ao processar usuário local:', parseError);
         }
@@ -172,120 +172,120 @@ export function useSupabaseUpload() {
    * Upload com token de autenticação
    */
   const uploadWithToken = async (file: File, options: UploadOptions, authToken: string): Promise<UploadResult> => {
-    // 3. Solicitar URL assinado do backend
-    options.onProgress?.(10);
-    
-    const urlResponse = await fetch('/api/media/upload', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${authToken}`
-      },
-      body: JSON.stringify({
-        fileName: file.name,
-        fileSize: file.size,
-        fileType: file.type,
-        botId: options.botId,
-        mediaType: options.mediaType
-      })
-    });
-    
-    if (!urlResponse.ok) {
-      let errorMessage = 'Erro ao solicitar URL de upload';
-      try {
-        const errorData: ApiResponse = await urlResponse.json();
-        errorMessage = errorData.error || errorMessage;
-        
-        // Mensagens de erro específicas para melhor UX
-        switch (errorData.code) {
-          case 'UNAUTHORIZED':
-            errorMessage = 'Sessão expirada. Faça login novamente.';
-            break;
-          case 'BOT_ACCESS_DENIED':
-            errorMessage = 'Você não tem permissão para acessar este bot.';
-            break;
-          case 'INVALID_FILE_TYPE':
-            errorMessage = errorData.error || 'Tipo de arquivo não suportado.';
-            break;
-          case 'FILE_TOO_LARGE':
-            errorMessage = errorData.error || 'Arquivo muito grande.';
-            break;
-          default:
-            errorMessage = errorData.error || errorMessage;
+      // 3. Solicitar URL assinado do backend
+      options.onProgress?.(10);
+      
+      const urlResponse = await fetch('/api/media/upload', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify({
+          fileName: file.name,
+          fileSize: file.size,
+          fileType: file.type,
+          botId: options.botId,
+          mediaType: options.mediaType
+        })
+      });
+      
+      if (!urlResponse.ok) {
+        let errorMessage = 'Erro ao solicitar URL de upload';
+        try {
+          const errorData: ApiResponse = await urlResponse.json();
+          errorMessage = errorData.error || errorMessage;
+          
+          // Mensagens de erro específicas para melhor UX
+          switch (errorData.code) {
+            case 'UNAUTHORIZED':
+              errorMessage = 'Sessão expirada. Faça login novamente.';
+              break;
+            case 'BOT_ACCESS_DENIED':
+              errorMessage = 'Você não tem permissão para acessar este bot.';
+              break;
+            case 'INVALID_FILE_TYPE':
+              errorMessage = errorData.error || 'Tipo de arquivo não suportado.';
+              break;
+            case 'FILE_TOO_LARGE':
+              errorMessage = errorData.error || 'Arquivo muito grande.';
+              break;
+            default:
+              errorMessage = errorData.error || errorMessage;
+          }
+        } catch (e) {
+          console.error('❌ Erro ao parsear resposta de erro:', e);
         }
-      } catch (e) {
-        console.error('❌ Erro ao parsear resposta de erro:', e);
+        
+        console.error('❌ Erro na solicitação de URL:', urlResponse.status, errorMessage);
+      throw new Error(errorMessage);
       }
       
-      console.error('❌ Erro na solicitação de URL:', urlResponse.status, errorMessage);
-      throw new Error(errorMessage);
-    }
-    
-    const urlData: ApiResponse = await urlResponse.json();
-    if (!urlData.success || !urlData.data) {
-      const error = urlData.error || 'Falha ao obter URL de upload';
-      console.error('❌ Resposta inválida da API:', urlData);
+      const urlData: ApiResponse = await urlResponse.json();
+      if (!urlData.success || !urlData.data) {
+        const error = urlData.error || 'Falha ao obter URL de upload';
+        console.error('❌ Resposta inválida da API:', urlData);
       throw new Error(error);
-    }
-    
-    const { uploadUrl, publicUrl, filePath } = urlData.data;
-    console.log('✅ URL assinado obtido:', uploadUrl);
-    
-    // 4. Fazer upload direto para o Supabase Storage
-    options.onProgress?.(30);
-    
-    const uploadResponse = await fetch(uploadUrl, {
-      method: 'PUT',
-      body: file,
-      headers: {
-        'Content-Type': file.type,
-        'Cache-Control': '3600'
       }
-    });
-    
-    if (!uploadResponse.ok) {
-      const error = `Falha no upload: ${uploadResponse.status} ${uploadResponse.statusText}`;
-      console.error('❌ Erro no upload para Supabase:', error);
-      throw new Error('Erro ao fazer upload do arquivo');
-    }
-    
-    console.log('✅ Upload para Supabase Storage concluído');
-    options.onProgress?.(80);
-    
-    // 5. Confirmar upload e obter URL final
-    const confirmResponse = await fetch(
-      `/api/media/upload?filePath=${encodeURIComponent(filePath)}&botId=${encodeURIComponent(options.botId)}`,
-      {
-        method: 'GET',
+      
+      const { uploadUrl, publicUrl, filePath } = urlData.data;
+      console.log('✅ URL assinado obtido:', uploadUrl);
+      
+      // 4. Fazer upload direto para o Supabase Storage
+      options.onProgress?.(30);
+      
+      const uploadResponse = await fetch(uploadUrl, {
+        method: 'PUT',
+        body: file,
         headers: {
-          'Authorization': `Bearer ${authToken}`
+          'Content-Type': file.type,
+          'Cache-Control': '3600'
         }
+      });
+      
+      if (!uploadResponse.ok) {
+        const error = `Falha no upload: ${uploadResponse.status} ${uploadResponse.statusText}`;
+        console.error('❌ Erro no upload para Supabase:', error);
+      throw new Error('Erro ao fazer upload do arquivo');
       }
-    );
-    
-    if (!confirmResponse.ok) {
-      const error = 'Erro ao confirmar upload';
-      console.error('❌ Erro na confirmação:', confirmResponse.status);
+      
+      console.log('✅ Upload para Supabase Storage concluído');
+      options.onProgress?.(80);
+      
+      // 5. Confirmar upload e obter URL final
+      const confirmResponse = await fetch(
+        `/api/media/upload?filePath=${encodeURIComponent(filePath)}&botId=${encodeURIComponent(options.botId)}`,
+        {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${authToken}`
+          }
+        }
+      );
+      
+      if (!confirmResponse.ok) {
+        const error = 'Erro ao confirmar upload';
+        console.error('❌ Erro na confirmação:', confirmResponse.status);
       throw new Error(error);
-    }
-    
-    const confirmData: ApiResponse = await confirmResponse.json();
-    if (!confirmData.success || !confirmData.data) {
-      const error = confirmData.error || 'Falha na confirmação do upload';
-      console.error('❌ Erro na confirmação:', confirmData);
+      }
+      
+      const confirmData: ApiResponse = await confirmResponse.json();
+      if (!confirmData.success || !confirmData.data) {
+        const error = confirmData.error || 'Falha na confirmação do upload';
+        console.error('❌ Erro na confirmação:', confirmData);
       throw new Error(error);
-    }
-    
-    options.onProgress?.(100);
-    
-    const finalUrl = confirmData.data.url;
-    console.log('✅ Upload concluído com sucesso:', finalUrl);
-    toast.success('Upload realizado com sucesso!');
-    
-    return { 
-      success: true, 
-      url: finalUrl
-    };
+      }
+      
+      options.onProgress?.(100);
+      
+      const finalUrl = confirmData.data.url;
+      console.log('✅ Upload concluído com sucesso:', finalUrl);
+      toast.success('Upload realizado com sucesso!');
+      
+      return { 
+        success: true, 
+        url: finalUrl
+      };
   };
 
   /**
