@@ -33,14 +33,5 @@
       "source": "/api/telegram/webhook",
       "destination": "/api/telegram/webhook"
     }
-  ],
-  "env": {
-    "NEXT_PUBLIC_SUPABASE_URL": "@next_public_supabase_url",
-    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "@next_public_supabase_anon_key",
-    "SUPABASE_SERVICE_ROLE_KEY": "@supabase_service_role_key",
-    "PUSHINPAY_API_KEY": "@pushinpay_api_key",
-    "PUSHINPAY_BASE_URL": "@pushinpay_base_url",
-    "TELEGRAM_BOT_TOKEN": "@telegram_bot_token",
-    "NEXT_PUBLIC_APP_URL": "@next_public_app_url"
-  }
+  ]
 } 
