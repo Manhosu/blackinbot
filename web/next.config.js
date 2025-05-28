@@ -28,14 +28,37 @@ const nextConfig = {
   // Configuração para Next.js 15.x
   serverExternalPackages: ['@supabase/supabase-js'],
   
-  // Webpack simples
-  webpack: (config) => {
+  // Webpack config mais específico para resolver problemas de Html imports
+  webpack: (config, { isServer, dev }) => {
+    // Fallbacks básicos
     config.resolve.fallback = {
       fs: false,
       net: false,
       tls: false,
     };
+    
+    // Ignorar warnings específicos sobre Html imports em desenvolvimento
+    if (dev) {
+      config.ignoreWarnings = [
+        /critical dependency:/i,
+        /the request of a dependency is an expression/i,
+      ];
+    }
+    
+    // Configuração específica para resolver problemas de prerendering
+    if (!isServer) {
+      config.resolve.alias = {
+        ...config.resolve.alias,
+        'next/document': false,
+      };
+    }
+    
     return config;
+  },
+  
+  // Experimental - tentar desabilitar geração automática de páginas de erro
+  experimental: {
+    missingSuspenseWithCSRBailout: false,
   },
 }
 
