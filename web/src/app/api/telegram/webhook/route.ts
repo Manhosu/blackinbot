@@ -126,12 +126,12 @@ async function sendTelegramVideo(botToken: string, chatId: number, video: string
   console.log(`🎬 Tentando enviar vídeo: ${video.substring(0, 100)}...`);
   
   const response = await fetch(url, {
-        method: 'POST',
+    method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-        body: JSON.stringify({
-          chat_id: chatId,
+    body: JSON.stringify({
+      chat_id: chatId,
       video: video,
       caption: caption,
       parse_mode: 'Markdown',
@@ -165,9 +165,9 @@ async function sendTelegramDocument(botToken: string, chatId: number, document: 
       caption: caption,
       parse_mode: 'Markdown',
       ...options
-        })
-      });
-      
+    })
+  });
+  
   const result = await response.json();
   console.log(`📤 Resposta sendDocument:`, result);
   
@@ -294,7 +294,7 @@ async function getBotByToken(token: string): Promise<BotConfig | null> {
       return cached.data;
     }
     
-  return null;
+    return null;
   }
 }
 
@@ -416,12 +416,6 @@ async function handleStartCommand(update: TelegramUpdate, bot: BotConfig) {
   const chatId = update.message!.chat.id;
   const userId = update.message!.from.id;
 
-  // ✅ LOG DETALHADO PARA DEBUG DO CHAT ID
-  console.log(`🆔 CHAT ID CAPTURADO: ${chatId}`);
-  console.log(`👤 USER ID CAPTURADO: ${userId}`);
-  console.log(`📱 DADOS COMPLETOS DO CHAT:`, JSON.stringify(update.message!.chat, null, 2));
-  console.log(`👥 DADOS COMPLETOS DO USER:`, JSON.stringify(update.message!.from, null, 2));
-
   console.log(`🔄 /start recebido de usuário ${userId} para bot ${bot.name}`);
 
   // Verificar se bot está ativado
@@ -470,7 +464,7 @@ Este bot ainda não foi ativado pelo proprietário.
       console.log(`📝 Enviando apenas TEXTO (sem mídia)`);
       sentMessage = await sendTelegramMessage(bot.token, chatId, loadingMessage);
     }
-
+    
     console.log(`✅ Mídia enviada com sucesso:`, sentMessage);
   } catch (error) {
     console.error('❌ Erro ao enviar mídia:', error);
@@ -600,14 +594,14 @@ async function handleCallbackQuery(update: TelegramUpdate, bot: BotConfig) {
     const planId = data.replace('plan_', '');
     
     try {
-    const supabase = createSupabaseAdmin();
-    
-    // Buscar informações do plano
+      const supabase = createSupabaseAdmin();
+      
+      // Buscar informações do plano
       const { data: plan, error: planError } = await supabase
-      .from('plans')
+        .from('plans')
         .select('name, price, description, period_days')
-      .eq('id', planId)
-      .single();
+        .eq('id', planId)
+        .single();
 
       if (planError || !plan) {
         console.error('❌ Erro ao buscar plano:', planError);
