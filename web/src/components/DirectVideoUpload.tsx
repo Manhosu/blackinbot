@@ -1,7 +1,12 @@
-import React, { useState, useRef, useCallback } from 'react';
-import { Upload, Film, Loader2, Check, X, AlertCircle, Play, Trash2 } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { createClient } from '@supabase/supabase-js';
 import { toast } from 'sonner';
-import { supabase } from '@/lib/supabase';
+import { Upload, Film, Check, X, Loader2, AlertCircle } from 'lucide-react';
+
+// Cliente Supabase para upload direto
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 interface DirectVideoUploadProps {
   botId: string;
@@ -43,12 +48,11 @@ export default function DirectVideoUpload({
   });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const abortControllerRef = useRef<AbortController | null>(null);
 
   /**
    * Valida o arquivo antes do upload
    */
-  const validateFile = useCallback((file: File): { isValid: boolean; error?: string } => {
+  const validateFile = (file: File): { isValid: boolean; error?: string } => {
     // Verificar tipo MIME
     if (!ALLOWED_VIDEO_TYPES.includes(file.type)) {
       return {
@@ -84,22 +88,22 @@ export default function DirectVideoUpload({
     }
 
     return { isValid: true };
-  }, [maxSizeMB]);
+  };
 
   /**
    * Gera nome único para o arquivo
    */
-  const generateUniqueFileName = useCallback((originalName: string): string => {
+  const generateUniqueFileName = (originalName: string): string => {
     const timestamp = Date.now();
     const randomId = Math.random().toString(36).substring(2, 15);
     const extension = originalName.split('.').pop();
     return `video_${timestamp}_${randomId}.${extension}`;
-  }, []);
+  };
 
   /**
-   * Upload direto para Supabase Storage com progress tracking
+   * Upload direto para Supabase Storage
    */
-  const uploadToSupabase = useCallback(async (file: File): Promise<string> => {
+  const uploadToSupabase = async (file: File): Promise<string> => {
     const fileName = generateUniqueFileName(file.name);
     const filePath = `${botId}/videos/${fileName}`;
 
@@ -110,98 +114,69 @@ export default function DirectVideoUpload({
       type: file.type
     });
 
-    // Criar AbortController para cancelamento
-    abortControllerRef.current = new AbortController();
-
-    // Simulação de progress (Supabase não tem progress nativo)
-    const progressInterval = setInterval(() => {
-      setUploadState(prev => {
-        const newProgress = Math.min(prev.progress + Math.random() * 15, 85);
-        return { ...prev, progress: newProgress };
-      });
-    }, 500);
-
-    try {
-      // Upload com metadata detalhada
-      const { data, error } = await supabase.storage
-        .from(BUCKET_NAME)
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: false,
-          metadata: {
-            botId,
-            originalName: file.name,
-            uploadedAt: new Date().toISOString(),
-            fileSize: file.size.toString(),
-            contentType: file.type
-          }
-        });
-
-      clearInterval(progressInterval);
-
-      if (error) {
-        console.error('❌ Erro no upload para Supabase:', error);
-        
-        // Tratar erros específicos
-        if (error.message.includes('The resource already exists')) {
-          throw new Error('Arquivo já existe. Tente novamente.');
-        } else if (error.message.includes('Payload too large')) {
-          throw new Error(`Arquivo muito grande para upload. Máximo: ${maxSizeMB}MB`);
-        } else if (error.message.includes('Invalid file type')) {
-          throw new Error('Tipo de arquivo não suportado.');
-        } else if (error.message.includes('row-level security')) {
-          throw new Error('Erro de permissão. Configure as políticas RLS do Supabase.');
-        } else {
-          throw new Error(`Erro no upload: ${error.message}`);
+    // Upload com progress tracking
+    let uploadProgress = 0;
+    const { data, error } = await supabase.storage
+      .from(BUCKET_NAME)
+      .upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: false,
+        // Configurar metadata
+        metadata: {
+          botId,
+          originalName: file.name,
+          uploadedAt: new Date().toISOString()
         }
+      });
+
+    if (error) {
+      console.error('❌ Erro no upload para Supabase:', error);
+      
+      // Tratar erros específicos
+      if (error.message.includes('The resource already exists')) {
+        throw new Error('Arquivo já existe. Tente novamente.');
+      } else if (error.message.includes('Payload too large')) {
+        throw new Error(`Arquivo muito grande para upload. Máximo: ${maxSizeMB}MB`);
+      } else if (error.message.includes('Invalid file type')) {
+        throw new Error('Tipo de arquivo não suportado.');
+      } else {
+        throw new Error(`Erro no upload: ${error.message}`);
       }
-
-      if (!data) {
-        throw new Error('Upload falhou - dados não retornados');
-      }
-
-      console.log('✅ Upload para Supabase concluído:', data);
-
-      // Obter URL pública
-      const { data: urlData } = supabase.storage
-        .from(BUCKET_NAME)
-        .getPublicUrl(data.path);
-
-      if (!urlData.publicUrl) {
-        throw new Error('Erro ao gerar URL pública');
-      }
-
-      console.log('🌐 URL pública gerada:', urlData.publicUrl);
-      return urlData.publicUrl;
-
-    } catch (error) {
-      clearInterval(progressInterval);
-      throw error;
     }
-  }, [botId, generateUniqueFileName, maxSizeMB]);
+
+    if (!data) {
+      throw new Error('Upload falhou - dados não retornados');
+    }
+
+    console.log('✅ Upload para Supabase concluído:', data);
+
+    // Obter URL pública
+    const { data: { publicUrl } } = supabase.storage
+      .from(BUCKET_NAME)
+      .getPublicUrl(data.path);
+
+    if (!publicUrl) {
+      throw new Error('Falha ao obter URL pública do arquivo');
+    }
+
+    console.log('🔗 URL pública gerada:', publicUrl);
+    return publicUrl;
+  };
 
   /**
-   * Handler para seleção de arquivo
+   * Manipula a seleção de arquivo
    */
-  const handleFileSelect = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file || disabled) return;
+    if (!file) return;
 
-    console.log('📁 Arquivo selecionado:', file.name, file.size, file.type);
+    console.log('📁 Arquivo selecionado:', {
+      name: file.name,
+      size: file.size,
+      type: file.type
+    });
 
-    // Validar arquivo
-    const validation = validateFile(file);
-    if (!validation.isValid) {
-      setUploadState(prev => ({
-        ...prev,
-        error: validation.error || 'Arquivo inválido',
-        fileName: null,
-        fileSize: null
-      }));
-      return;
-    }
-
-    // Limpar estados anteriores
+    // Resetar estado anterior
     setUploadState({
       isUploading: false,
       progress: 0,
@@ -211,14 +186,27 @@ export default function DirectVideoUpload({
       uploadedUrl: null
     });
 
-    // Iniciar upload automaticamente
+    // Validar arquivo
+    const validation = validateFile(file);
+    if (!validation.isValid) {
+      const errorMsg = validation.error!;
+      setUploadState(prev => ({ ...prev, error: errorMsg }));
+      onUploadError?.(errorMsg);
+      toast.error('❌ Arquivo inválido', {
+        description: errorMsg,
+        duration: 5000
+      });
+      return;
+    }
+
+    // Iniciar upload
     await performUpload(file);
-  }, [disabled, validateFile]);
+  };
 
   /**
    * Executa o upload
    */
-  const performUpload = useCallback(async (file: File) => {
+  const performUpload = async (file: File) => {
     setUploadState(prev => ({
       ...prev,
       isUploading: true,
@@ -227,13 +215,25 @@ export default function DirectVideoUpload({
     }));
 
     try {
+      // Simular progress para UX
+      const progressInterval = setInterval(() => {
+        setUploadState(prev => {
+          if (prev.progress < 90) {
+            return { ...prev, progress: prev.progress + 10 };
+          }
+          return prev;
+        });
+      }, 200);
+
       toast.info('📤 Enviando vídeo...', {
-        description: 'Upload direto para cloud storage - pode levar alguns minutos',
-        duration: 5000
+        description: 'Upload direto para cloud storage',
+        duration: 3000
       });
 
       // Upload direto
       const publicUrl = await uploadToSupabase(file);
+
+      clearInterval(progressInterval);
 
       // Finalizar upload
       setUploadState(prev => ({
@@ -248,7 +248,7 @@ export default function DirectVideoUpload({
       
       toast.success('✅ Vídeo enviado com sucesso!', {
         description: 'Arquivo disponível para uso no bot',
-        duration: 4000
+        duration: 3000
       });
 
       onUploadSuccess(publicUrl);
@@ -270,34 +270,15 @@ export default function DirectVideoUpload({
       
       toast.error('❌ Falha no upload', {
         description: errorMessage,
-        duration: 6000
+        duration: 5000
       });
     }
-  }, [uploadToSupabase, onUploadSuccess, onUploadError]);
-
-  /**
-   * Cancela upload em andamento
-   */
-  const cancelUpload = useCallback(() => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-      abortControllerRef.current = null;
-    }
-
-    setUploadState(prev => ({
-      ...prev,
-      isUploading: false,
-      progress: 0,
-      error: 'Upload cancelado pelo usuário'
-    }));
-
-    toast.info('Upload cancelado');
-  }, []);
+  };
 
   /**
    * Remove arquivo atual
    */
-  const handleRemoveFile = useCallback(() => {
+  const handleRemoveFile = () => {
     setUploadState({
       isUploading: false,
       progress: 0,
@@ -312,19 +293,18 @@ export default function DirectVideoUpload({
     }
 
     onUploadSuccess(''); // URL vazia para remover
-    toast.info('Vídeo removido');
-  }, [onUploadSuccess]);
+  };
 
   /**
    * Formata tamanho do arquivo
    */
-  const formatFileSize = useCallback((bytes: number): string => {
+  const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  }, []);
+  };
 
   return (
     <div className="space-y-4">
@@ -361,7 +341,7 @@ export default function DirectVideoUpload({
             <p className="mb-2 text-sm text-white/70">
               {uploadState.isUploading ? (
                 <span className="font-medium text-blue-300">
-                  Enviando vídeo... {Math.round(uploadState.progress)}%
+                  Enviando vídeo... {uploadState.progress}%
                 </span>
               ) : (
                 <span>
@@ -379,22 +359,11 @@ export default function DirectVideoUpload({
 
       {/* Barra de progresso */}
       {uploadState.isUploading && (
-        <div className="space-y-2">
-          <div className="w-full bg-gray-700 rounded-full h-2">
-            <div
-              className="bg-blue-500 h-2 rounded-full transition-all duration-300"
-              style={{ width: `${uploadState.progress}%` }}
-            />
-          </div>
-          <div className="flex justify-between items-center text-xs text-white/60">
-            <span>Enviando para cloud storage...</span>
-            <button
-              onClick={cancelUpload}
-              className="text-red-400 hover:text-red-300 underline"
-            >
-              Cancelar
-            </button>
-          </div>
+        <div className="w-full bg-gray-700 rounded-full h-2">
+          <div
+            className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+            style={{ width: `${uploadState.progress}%` }}
+          />
         </div>
       )}
 
@@ -440,10 +409,7 @@ export default function DirectVideoUpload({
         <div className="bg-red-500/10 border border-red-400/30 rounded-xl p-4">
           <div className="flex items-center space-x-2">
             <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
-            <div>
-              <p className="text-sm text-red-300 font-medium">Erro no upload</p>
-              <p className="text-xs text-red-300/80 mt-1">{uploadState.error}</p>
-            </div>
+            <p className="text-sm text-red-300">{uploadState.error}</p>
           </div>
         </div>
       )}
@@ -453,50 +419,23 @@ export default function DirectVideoUpload({
         <div className="bg-white/5 border border-green-400/30 rounded-xl p-4">
           <div className="flex items-center justify-between mb-3">
             <h4 className="text-sm font-medium text-green-300">✅ Vídeo pronto para uso</h4>
-            <div className="flex items-center space-x-2">
-              <Check className="w-5 h-5 text-green-400" />
-              <button
-                onClick={handleRemoveFile}
-                className="p-1 hover:bg-red-500/20 rounded-full transition-colors"
-                title="Remover vídeo"
-              >
-                <Trash2 className="w-4 h-4 text-red-400" />
-              </button>
-            </div>
+            <Check className="w-5 h-5 text-green-400" />
           </div>
           
-          <div className="relative">
-            <video
-              src={uploadState.uploadedUrl}
-              controls
-              className="w-full max-h-48 rounded-lg"
-              preload="metadata"
-            >
-              Seu navegador não suporta reprodução de vídeo.
-            </video>
-          </div>
+          <video
+            src={uploadState.uploadedUrl}
+            controls
+            className="w-full max-h-48 rounded-lg"
+            preload="metadata"
+          >
+            Seu navegador não suporta reprodução de vídeo.
+          </video>
           
           <p className="text-xs text-white/60 mt-2 break-all">
-            <strong>URL:</strong> {uploadState.uploadedUrl}
+            {uploadState.uploadedUrl}
           </p>
         </div>
       )}
-
-      {/* Informações adicionais */}
-      <div className="bg-blue-500/5 border border-blue-400/20 rounded-xl p-3">
-        <div className="flex items-start space-x-2">
-          <div className="text-blue-400 text-sm">💡</div>
-          <div className="text-xs text-blue-300/80">
-            <p className="font-medium mb-1">Upload direto para cloud storage:</p>
-            <ul className="space-y-1 text-blue-300/60">
-              <li>• Contorna limite de 4MB do Vercel</li>
-              <li>• Suporta vídeos até {maxSizeMB}MB</li>
-              <li>• Upload direto do navegador para Supabase</li>
-              <li>• URLs públicas otimizadas para Telegram</li>
-            </ul>
-          </div>
-        </div>
-      </div>
     </div>
   );
 } 

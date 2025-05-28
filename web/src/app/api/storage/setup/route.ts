@@ -2,21 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
 // Cliente admin do Supabase
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
-if (!supabaseUrl || !supabaseServiceKey) {
-  console.error('❌ Variáveis de ambiente do Supabase não configuradas');
-}
-
-const supabaseAdmin = createClient(supabaseUrl!, supabaseServiceKey!, {
+const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
   auth: {
     autoRefreshToken: false,
     persistSession: false
   }
 });
 
-// Configurações do bucket
 const BUCKET_NAME = 'bot-media';
 const ALLOWED_MIME_TYPES = [
   'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp',
@@ -28,70 +23,6 @@ interface ApiResponse {
   message?: string;
   error?: string;
   data?: any;
-}
-
-/**
- * Criar políticas RLS diretamente via SQL
- */
-async function createStoragePolicies() {
-  console.log('🔐 Configurando políticas RLS para Storage...');
-
-  // Política para permitir upload público (sem autenticação para simplificar)
-  const createUploadPolicy = `
-    DROP POLICY IF EXISTS "Acesso público para upload de mídia" ON storage.objects;
-    
-    CREATE POLICY "Acesso público para upload de mídia" ON storage.objects
-      FOR INSERT 
-      WITH CHECK (bucket_id = 'bot-media');
-  `;
-
-  // Política para permitir leitura pública
-  const createSelectPolicy = `
-    DROP POLICY IF EXISTS "Acesso público para leitura de mídia" ON storage.objects;
-    
-    CREATE POLICY "Acesso público para leitura de mídia" ON storage.objects
-      FOR SELECT 
-      USING (bucket_id = 'bot-media');
-  `;
-
-  // Política para permitir atualização
-  const createUpdatePolicy = `
-    DROP POLICY IF EXISTS "Acesso público para atualização de mídia" ON storage.objects;
-    
-    CREATE POLICY "Acesso público para atualização de mídia" ON storage.objects
-      FOR UPDATE 
-      USING (bucket_id = 'bot-media');
-  `;
-
-  // Política para permitir deleção
-  const createDeletePolicy = `
-    DROP POLICY IF EXISTS "Acesso público para deleção de mídia" ON storage.objects;
-    
-    CREATE POLICY "Acesso público para deleção de mídia" ON storage.objects
-      FOR DELETE 
-      USING (bucket_id = 'bot-media');
-  `;
-
-  try {
-    // Executar cada política separadamente
-    await supabaseAdmin.rpc('exec_sql', { sql_query: createUploadPolicy });
-    console.log('✅ Política de upload criada');
-
-    await supabaseAdmin.rpc('exec_sql', { sql_query: createSelectPolicy });
-    console.log('✅ Política de leitura criada');
-
-    await supabaseAdmin.rpc('exec_sql', { sql_query: createUpdatePolicy });
-    console.log('✅ Política de atualização criada');
-
-    await supabaseAdmin.rpc('exec_sql', { sql_query: createDeletePolicy });
-    console.log('✅ Política de deleção criada');
-
-    return true;
-  } catch (error: any) {
-    console.warn('⚠️ Erro ao criar políticas RLS (será usado sem RLS):', error.message);
-    // Não falhar se as políticas não puderem ser criadas
-    return false;
-  }
 }
 
 /**
@@ -137,19 +68,83 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
       console.log('✅ Bucket já existe');
     }
 
-    // 3. Configurar políticas RLS
-    const policiesCreated = await createStoragePolicies();
+    // 3. Configurar políticas RLS para o bucket
+    console.log('🔐 Configurando políticas de acesso...');
     
-    if (policiesCreated) {
-      console.log('✅ Políticas RLS configuradas');
-    } else {
-      console.log('⚠️ Usando bucket sem RLS (ainda funcionará)');
+    // Política para permitir inserção (upload)
+    const insertPolicySQL = `
+      DO $$
+      BEGIN
+        -- Remover política existente se houver
+        DROP POLICY IF EXISTS "Usuários podem fazer upload" ON storage.objects;
+        
+        -- Criar nova política para upload
+        CREATE POLICY "Usuários podem fazer upload" ON storage.objects
+          FOR INSERT WITH CHECK (
+            bucket_id = 'bot-media' 
+            AND auth.role() = 'authenticated'
+          );
+      EXCEPTION
+        WHEN duplicate_object THEN
+          NULL; -- Política já existe
+      END
+      $$;
+    `;
+
+    // Política para permitir leitura pública
+    const selectPolicySQL = `
+      DO $$
+      BEGIN
+        -- Remover política existente se houver
+        DROP POLICY IF EXISTS "Acesso público para leitura" ON storage.objects;
+        
+        -- Criar nova política para leitura pública
+        CREATE POLICY "Acesso público para leitura" ON storage.objects
+          FOR SELECT USING (bucket_id = 'bot-media');
+      EXCEPTION
+        WHEN duplicate_object THEN
+          NULL; -- Política já existe
+      END
+      $$;
+    `;
+
+    // Política para permitir deleção pelos donos
+    const deletePolicySQL = `
+      DO $$
+      BEGIN
+        -- Remover política existente se houver
+        DROP POLICY IF EXISTS "Usuários podem deletar próprios arquivos" ON storage.objects;
+        
+        -- Criar nova política para deleção
+        CREATE POLICY "Usuários podem deletar próprios arquivos" ON storage.objects
+          FOR DELETE USING (
+            bucket_id = 'bot-media' 
+            AND auth.role() = 'authenticated'
+            AND (metadata->>'botId')::text IN (
+              SELECT id::text FROM bots WHERE user_id = auth.uid()
+            )
+          );
+      EXCEPTION
+        WHEN duplicate_object THEN
+          NULL; -- Política já existe
+      END
+      $$;
+    `;
+
+    // Executar políticas
+    try {
+      await supabaseAdmin.rpc('exec_sql', { sql_query: insertPolicySQL });
+      await supabaseAdmin.rpc('exec_sql', { sql_query: selectPolicySQL });
+      await supabaseAdmin.rpc('exec_sql', { sql_query: deletePolicySQL });
+      console.log('✅ Políticas configuradas com sucesso');
+    } catch (policyError: any) {
+      console.warn('⚠️ Aviso na configuração de políticas:', policyError);
+      // Não falhar se as políticas não puderem ser criadas via RPC
+      // O bucket ainda funcionará com as configurações padrão
     }
 
-    // 4. Testar o bucket com upload de teste
+    // 4. Testar o bucket
     console.log('🧪 Testando configuração do bucket...');
-    
-    // Testar listagem
     const { data: testList, error: testError } = await supabaseAdmin.storage
       .from(BUCKET_NAME)
       .list('', { limit: 1 });
@@ -162,28 +157,6 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
       }, { status: 500 });
     }
 
-    // 5. Testar upload de arquivo pequeno
-    const testFileContent = new Uint8Array([0x89, 0x50, 0x4E, 0x47]); // PNG header
-    const testFileName = `test/upload_test_${Date.now()}.png`;
-    
-    const { data: uploadTest, error: uploadError } = await supabaseAdmin.storage
-      .from(BUCKET_NAME)
-      .upload(testFileName, testFileContent, {
-        cacheControl: '3600',
-        upsert: true
-      });
-
-    if (uploadError) {
-      console.warn('⚠️ Aviso no teste de upload:', uploadError.message);
-    } else {
-      console.log('✅ Teste de upload funcionando');
-      
-      // Remover arquivo de teste
-      await supabaseAdmin.storage
-        .from(BUCKET_NAME)
-        .remove([testFileName]);
-    }
-
     console.log('✅ Configuração do Supabase Storage concluída');
 
     return NextResponse.json({
@@ -194,9 +167,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
         bucketExists: true,
         allowedTypes: ALLOWED_MIME_TYPES,
         maxFileSize: '25MB',
-        publicAccess: true,
-        rlsPolicies: policiesCreated,
-        uploadTest: uploadTest ? 'Funcionando' : 'Com avisos'
+        publicAccess: true
       }
     });
 
@@ -241,23 +212,6 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
       .from(BUCKET_NAME)
       .list('', { limit: 1 });
 
-    // Verificar espaço usado
-    let totalFiles = 0;
-    let totalSize = 0;
-    
-    try {
-      const { data: allFiles } = await supabaseAdmin.storage
-        .from(BUCKET_NAME)
-        .list('', { limit: 100, sortBy: { column: 'created_at', order: 'desc' } });
-      
-      if (allFiles) {
-        totalFiles = allFiles.length;
-        totalSize = allFiles.reduce((sum, file) => sum + (file.metadata?.size || 0), 0);
-      }
-    } catch (e) {
-      console.warn('⚠️ Não foi possível calcular estatísticas do bucket');
-    }
-
     return NextResponse.json({
       success: true,
       message: 'Bucket configurado e funcionando',
@@ -268,12 +222,7 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
         isPublic: bucket.public,
         allowedTypes: ALLOWED_MIME_TYPES,
         maxFileSize: '25MB',
-        canAccess: !testError,
-        stats: {
-          totalFiles,
-          totalSizeMB: Math.round(totalSize / 1024 / 1024 * 100) / 100
-        },
-        lastCheck: new Date().toISOString()
+        canAccess: !testError
       }
     });
 

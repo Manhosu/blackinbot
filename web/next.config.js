@@ -14,6 +14,8 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
   
+
+  
   // Environment variables
   env: {
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL || 'https://blackinbot.vercel.app',
@@ -45,21 +47,21 @@ const nextConfig = {
     removeConsole: process.env.NODE_ENV === 'production',
   },
   
-  // Experimental features para App Router
+  // Experimental features
   experimental: {
-    // Desabilitar prerendering das páginas de erro
-    skipMiddlewareUrlNormalize: true,
-  },
-  
-  // Configurações para páginas dinâmicas
-  async generateStaticParams() {
-    return []
+    serverComponentsExternalPackages: ['@supabase/supabase-js'],
   },
   
   // Forçar todas as páginas para serem dinâmicas
   async redirects() {
     return [];
   },
+  
+  // Configurações para resolver problemas de SSR/SSG
+  transpilePackages: ['@supabase/supabase-js'],
+  
+  // Configurações de output para Vercel
+  // output: 'standalone', // Remover para Vercel
   
   // Desabilitar geração estática para páginas de erro
   generateBuildId: async () => {

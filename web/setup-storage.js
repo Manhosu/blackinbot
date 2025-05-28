@@ -3,58 +3,30 @@
 /**
  * Script para configurar Supabase Storage para upload de vídeos
  * Executa: node setup-storage.js
- * 
- * Este script:
- * 1. Verifica se o bucket já existe
- * 2. Cria o bucket se necessário
- * 3. Configura políticas RLS
- * 4. Testa o funcionamento
  */
 
 const https = require('https');
-const http = require('http');
 
 const config = {
   apiUrl: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3025',
   setupPath: '/api/storage/setup'
 };
 
-// Cores para output
-const colors = {
-  reset: '\x1b[0m',
-  bright: '\x1b[1m',
-  red: '\x1b[31m',
-  green: '\x1b[32m',
-  yellow: '\x1b[33m',
-  blue: '\x1b[34m',
-  magenta: '\x1b[35m',
-  cyan: '\x1b[36m'
-};
-
-function colorLog(color, message) {
-  console.log(`${colors[color]}${message}${colors.reset}`);
-}
-
-function makeRequest(url, method = 'POST', timeout = 30000) {
+function makeRequest(url, method = 'POST') {
   return new Promise((resolve, reject) => {
     const urlObj = new URL(url);
-    const protocol = urlObj.protocol === 'https:' ? https : http;
-    const defaultPort = urlObj.protocol === 'https:' ? 443 : 80;
-    
     const options = {
       hostname: urlObj.hostname,
-      port: urlObj.port || defaultPort,
+      port: urlObj.port || (urlObj.protocol === 'https:' ? 443 : 80),
       path: urlObj.pathname,
       method: method,
-      timeout: timeout,
       headers: {
         'Content-Type': 'application/json',
-        'User-Agent': 'Storage-Setup-Script/1.0',
-        'Accept': 'application/json'
+        'User-Agent': 'Storage-Setup-Script'
       }
     };
 
-    const req = protocol.request(options, (res) => {
+    const req = (urlObj.protocol === 'https:' ? https : require('http')).request(options, (res) => {
       let data = '';
       
       res.on('data', (chunk) => {
@@ -64,230 +36,109 @@ function makeRequest(url, method = 'POST', timeout = 30000) {
       res.on('end', () => {
         try {
           const result = JSON.parse(data);
-          resolve({ 
-            status: res.statusCode, 
-            data: result,
-            headers: res.headers
-          });
+          resolve({ status: res.statusCode, data: result });
         } catch (e) {
-          resolve({ 
-            status: res.statusCode, 
-            data: { error: 'Invalid JSON response', raw: data.substring(0, 500) },
-            headers: res.headers
-          });
+          resolve({ status: res.statusCode, data: { error: 'Invalid JSON response', raw: data } });
         }
       });
     });
 
     req.on('error', (error) => {
-      reject(new Error(`Request failed: ${error.message}`));
-    });
-
-    req.on('timeout', () => {
-      req.destroy();
-      reject(new Error('Request timeout - server may be slow or offline'));
+      reject(error);
     });
 
     req.end();
   });
 }
 
-async function checkEnvironment() {
-  colorLog('cyan', '\n🔍 Verificando variáveis de ambiente...');
-  
-  const requiredVars = [
-    'NEXT_PUBLIC_SUPABASE_URL',
-    'SUPABASE_SERVICE_ROLE_KEY'
-  ];
-  
-  const missing = requiredVars.filter(varName => !process.env[varName]);
-  
-  if (missing.length > 0) {
-    colorLog('red', '❌ Variáveis de ambiente não configuradas:');
-    missing.forEach(varName => {
-      colorLog('red', `   - ${varName}`);
-    });
-    colorLog('yellow', '\n💡 Configure essas variáveis no arquivo .env.local');
-    return false;
-  }
-  
-  colorLog('green', '✅ Todas as variáveis de ambiente estão configuradas');
-  return true;
-}
-
-async function checkServerHealth() {
-  colorLog('cyan', '\n🏥 Verificando se o servidor está online...');
-  
-  try {
-    const healthUrl = `${config.apiUrl}/api/health`;
-    const response = await makeRequest(healthUrl, 'GET', 10000);
-    
-    if (response.status === 200) {
-      colorLog('green', '✅ Servidor online e respondendo');
-      return true;
-    } else {
-      colorLog('yellow', `⚠️ Servidor respondeu com status ${response.status}`);
-      return true; // Continuar mesmo assim
-    }
-  } catch (error) {
-    colorLog('yellow', `⚠️ Não foi possível verificar o servidor: ${error.message}`);
-    colorLog('yellow', '   Continuando mesmo assim...');
-    return true; // Continuar mesmo assim
-  }
-}
-
-async function checkStorageStatus() {
-  colorLog('cyan', '\n📊 Verificando status atual do storage...');
-
-  try {
-    const checkUrl = `${config.apiUrl}${config.setupPath}`;
-    const response = await makeRequest(checkUrl, 'GET', 20000);
-    
-    if (response.status === 200 && response.data.success) {
-      colorLog('green', '✅ Storage já configurado e funcionando!');
-      
-      const data = response.data.data;
-      console.log('\n📊 Status atual:');
-      console.log(`   - Bucket: ${data.bucketName}`);
-      console.log(`   - Público: ${data.isPublic ? 'Sim' : 'Não'}`);
-      console.log(`   - Pode acessar: ${data.canAccess ? 'Sim' : 'Não'}`);
-      console.log(`   - Máximo por arquivo: ${data.maxFileSize}`);
-      
-      if (data.stats) {
-        console.log(`   - Arquivos armazenados: ${data.stats.totalFiles}`);
-        console.log(`   - Espaço usado: ${data.stats.totalSizeMB}MB`);
-      }
-      
-      return true;
-    } else {
-      colorLog('yellow', '⚠️ Storage precisa ser configurado');
-      if (response.data.error) {
-        console.log(`   Erro: ${response.data.error}`);
-      }
-      return false;
-    }
-  } catch (error) {
-    colorLog('yellow', '⚠️ Não foi possível verificar o status do storage');
-    console.log(`   Erro: ${error.message}`);
-    return false;
-  }
-}
-
 async function setupStorage() {
-  colorLog('cyan', '\n🔧 Configurando Supabase Storage...');
+  console.log('🔧 Configurando Supabase Storage para upload de vídeos...\n');
 
   try {
     const setupUrl = `${config.apiUrl}${config.setupPath}`;
-    colorLog('blue', `📡 Fazendo requisição para: ${setupUrl}`);
+    console.log(`📡 Fazendo requisição para: ${setupUrl}`);
     
-    const response = await makeRequest(setupUrl, 'POST', 60000); // 1 minuto timeout
+    const response = await makeRequest(setupUrl, 'POST');
     
     if (response.status === 200 && response.data.success) {
-      colorLog('green', '✅ Supabase Storage configurado com sucesso!');
-      
-      const data = response.data.data;
-      console.log('\n📊 Configurações aplicadas:');
-      console.log(`   - Bucket: ${data.bucketName}`);
-      console.log(`   - Tamanho máximo: ${data.maxFileSize}`);
-      console.log(`   - Acesso público: ${data.publicAccess ? 'Sim' : 'Não'}`);
-      console.log(`   - Políticas RLS: ${data.rlsPolicies ? 'Configuradas' : 'Usando padrão'}`);
-      console.log(`   - Teste de upload: ${data.uploadTest}`);
-      console.log(`   - Tipos permitidos: ${data.allowedTypes.length} formatos`);
-      
-      colorLog('green', '\n🎉 Sistema pronto para upload de vídeos até 25MB!');
-      return true;
-      
+      console.log('✅ Supabase Storage configurado com sucesso!\n');
+      console.log('📊 Configurações:');
+      console.log(`   - Bucket: ${response.data.data.bucketName}`);
+      console.log(`   - Tamanho máximo: ${response.data.data.maxFileSize}`);
+      console.log(`   - Acesso público: ${response.data.data.publicAccess ? 'Sim' : 'Não'}`);
+      console.log(`   - Tipos permitidos: ${response.data.data.allowedTypes.length} formatos`);
+      console.log('\n🎉 O sistema está pronto para upload de vídeos até 25MB!');
     } else {
-      colorLog('red', '❌ Erro na configuração do storage:');
-      console.log(`   Status HTTP: ${response.status}`);
-      console.log(`   Erro: ${response.data.error || 'Erro desconhecido'}`);
-      
-      if (response.data.raw) {
-        console.log(`   Resposta raw: ${response.data.raw.substring(0, 200)}`);
-      }
-      
+      console.error('❌ Erro na configuração do storage:');
+      console.error(`   Status: ${response.status}`);
+      console.error(`   Erro: ${response.data.error || 'Erro desconhecido'}`);
+      process.exit(1);
+    }
+  } catch (error) {
+    console.error('❌ Erro na comunicação com a API:');
+    console.error(`   ${error.message}`);
+    console.error('\n💡 Certifique-se de que o servidor está rodando em:', config.apiUrl);
+    process.exit(1);
+  }
+}
+
+async function checkStorage() {
+  console.log('📊 Verificando status do Supabase Storage...\n');
+
+  try {
+    const checkUrl = `${config.apiUrl}${config.setupPath}`;
+    const response = await makeRequest(checkUrl, 'GET');
+    
+    if (response.status === 200 && response.data.success) {
+      console.log('✅ Storage já configurado e funcionando!\n');
+      console.log('📊 Status atual:');
+      console.log(`   - Bucket: ${response.data.data.bucketName}`);
+      console.log(`   - Acesso funcionando: ${response.data.data.canAccess ? 'Sim' : 'Não'}`);
+      console.log(`   - Público: ${response.data.data.isPublic ? 'Sim' : 'Não'}`);
+      return true;
+    } else {
+      console.log('⚠️ Storage precisa ser configurado');
       return false;
     }
   } catch (error) {
-    colorLog('red', '❌ Erro na comunicação com a API:');
-    console.log(`   ${error.message}`);
-    
-    if (error.message.includes('timeout')) {
-      colorLog('yellow', '\n💡 Dica: O setup pode demorar alguns minutos na primeira vez');
-    }
-    
-    colorLog('yellow', '\n💡 Certifique-se de que:');
-    console.log('   - O servidor está rodando em:', config.apiUrl);
-    console.log('   - As variáveis de ambiente estão configuradas');
-    console.log('   - O Supabase está acessível');
-    
+    console.log('⚠️ Não foi possível verificar o status do storage');
     return false;
   }
 }
 
-async function showFinalInstructions() {
-  colorLog('cyan', '\n📋 Próximos passos:');
-  console.log('   1. ✅ O sistema está configurado para upload direto');
-  console.log('   2. 🎬 Agora você pode enviar vídeos até 25MB pelo painel');
-  console.log('   3. 🚀 O upload acontece direto do navegador para o Supabase');
-  console.log('   4. 📱 Os vídeos funcionarão automaticamente no Telegram');
-  
-  colorLog('magenta', '\n🔧 Tecnologia utilizada:');
-  console.log('   - Upload direto para Supabase Storage');
-  console.log('   - Contorna o limite de 4MB do Vercel');
-  console.log('   - URLs públicas otimizadas');
-  console.log('   - Políticas de segurança configuradas');
-  
-  colorLog('green', '\n✨ Configuração concluída com sucesso!');
-}
-
 async function main() {
-  colorLog('bright', '🚀 Setup do Supabase Storage - Black In Bot');
-  colorLog('blue', '📦 Configurando upload de vídeos até 25MB\n');
+  console.log('🚀 Setup do Supabase Storage - Black In Bot\n');
   
+  // Verificar variáveis de ambiente
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    console.error('❌ Variáveis de ambiente não configuradas:');
+    console.error('   - NEXT_PUBLIC_SUPABASE_URL');
+    console.error('   - SUPABASE_SERVICE_ROLE_KEY');
+    console.error('\n💡 Configure essas variáveis no arquivo .env.local');
+    process.exit(1);
+  }
+
   try {
-    // 1. Verificar ambiente
-    const envOk = await checkEnvironment();
-    if (!envOk) {
-      process.exit(1);
-    }
+    // Primeiro verificar se já está configurado
+    const isConfigured = await checkStorage();
     
-    // 2. Verificar servidor
-    await checkServerHealth();
-    
-    // 3. Verificar se já está configurado
-    const isConfigured = await checkStorageStatus();
-    
-    // 4. Configurar se necessário
     if (!isConfigured) {
-      const setupOk = await setupStorage();
-      if (!setupOk) {
-        process.exit(1);
-      }
+      // Se não estiver, configurar
+      await setupStorage();
     }
     
-    // 5. Mostrar instruções finais
-    await showFinalInstructions();
+    console.log('\n✨ Pronto! Agora você pode fazer upload de vídeos até 25MB diretamente do painel.');
+    console.log('🎬 O sistema usa upload direto para o Supabase, contornando o limite de 4MB do Vercel.');
     
   } catch (error) {
-    colorLog('red', '\n❌ Erro inesperado durante o setup:');
-    console.error(error);
+    console.error('\n❌ Erro durante o setup:', error.message);
     process.exit(1);
   }
 }
 
-// Verificar se é execução direta
+// Executar o script
 if (require.main === module) {
-  main().catch((error) => {
-    colorLog('red', '\n💥 Erro crítico:');
-    console.error(error);
-    process.exit(1);
-  });
+  main();
 }
 
-module.exports = { 
-  setupStorage, 
-  checkStorageStatus,
-  checkEnvironment,
-  config
-}; 
+module.exports = { setupStorage, checkStorage }; 
