@@ -2,13 +2,8 @@
 
 import { useEffect } from 'react';
 
-// Forçar renderização dinâmica
-export const dynamic = 'force-dynamic';
-export const runtime = 'edge';
-
 export default function NotFound() {
   useEffect(() => {
-    // Garantir que estamos no cliente
     console.log('Not found page mounted');
   }, []);
 
