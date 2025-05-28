@@ -45,18 +45,21 @@ const nextConfig = {
     removeConsole: process.env.NODE_ENV === 'production',
   },
   
-  // Experimental features - Supabase deve ser tratado como external package
+  // Experimental features para App Router
   experimental: {
-    serverComponentsExternalPackages: ['@supabase/supabase-js'],
+    // Desabilitar prerendering das páginas de erro
+    skipMiddlewareUrlNormalize: true,
+  },
+  
+  // Configurações para páginas dinâmicas
+  async generateStaticParams() {
+    return []
   },
   
   // Forçar todas as páginas para serem dinâmicas
   async redirects() {
     return [];
   },
-  
-  // Configurações de output para Vercel
-  // output: 'standalone', // Remover para Vercel
   
   // Desabilitar geração estática para páginas de erro
   generateBuildId: async () => {
