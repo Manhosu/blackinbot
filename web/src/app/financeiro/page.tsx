@@ -1,3 +1,7 @@
+'use client';
+
+export const dynamic = 'force-dynamic';
+
 import { Box, Container, Heading, SimpleGrid, Tab, TabList, TabPanel, TabPanels, Tabs } from '@chakra-ui/react'
 import { BalanceCard } from '@/components/financeiro/BalanceCard'
 import { BankAccountList } from '@/components/financeiro/BankAccountList'

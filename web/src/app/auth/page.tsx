@@ -1,8 +1,9 @@
-import { AuthForm } from "@/components/AuthForm";
+'use client';
 
-// Forçar renderização dinâmica
-export const dynamic = 'force-dynamic'
-export const revalidate = 0
+export const dynamic = 'force-dynamic';
+
+import React, { useState, useEffect } from 'react';
+import { AuthForm } from "@/components/AuthForm";
 
 export default function AuthPage() {
   return (

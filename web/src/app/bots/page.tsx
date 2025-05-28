@@ -1,10 +1,8 @@
 'use client';
 
-// Forcar renderizacao dinamica
-export const dynamic = 'force-dynamic'
-export const revalidate = 0
+export const dynamic = 'force-dynamic';
 
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/layout/dashboard-layout';
 import { BotCard } from '@/components/bots/bot-card';
 import { PlusCircle } from 'lucide-react';

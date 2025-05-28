@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useEffect, useState, useRef } from 'react';
 import { FiPlus, FiRefreshCw } from 'react-icons/fi';
 import { useRouter } from 'next/navigation';

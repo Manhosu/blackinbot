@@ -1,6 +1,9 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+export const dynamic = 'force-dynamic';
+
+import React from 'react';
+import Hero from '@/components/landing/Hero';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -15,17 +18,11 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
-// Configurações do Next.js removidas - causavam erro de build
-
-// Forçar renderização dinâmica
-export const dynamic = 'force-dynamic'
-export const revalidate = 0
-
 export default function HomePage() {
-  const [isScrolled, setIsScrolled] = useState(false);
+  const [isScrolled, setIsScrolled] = React.useState(false);
   const router = useRouter();
 
-  useEffect(() => {
+  React.useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 20);
     };

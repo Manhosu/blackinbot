@@ -1,11 +1,9 @@
 'use client';
 
-// Forcar renderizacao dinamica
-export const dynamic = 'force-dynamic'
-export const revalidate = 0
+export const dynamic = 'force-dynamic';
 
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
 
 export default function RemarketingPage() {
   const router = useRouter();

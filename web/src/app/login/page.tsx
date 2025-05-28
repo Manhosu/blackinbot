@@ -1,13 +1,12 @@
 'use client';
 
-import React, { useEffect } from 'react';
+export const dynamic = 'force-dynamic';
+
+import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { CheckCircle, Sparkles, ArrowLeft } from 'lucide-react';
 import { LoginForm } from '@/components/LoginForm';
-
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
 
 export default function LoginPage() {
   useEffect(() => {
