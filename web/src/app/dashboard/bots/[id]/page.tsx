@@ -859,9 +859,10 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
             return;
           }
         } else {
-          // Mídia selecionada mas sem conteúdo válido
-          toast.error('❌ Selecione um arquivo ou insira uma URL válida');
-          return;
+          // Mídia selecionada mas sem conteúdo válido - apenas remover mídia existente
+          console.log('⚠️ Mídia selecionada mas sem conteúdo - removendo mídia');
+          finalMediaUrl = '';
+          finalMediaType = 'none';
         }
       }
 
@@ -1504,7 +1505,7 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
                         ? '🔗 URL de mídia configurada'
                         : mediaSource === 'upload' && mediaFile
                         ? '📎 Arquivo selecionado para upload'
-                        : '⚠️ Mídia não configurada'
+                        : '📝 Mídia opcional - pode deixar em branco'
                       }
                     </div>
                   )}
@@ -1524,9 +1525,8 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
                     disabled={
                       isSavingCustomContent || 
                       isUploading || 
-                      !customMessage.trim() ||
-                      (mediaType !== 'none' && mediaSource === 'url' && !customMedia.trim()) ||
-                      (mediaType !== 'none' && mediaSource === 'upload' && !mediaFile)
+                      !customMessage.trim()
+                      // Removida validação obrigatória de mídia - ela é opcional
                     }
                     className={`px-8 py-3 text-white font-medium rounded-xl shadow-lg transition-all duration-200 ${
                       isSavingCustomContent || isUploading
