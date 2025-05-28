@@ -15,6 +15,40 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
   
+  // Configurações de CSS
+  experimental: {
+    optimizeCss: false,
+  },
+  
+  // Configurações de webpack para desabilitar PostCSS
+  webpack: (config, { isServer }) => {
+    // Desabilitar PostCSS para evitar problemas de autoprefixer
+    config.module.rules.forEach((rule) => {
+      if (rule.oneOf) {
+        rule.oneOf.forEach((oneOfRule) => {
+          if (oneOfRule.use && Array.isArray(oneOfRule.use)) {
+            oneOfRule.use.forEach((useItem) => {
+              if (
+                typeof useItem === 'object' &&
+                useItem.loader &&
+                useItem.loader.includes('postcss-loader')
+              ) {
+                useItem.options = {
+                  ...useItem.options,
+                  postcssOptions: {
+                    plugins: [],
+                  },
+                };
+              }
+            });
+          }
+        });
+      }
+    });
+    
+    return config;
+  },
+  
   // Configurações de imagem básicas
   images: {
     unoptimized: true,
