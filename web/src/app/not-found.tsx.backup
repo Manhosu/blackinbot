@@ -1,7 +1,12 @@
-// Força renderização dinâmica para evitar problemas de prerendering
-export const dynamic = 'force-dynamic';
+'use client';
+
+import { useEffect } from 'react';
 
 export default function NotFound() {
+  useEffect(() => {
+    console.log('Not found page mounted');
+  }, []);
+
   return (
     <div style={{
       minHeight: '100vh',

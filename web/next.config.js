@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Configurações básicas
-  reactStrictMode: true,
+  reactStrictMode: false,
   poweredByHeader: false,
   
   // Build config - desabilitar verificações que estão falhando
@@ -12,13 +12,16 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
   
-  // Configuração standalone para deploy
+  // Voltar ao standalone
   output: 'standalone',
   
   // Images config
   images: {
     unoptimized: true,
   },
+  
+  // Trailing slash
+  trailingSlash: false,
   
   // Environment variables
   env: {
@@ -28,30 +31,18 @@ const nextConfig = {
   // Configuração para Next.js 15.x
   serverExternalPackages: ['@supabase/supabase-js'],
   
-  // Webpack config mais específico para resolver problemas de Html imports
-  webpack: (config, { isServer, dev }) => {
-    // Fallbacks básicos
+  // Experimental - forçar dynamic rendering
+  experimental: {
+    esmExternals: false,
+  },
+  
+  // Webpack config
+  webpack: (config) => {
     config.resolve.fallback = {
       fs: false,
       net: false,
       tls: false,
     };
-    
-    // Ignorar warnings específicos sobre Html imports em desenvolvimento
-    if (dev) {
-      config.ignoreWarnings = [
-        /critical dependency:/i,
-        /the request of a dependency is an expression/i,
-      ];
-    }
-    
-    // Configuração específica para resolver problemas de prerendering
-    if (!isServer) {
-      config.resolve.alias = {
-        ...config.resolve.alias,
-        'next/document': false,
-      };
-    }
     
     return config;
   },
