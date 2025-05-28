@@ -1,0 +1,67 @@
+'use client';
+
+import { useEffect } from 'react';
+
+// Forçar renderização dinâmica
+export const dynamic = 'force-dynamic';
+export const runtime = 'edge';
+
+export default function GlobalError({
+  error,
+  reset,
+}: {
+  error: Error & { digest?: string };
+  reset: () => void;
+}) {
+  useEffect(() => {
+    // Log error no cliente
+    console.error('Global error:', error);
+  }, [error]);
+
+  return (
+    <html>
+      <body>
+        <div style={{
+          minHeight: '100vh',
+          backgroundColor: '#000000',
+          color: '#ffffff',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexDirection: 'column'
+        }}>
+          <h1 style={{ fontSize: '48px', fontWeight: 'bold', marginBottom: '16px' }}>500</h1>
+          <p style={{ color: '#999999', marginBottom: '16px' }}>Algo deu errado!</p>
+          <button 
+            onClick={reset}
+            style={{
+              display: 'inline-block',
+              padding: '8px 16px',
+              backgroundColor: '#3b5aef',
+              color: 'white',
+              borderRadius: '8px',
+              border: 'none',
+              cursor: 'pointer',
+              marginRight: '8px'
+            }}
+          >
+            Tentar novamente
+          </button>
+          <a 
+            href="/" 
+            style={{
+              display: 'inline-block',
+              padding: '8px 16px',
+              backgroundColor: '#666',
+              color: 'white',
+              borderRadius: '8px',
+              textDecoration: 'none'
+            }}
+          >
+            Voltar ao início
+          </a>
+        </div>
+      </body>
+    </html>
+  );
+} 
