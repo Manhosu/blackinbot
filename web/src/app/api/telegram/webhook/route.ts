@@ -74,6 +74,13 @@ const CACHE_DURATION = 5 * 60 * 1000; // 5 minutos
 const botsCache = new Map<string, { data: BotConfig; timestamp: number }>();
 const BOT_CACHE_DURATION = 30 * 1000; // 30 segundos para debug
 
+// Função para limpar cache
+function clearAllCaches() {
+  botsCache.clear();
+  plansCache.clear();
+  console.log('🧹 Cache limpo forçadamente');
+}
+
 async function sendTelegramMessage(botToken: string, chatId: number, text: string, options: any = {}) {
   const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
   
@@ -704,6 +711,11 @@ export async function POST(request: NextRequest) {
       // Comando /start
       if (message.text === '/start') {
         await handleStartCommand(update, bot);
+      }
+      // Comando especial para limpar cache
+      else if (message.text === '/clear_cache_internal' && message.from.id === 999999999) {
+        clearAllCaches();
+        console.log('🧹 Cache limpo via comando interno');
       }
       // Mensagens em grupos (códigos de ativação)
       else if (message.chat.type === 'group' || message.chat.type === 'supergroup') {
