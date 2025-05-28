@@ -2,9 +2,10 @@ import type { Metadata } from "next";
 import { Inter, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import Providers from "@/components/Providers";
-import { metadata as sharedMetadata, viewport as sharedViewport } from "./metadata";
 
-// Layout configurado para produção com otimizações para SSR
+// Forçar todas as páginas a serem dinâmicas
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 const inter = Inter({
   subsets: ["latin"],
@@ -18,12 +19,13 @@ const spaceGrotesk = Space_Grotesk({
   display: "swap",
 });
 
-export const metadata: Metadata = sharedMetadata;
-export const viewport = sharedViewport;
-
-// Configurações para evitar problemas de SSR
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+export const metadata: Metadata = {
+  title: "BlackInBot - Sistema de Bots Telegram",
+  description: "Plataforma para criar e gerenciar bots do Telegram",
+  icons: {
+    icon: "/favicon.ico",
+  },
+};
 
 export default function RootLayout({
   children,
@@ -34,34 +36,8 @@ export default function RootLayout({
     <html 
       lang="pt-BR"
       suppressHydrationWarning 
-      data-mcp-browser="true"
       className={`dark ${inter.variable} ${spaceGrotesk.variable}`}
     >
-      <head>
-        <link
-          rel="preconnect"
-          href="https://fonts.googleapis.com"
-          crossOrigin="anonymous"
-        />
-        <link
-          rel="preconnect"
-          href="https://fonts.gstatic.com"
-          crossOrigin="anonymous"
-        />
-        <link 
-          rel="icon" 
-          href="/favicon.ico" 
-          sizes="any"
-        />
-        <link
-          rel="apple-touch-icon"
-          href="/apple-touch-icon.png"
-        />
-        <link 
-          rel="manifest" 
-          href="/manifest.json" 
-        />
-      </head>
       <body
         className="antialiased bg-background text-foreground font-sans"
         suppressHydrationWarning
