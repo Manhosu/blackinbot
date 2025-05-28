@@ -1,4 +1,4 @@
-/* CSS mínimo para deploy */
+/* CSS Global Limpo */
 body {
   margin: 0;
   padding: 0;
@@ -53,6 +53,7 @@ body {
   border-color: #3b5aef;
 }
 
+/* Utility Classes */
 .text-center { text-align: center; }
 .mb-4 { margin-bottom: 16px; }
 .mt-4 { margin-top: 16px; }
