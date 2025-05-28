@@ -13,17 +13,12 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
   
+  // Desabilitar completamente prerendering
+  output: 'standalone',
+  
   // Environment variables
   env: {
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL || 'https://blackinbot.vercel.app',
-  },
-  
-  // Configurações para upload de arquivos
-  serverRuntimeConfig: {
-    maxFileSize: 25 * 1024 * 1024, // 25MB para vídeos
-  },
-  publicRuntimeConfig: {
-    maxFileSize: 25 * 1024 * 1024, // 25MB para vídeos
   },
   
   // Images config
@@ -47,21 +42,12 @@ const nextConfig = {
   // Configuração atualizada para Next.js 15.x
   serverExternalPackages: ['@supabase/supabase-js'],
   
-  // Experimental features para resolver problemas de build
+  // Experimental - desabilitar prerendering
   experimental: {
-    // Desabilitar prerendering para páginas de erro
-    missingSuspenseWithCSRBailout: false,
+    runtime: 'nodejs',
   },
   
-  // Forçar todas as páginas para serem dinâmicas
-  async redirects() {
-    return [];
-  },
-  
-  // Configuração para ignorar problemas de prerendering
-  staticPageGenerationTimeout: 60,
-  
-  // Configurações específicas para problemas de React Context
+  // Webpack config para resolver problemas de dependências
   webpack: (config, { isServer }) => {
     if (!isServer) {
       config.resolve.fallback = {
@@ -97,12 +83,9 @@ const nextConfig = {
     ];
   },
   
-  // Configuração para ignorar erros específicos de páginas
-  onDemandEntries: {
-    // Period (in ms) where the server will keep pages in the buffer
-    maxInactiveAge: 25 * 1000,
-    // Number of pages that should be kept simultaneously without being disposed
-    pagesBufferLength: 2,
+  // Função para gerar todas as páginas como dinâmicas
+  async generateBuildId() {
+    return 'blackinbot-dynamic-' + Date.now();
   },
 }
 
