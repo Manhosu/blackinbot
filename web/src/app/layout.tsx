@@ -1,22 +1,9 @@
 import type { Metadata } from "next";
-import { Inter, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import Providers from "@/components/Providers";
 import { metadata as sharedMetadata, viewport as sharedViewport } from "./metadata";
 
 // Layout configurado para produção com otimizações para SSR
-
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-sans",
-  display: "swap",
-});
-
-const spaceGrotesk = Space_Grotesk({
-  subsets: ["latin"],
-  variable: "--font-heading",
-  display: "swap",
-});
 
 export const metadata: Metadata = sharedMetadata;
 export const viewport = sharedViewport;
@@ -35,7 +22,7 @@ export default function RootLayout({
       lang="pt-BR"
       suppressHydrationWarning 
       data-mcp-browser="true"
-      className={`dark ${inter.variable} ${spaceGrotesk.variable}`}
+      className="dark font-sans"
     >
       <head>
         <link
@@ -47,6 +34,10 @@ export default function RootLayout({
           rel="preconnect"
           href="https://fonts.gstatic.com"
           crossOrigin="anonymous"
+        />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap"
+          rel="stylesheet"
         />
         <link 
           rel="icon" 

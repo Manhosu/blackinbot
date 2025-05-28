@@ -55,11 +55,6 @@ const nextConfig = {
     
     return config;
   },
-  
-  // Experimental - tentar desabilitar geração automática de páginas de erro
-  experimental: {
-    missingSuspenseWithCSRBailout: false,
-  },
 }
 
 module.exports = nextConfig 
