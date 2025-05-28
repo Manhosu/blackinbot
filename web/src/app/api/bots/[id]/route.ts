@@ -426,6 +426,12 @@ export async function PATCH(
       }
     });
     
+    // Mapear 'image' para 'photo' conforme constraint do banco
+    if (updateData.welcome_media_type === 'image') {
+      updateData.welcome_media_type = 'photo';
+      console.log('🔄 Mapeando welcome_media_type: image -> photo');
+    }
+    
     // Adicionar timestamp de atualização
     updateData.updated_at = new Date().toISOString();
     

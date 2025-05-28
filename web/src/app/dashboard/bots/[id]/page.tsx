@@ -298,7 +298,9 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
           });
           setCustomMessage(botData.welcome_message || '');
           setCustomMedia(botData.welcome_media_url || '');
-          setMediaType((botData.welcome_media_type === 'photo' ? 'image' : botData.welcome_media_type || 'none') as 'image' | 'video' | 'none');
+          // Mapear 'photo' do banco para 'image' no frontend
+          const mappedMediaType = botData.welcome_media_type === 'photo' ? 'image' : botData.welcome_media_type || 'none';
+          setMediaType(mappedMediaType as 'image' | 'video' | 'none');
           
           // Configurar stats com dados do cache se existirem
           if (botData.cachedStats) {
@@ -344,9 +346,11 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
         description: botData.description || '',
         status: botData.status || 'active'
       });
-      setCustomMessage(botData.welcome_message || '');
-      setCustomMedia(botData.welcome_media_url || '');
-      setMediaType((botData.welcome_media_type === 'photo' ? 'image' : botData.welcome_media_type || 'none') as 'image' | 'video' | 'none');
+                setCustomMessage(botData.welcome_message || '');
+          setCustomMedia(botData.welcome_media_url || '');
+          // Mapear 'photo' do banco para 'image' no frontend
+          const mappedMediaType2 = botData.welcome_media_type === 'photo' ? 'image' : botData.welcome_media_type || 'none';
+          setMediaType(mappedMediaType2 as 'image' | 'video' | 'none');
       
       // Cache os dados essenciais
       const cacheKey = `bot_${params.id}`;
