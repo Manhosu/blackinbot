@@ -3,6 +3,40 @@ import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
+// Função utilitária para criar cliente admin do Supabase
+function createSupabaseAdmin() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    }
+  );
+}
+
+// Função utilitária para obter usuário autenticado
+async function getCurrentUser() {
+  try {
+    const cookieStore = cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+    
+    const { data: { user }, error } = await supabase.auth.getUser();
+    
+    if (error) {
+      console.error('Erro ao obter usuário:', error);
+      return null;
+    }
+    
+    return user;
+  } catch (error) {
+    console.error('Erro ao verificar autenticação:', error);
+    return null;
+  }
+}
+
 // GET - Buscar bot específico
 export async function GET(
   request: NextRequest,
@@ -354,22 +388,54 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  console.log(`🚀 PATCH API iniciada para bot ${params.id}`);
+  
   try {
     console.log(`📝 PATCH /api/bots/${params.id} - Iniciando atualização...`);
     
+    // Verificar se o ID do bot existe
+    if (!params.id) {
+      console.error('❌ ID do bot não fornecido');
+      return NextResponse.json({ success: false, error: 'ID do bot é obrigatório' }, { status: 400 });
+    }
+    
     // Verificar autenticação
-    const user = await getCurrentUser();
+    console.log('🔐 Verificando autenticação...');
+    
+    let user;
+    try {
+      user = await getCurrentUser();
+      console.log('🔐 getCurrentUser executado:', !!user);
+    } catch (authError) {
+      console.error('❌ Erro na autenticação:', authError);
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Erro na verificação de autenticação',
+        details: authError instanceof Error ? authError.message : 'Erro desconhecido'
+      }, { status: 500 });
+    }
+    
     if (!user) {
       console.log('❌ Usuário não autenticado');
       return NextResponse.json({ success: false, error: 'Não autorizado' }, { status: 401 });
     }
+    
+    console.log(`✅ Usuário autenticado: ${user.id}`);
 
-    const body = await request.json();
-    console.log('📦 Dados recebidos:', body);
+    // Parse do body
+    let body;
+    try {
+      body = await request.json();
+      console.log('📦 Dados recebidos:', JSON.stringify(body, null, 2));
+    } catch (parseError) {
+      console.error('❌ Erro ao fazer parse do JSON:', parseError);
+      return NextResponse.json({ success: false, error: 'JSON inválido' }, { status: 400 });
+    }
 
     // Validar dados obrigatórios para personalização
     if (body.welcome_message !== undefined) {
       if (!body.welcome_message || body.welcome_message.trim() === '') {
+        console.error('❌ Mensagem de boas-vindas vazia');
         return NextResponse.json(
           { success: false, error: 'Mensagem de boas-vindas é obrigatória' },
           { status: 400 }
@@ -431,11 +497,58 @@ export async function PATCH(
       console.log('🧹 Tipo removido (sem URL correspondente)');
     }
 
-    console.log('💾 Dados finais para atualização:', updateData);
+    console.log('💾 Dados finais para atualização:', JSON.stringify(updateData, null, 2));
+
+    // Verificar se o bot existe e pertence ao usuário antes de atualizar
+    console.log('🔍 Verificando se bot existe e pertence ao usuário...');
+    
+    let supabase;
+    try {
+      supabase = createSupabaseAdmin();
+      console.log('✅ Cliente Supabase Admin criado');
+    } catch (supabaseError) {
+      console.error('❌ Erro ao criar cliente Supabase:', supabaseError);
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Erro na configuração do banco de dados',
+        details: supabaseError instanceof Error ? supabaseError.message : 'Erro desconhecido'
+      }, { status: 500 });
+    }
+    
+    const { data: existingBot, error: fetchError } = await supabase
+      .from('bots')
+      .select('id, owner_id, name')
+      .eq('id', params.id)
+      .single();
+    
+    if (fetchError) {
+      console.error('❌ Erro ao buscar bot existente:', fetchError);
+      return NextResponse.json(
+        { success: false, error: `Bot não encontrado: ${fetchError.message}` },
+        { status: 404 }
+      );
+    }
+    
+    if (!existingBot) {
+      console.error('❌ Bot não encontrado');
+      return NextResponse.json(
+        { success: false, error: 'Bot não encontrado' },
+        { status: 404 }
+      );
+    }
+    
+    if (existingBot.owner_id !== user.id) {
+      console.error(`❌ Usuário ${user.id} não é o dono do bot ${params.id} (dono: ${existingBot.owner_id})`);
+      return NextResponse.json(
+        { success: false, error: 'Você não tem permissão para editar este bot' },
+        { status: 403 }
+      );
+    }
+    
+    console.log(`✅ Bot "${existingBot.name}" pertence ao usuário ${user.id}`);
 
     // Atualizar no banco de dados
-    const supabase = createSupabaseAdmin();
-    
+    console.log('💾 Atualizando bot no banco de dados...');
     const { data: updatedBot, error } = await supabase
       .from('bots')
       .update({
@@ -443,7 +556,6 @@ export async function PATCH(
         updated_at: new Date().toISOString()
       })
       .eq('id', params.id)
-      .eq('user_id', user.id) // Segurança: apenas o dono pode atualizar
       .select('*')
       .single();
 
@@ -469,10 +581,10 @@ export async function PATCH(
     }
 
     if (!updatedBot) {
-      console.log('❌ Bot não encontrado ou sem permissão');
+      console.log('❌ Bot não foi atualizado - possível problema de permissão');
       return NextResponse.json(
-        { success: false, error: 'Bot não encontrado ou sem permissão' },
-        { status: 404 }
+        { success: false, error: 'Falha ao atualizar bot' },
+        { status: 500 }
       );
     }
 
@@ -493,8 +605,25 @@ export async function PATCH(
 
   } catch (error: any) {
     console.error('❌ Erro geral na API PATCH:', error);
+    console.error('❌ Stack trace:', error.stack);
+    
+    // Detalhes específicos do erro
+    const errorDetails = {
+      message: error.message,
+      name: error.name,
+      cause: error.cause,
+    };
+    
+    console.error('❌ Detalhes do erro:', errorDetails);
+    
     return NextResponse.json(
-      { success: false, error: 'Erro interno do servidor', details: error.message },
+      { 
+        success: false, 
+        error: 'Erro interno do servidor', 
+        details: error.message,
+        errorType: error.name,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      },
       { status: 500 }
     );
   }

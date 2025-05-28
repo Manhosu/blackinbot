@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { Save, MessageSquare, Eye } from 'lucide-react';
 import AdvancedMediaUpload from '@/components/AdvancedMediaUpload';
+import { useAuthStatus } from '@/hooks/useAuthStatus';
 
 interface PersonalizeBotProps {
   bot: any;
@@ -19,6 +20,7 @@ export default function PersonalizeBot({ bot, onSave }: PersonalizeBotProps) {
   const [customMedia, setCustomMedia] = useState(bot?.welcome_media_url || '');
   const [mediaType, setMediaType] = useState(bot?.welcome_media_type === 'photo' ? 'image' : bot?.welcome_media_type || 'none');
   const [isSaving, setIsSaving] = useState(false);
+  const { checkAuthBeforeAction, isAuthenticated } = useAuthStatus();
 
   const handleSave = async () => {
     if (!customMessage.trim()) {
@@ -27,21 +29,65 @@ export default function PersonalizeBot({ bot, onSave }: PersonalizeBotProps) {
     }
 
     setIsSaving(true);
+    console.log('🚀 Iniciando salvamento da personalização...');
     
     try {
+      // Verificar autenticação antes de prosseguir
+      await checkAuthBeforeAction();
+      
       const updateData = {
         welcome_message: customMessage.trim(),
         welcome_media_url: customMedia,
         welcome_media_type: mediaType === 'image' ? 'photo' : mediaType
       };
 
+      console.log('📤 Dados sendo enviados:', updateData);
+
+      const response = await fetch(`/api/bots/${bot.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(updateData)
+      });
+
+      console.log('📡 Resposta recebida:', response.status, response.statusText);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Erro na resposta:', response.status, errorText);
+        
+        // Tratamento específico para diferentes tipos de erro
+        if (response.status === 401) {
+          throw new Error('Sessão expirada. Faça login novamente.');
+        } else if (response.status === 403) {
+          throw new Error('Você não tem permissão para editar este bot.');
+        } else if (response.status === 404) {
+          throw new Error('Bot não encontrado.');
+        } else {
+          throw new Error(`Erro ${response.status}: ${errorText}`);
+        }
+      }
+
+      const result = await response.json();
+      console.log('✅ Resultado do salvamento:', result);
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Erro desconhecido na resposta');
+      }
+
       await onSave(updateData);
       toast.success('🎉 Personalização salva com sucesso!');
+      
     } catch (error: any) {
       console.error('❌ Erro ao salvar:', error);
-      toast.error(`Erro: ${error.message || 'Erro desconhecido'}`);
+      const errorMessage = error.message || 'Erro desconhecido';
+      toast.error(`Erro: ${errorMessage}`);
+      throw error; // Re-throw para o componente pai tratar se necessário
     } finally {
       setIsSaving(false);
+      console.log('🏁 Processo de salvamento finalizado');
     }
   };
 
@@ -158,10 +204,12 @@ export default function PersonalizeBot({ bot, onSave }: PersonalizeBotProps) {
         <div className="flex justify-end pt-6 border-t border-white/10">
           <Button
             onClick={handleSave}
-            disabled={isSaving || !customMessage.trim()}
+            disabled={isSaving || !customMessage.trim() || !isAuthenticated}
             className={`px-8 py-3 text-white font-medium rounded-xl shadow-lg transition-all duration-200 ${
               isSaving
                 ? 'bg-gray-600 cursor-not-allowed'
+                : !isAuthenticated
+                ? 'bg-red-600 cursor-not-allowed opacity-50'
                 : customMessage.trim()
                 ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 hover:shadow-xl hover:scale-105'
                 : 'bg-gray-600 cursor-not-allowed opacity-50'
@@ -171,6 +219,10 @@ export default function PersonalizeBot({ bot, onSave }: PersonalizeBotProps) {
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
                 <span>Salvando...</span>
+              </div>
+            ) : !isAuthenticated ? (
+              <div className="flex items-center gap-2">
+                <span>⚠️ Não autenticado</span>
               </div>
             ) : (
               <div className="flex items-center gap-2">
