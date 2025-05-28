@@ -416,6 +416,12 @@ async function handleStartCommand(update: TelegramUpdate, bot: BotConfig) {
   const chatId = update.message!.chat.id;
   const userId = update.message!.from.id;
 
+  // ✅ LOG DETALHADO PARA DEBUG DO CHAT ID
+  console.log(`🆔 CHAT ID CAPTURADO: ${chatId}`);
+  console.log(`👤 USER ID CAPTURADO: ${userId}`);
+  console.log(`📱 DADOS COMPLETOS DO CHAT:`, JSON.stringify(update.message!.chat, null, 2));
+  console.log(`👥 DADOS COMPLETOS DO USER:`, JSON.stringify(update.message!.from, null, 2));
+
   console.log(`🔄 /start recebido de usuário ${userId} para bot ${bot.name}`);
 
   // Verificar se bot está ativado

@@ -21,6 +21,7 @@ import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { FiEdit } from 'react-icons/fi';
 import { useSupabaseUpload } from '@/hooks/useSupabaseUpload';
+import AdvancedMediaUpload from '@/components/AdvancedMediaUpload';
 
 interface Transaction {
   id: string;
