@@ -1,15 +1,5 @@
 {
   "framework": "nextjs",
   "regions": ["gru1"],
-  "functions": {
-    "web/src/app/api/**/*.ts": {
-      "maxDuration": 30,
-      "memory": 1024
-    },
-    "web/src/app/api/media/upload-direct/route.ts": {
-      "maxDuration": 60,
-      "memory": 1024
-    }
-  },
   "buildCommand": "npm run build"
 } 

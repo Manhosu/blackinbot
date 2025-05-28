@@ -16,16 +16,6 @@
   "env": {
     "NODE_ENV": "production"
   },
-  "functions": {
-    "web/src/app/api/**/*.ts": {
-      "maxDuration": 30,
-      "memory": 1024
-    },
-    "web/src/app/api/media/**/*.ts": {
-      "maxDuration": 60,
-      "memory": 1024
-    }
-  },
   "regions": ["gru1"],
   "framework": "nextjs"
 } 
