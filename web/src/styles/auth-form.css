@@ -1,11 +1,5 @@
-/* Formulário de autenticação */
+/* Formulário de autenticação - versão compatível */
 .auth-wrapper {
-  --input-focus: var(--accent);
-  --font-color: var(--foreground);
-  --font-color-sub: var(--muted-foreground);
-  --bg-color: transparent;
-  --bg-color-alt: var(--secondary);
-  --main-color: var(--border);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -52,7 +46,7 @@
 }
 
 .auth-tab-label {
-  color: var(--font-color);
+  color: #ffffff;
   font-weight: 600;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
   cursor: pointer;
@@ -65,7 +59,7 @@
 
 .auth-tab-label.active {
   opacity: 1;
-  color: var(--accent);
+  color: #3b5aef;
 }
 
 .login-label {
@@ -86,13 +80,13 @@
 .auth-slider {
   box-sizing: border-box;
   border-radius: 20px;
-  border: 2px solid var(--accent);
+  border: 2px solid #3b5aef;
   position: absolute;
   cursor: pointer;
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
-  background-color: var(--card);
+  background-color: #0c0e16;
   transition: 0.3s;
   z-index: 45;
   width: 60px;
@@ -105,11 +99,11 @@
   content: "";
   height: 22px;
   width: 22px;
-  border: 2px solid var(--accent);
+  border: 2px solid #3b5aef;
   border-radius: 50%;
   left: 2px;
   bottom: 2px;
-  background-color: var(--accent);
+  background-color: #3b5aef;
   transition: 0.3s;
 }
 
@@ -134,12 +128,12 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
-  background: var(--card);
+  background: #0c0e16;
   backdrop-filter: blur(16px);
   background-color: rgba(12, 14, 22, 0.7);
   gap: 20px;
   border-radius: 15px;
-  border: 1px solid var(--border);
+  border: 1px solid #2a2d3e;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
   width: 100%;
   z-index: 50;
@@ -160,11 +154,11 @@
   width: 100%;
   height: 50px;
   border-radius: 10px;
-  border: 1px solid var(--border);
+  border: 1px solid #2a2d3e;
   background-color: rgba(255, 255, 255, 0.03);
   font-size: 16px;
   font-weight: 500;
-  color: var(--foreground);
+  color: #ffffff;
   padding: 5px 15px;
   outline: none;
   transition: all 0.2s ease;
@@ -173,12 +167,12 @@
 }
 
 .auth-flip-card__input:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 2px var(--accent-foreground);
+  border-color: #3b5aef;
+  box-shadow: 0 0 0 2px rgba(59, 90, 239, 0.3);
 }
 
 .auth-flip-card__input::placeholder {
-  color: var(--font-color-sub);
+  color: #8a8eab;
   opacity: 0.7;
 }
 
@@ -187,7 +181,7 @@
   height: 50px;
   border-radius: 10px;
   border: none;
-  background-color: var(--accent);
+  background-color: #3b5aef;
   color: white;
   font-size: 16px;
   font-weight: 600;
@@ -199,29 +193,42 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  text-decoration: none;
+  outline: none;
+}
+
+.auth-flip-card__btn:hover {
+  background-color: #2a48d4;
+  box-shadow: 0 4px 12px rgba(59, 90, 239, 0.3);
+}
+
+.auth-flip-card__btn:active {
+  transform: scale(0.98);
 }
 
 .auth-flip-card__btn:disabled {
-  opacity: 0.7;
+  opacity: 0.6;
   cursor: not-allowed;
+  transform: none;
 }
 
 .auth-flip-card__btn:not(:disabled):hover {
-  background-color: var(--accent-foreground);
-  transform: translateY(-2px);
+  background-color: #2a48d4;
+  box-shadow: 0 4px 16px rgba(59, 90, 239, 0.4);
 }
 
-/* Responsividade */
+/* Responsive */
 @media (max-width: 640px) {
   .auth-flip-card__front, .auth-flip-card__back {
     padding: 20px;
-}
-
+    min-height: 280px;
+  }
+  
   .auth-flip-card__input {
     height: 45px;
     font-size: 14px;
-}
-
+  }
+  
   .auth-flip-card__btn {
     height: 45px;
     font-size: 14px;
@@ -230,12 +237,45 @@
 
 @media (max-width: 768px) {
   .auth-card-switch {
-    width: 90%;
+    max-width: 320px;
   }
   
   .auth-flip-card__inner {
-    width: 100%;
+    margin-top: 15px;
   }
+}
+
+/* Título */
+.auth-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 10px;
+  text-align: center;
+}
+
+/* Error messages */
+.auth-error {
+  background-color: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #ef4444;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  margin-top: 8px;
+  text-align: center;
+}
+
+/* Success messages */
+.auth-success {
+  background-color: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  color: #22c55e;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  margin-top: 8px;
+  text-align: center;
 }
 
 /* Container do label do switch */

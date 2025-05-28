@@ -1,8 +1,10 @@
 'use client';
 
-export const dynamic = 'force-dynamic';
+// Forçar renderização dinâmica
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
 
-import { useState } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { ArrowLeft, CheckCircle, Sparkles } from 'lucide-react';

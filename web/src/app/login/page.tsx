@@ -7,8 +7,9 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { CheckCircle, Sparkles, ArrowLeft } from 'lucide-react';
 import { LoginForm } from '@/components/LoginForm';
+import { ClientOnly } from '@/components/ClientOnly';
 
-export default function LoginPage() {
+function LoginContent() {
   useEffect(() => {
     // Remover link preload incorreto e adicionar com atributo 'as' correto
     const linkElements = document.querySelectorAll('link[rel="preload"][href*="app/login/page.css"]');
@@ -106,4 +107,18 @@ export default function LoginPage() {
                   </div>
         </div>
     );
-  }  
+}
+
+export default function LoginPage() {
+  return (
+    <ClientOnly 
+      fallback={
+        <div className="flex h-screen items-center justify-center bg-gradient-dark">
+          <div className="animate-spin h-12 w-12 border-4 border-accent border-t-transparent rounded-full"></div>
+        </div>
+      }
+    >
+      <LoginContent />
+    </ClientOnly>
+  );
+}  

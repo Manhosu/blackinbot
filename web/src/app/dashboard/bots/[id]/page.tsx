@@ -1,7 +1,5 @@
 'use client';
 
-export const dynamic = 'force-dynamic';
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
@@ -23,7 +21,7 @@ import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { FiEdit } from 'react-icons/fi';
 import { useSupabaseUpload } from '@/hooks/useSupabaseUpload';
-import AdvancedMediaUpload from '@/components/AdvancedMediaUpload';
+import DirectVideoUpload from '@/components/DirectVideoUpload';
 
 interface Transaction {
   id: string;
@@ -827,14 +825,19 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
       // ETAPA 1: Processar mídia se necessário
       if (mediaType !== 'none') {
         if (mediaSource === 'url' && customMedia.trim()) {
-          // Usar URL direta
+          // Usar URL direta (pode ser URL manual ou do upload direto de vídeo)
           finalMediaUrl = customMedia.trim();
           finalMediaType = mediaType;
           console.log('📎 Usando URL direta:', finalMediaUrl);
-        } else if (mediaSource === 'upload' && mediaFile) {
-          // Fazer upload do arquivo
-          console.log('📤 Iniciando upload do arquivo...');
-          toast.info('📤 Enviando arquivo...', { 
+        } else if (mediaSource === 'upload' && mediaType === 'video' && customMedia.trim()) {
+          // Para vídeos: o DirectVideoUpload já fez o upload e colocou a URL em customMedia
+          finalMediaUrl = customMedia.trim();
+          finalMediaType = mediaType;
+          console.log('🎬 Usando URL de vídeo já enviado:', finalMediaUrl);
+        } else if (mediaSource === 'upload' && mediaType === 'image' && mediaFile) {
+          // Para imagens: usar o sistema antigo de upload via API
+          console.log('📤 Iniciando upload da imagem...');
+          toast.info('📤 Enviando imagem...', { 
             duration: 3000,
             description: 'Aguarde o upload ser concluído' 
           });
@@ -852,14 +855,14 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
             if (uploadResult.success && uploadResult.url) {
               finalMediaUrl = uploadResult.url;
               finalMediaType = mediaType;
-              console.log('✅ Upload concluído:', finalMediaUrl);
-              toast.success('✅ Arquivo enviado com sucesso!');
+              console.log('✅ Upload da imagem concluído:', finalMediaUrl);
+              toast.success('✅ Imagem enviada com sucesso!');
             } else {
-              throw new Error(uploadResult.error || 'Falha no upload');
+              throw new Error(uploadResult.error || 'Falha no upload da imagem');
             }
           } catch (uploadError: any) {
-            console.error('❌ Erro no upload:', uploadError);
-            toast.error('❌ Erro ao enviar arquivo', {
+            console.error('❌ Erro no upload da imagem:', uploadError);
+            toast.error('❌ Erro ao enviar imagem', {
               description: uploadError.message || 'Tente novamente ou use uma URL',
               duration: 5000
             });
@@ -913,8 +916,9 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
       }));
 
       // ETAPA 5: Feedback de sucesso
+      const mediaTypeText = finalMediaType === 'image' ? 'imagem' : finalMediaType === 'video' ? 'vídeo' : 'mídia';
       toast.success('🎉 Personalização salva!', {
-        description: '✅ Mensagem de boas-vindas atualizada com sucesso',
+        description: `✅ Mensagem de boas-vindas${finalMediaUrl ? ` com ${mediaTypeText}` : ''} atualizada com sucesso`,
         duration: 4000
       });
 
@@ -929,7 +933,7 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
       console.log('✅ Personalização salva com sucesso!');
 
       // ETAPA 6: Limpar estados de upload se necessário
-      if (mediaSource === 'upload') {
+      if (mediaSource === 'upload' && mediaType === 'image') {
         setMediaFile(null);
         setMediaPreview(null);
         setUploadProgress(0);
@@ -1419,78 +1423,97 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
                         Fazer upload do arquivo
                       </Label>
                       
-                      {/* Progress bar durante upload */}
-                      {isUploading && (
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between text-sm">
-                            <span className="text-blue-300">Enviando arquivo...</span>
-                            <span className="text-white">{uploadProgress}%</span>
-                          </div>
-                          <div className="w-full bg-white/10 rounded-full h-2">
-                            <div 
-                              className="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full transition-all duration-300"
-                              style={{ width: `${uploadProgress}%` }}
-                            ></div>
-                          </div>
-                        </div>
-                      )}
-                      
-                      <div className="border-2 border-dashed border-white/20 rounded-xl p-6 hover:border-blue-400/50 transition-colors duration-200">
-                        <input
-                          type="file"
-                          id="mediaFile"
-                          accept={mediaType === 'image' ? 'image/*' : 'video/*'}
-                          onChange={(e) => {
-                            const file = e.target.files?.[0] || null;
-                            setMediaFile(file);
-                            if (file) {
-                              const reader = new FileReader();
-                              reader.onloadend = () => {
-                                setMediaPreview(reader.result as string);
-                              };
-                              reader.readAsDataURL(file);
-                            } else {
-                              setMediaPreview(null);
-                            }
+                      {/* Sistema de upload especial para vídeos */}
+                      {mediaType === 'video' ? (
+                        <DirectVideoUpload
+                          botId={bot.id}
+                          onUploadSuccess={(url) => {
+                            console.log('✅ Vídeo enviado com sucesso:', url);
+                            setCustomMedia(url);
+                            setMediaFile(null);
+                            setMediaPreview(null);
+                            toast.success('✅ Vídeo pronto para uso!', {
+                              description: 'O vídeo foi enviado e está disponível para ser salvo na mensagem de boas-vindas',
+                              duration: 4000
+                            });
                           }}
-                          className="block w-full text-sm text-white/70
-                            file:mr-4 file:py-2 file:px-4
-                            file:rounded-lg file:border-0
-                            file:text-sm file:font-medium
-                            file:bg-blue-500/20 file:text-blue-300
-                            hover:file:bg-blue-500/30 transition-all duration-200"
+                          onUploadError={(error) => {
+                            console.error('❌ Erro no upload do vídeo:', error);
+                            toast.error('❌ Erro no upload do vídeo', {
+                              description: error,
+                              duration: 5000
+                            });
+                          }}
+                          maxSizeMB={25}
+                          disabled={isSavingCustomContent}
+                          currentVideoUrl={customMedia}
                         />
-                        <div className="text-center mt-2">
-                          <p className="text-sm text-white/60">
-                            {mediaType === 'image' 
-                              ? '📸 Máximo 10MB - JPG, PNG, GIF, WebP'
-                              : '🎬 Máximo 25MB - MP4, MOV, AVI, MKV, WebM'
-                            }
-                          </p>
-                        </div>
-                      </div>
-                      
-                      {/* Preview do arquivo */}
-                      {mediaPreview && (
-                        <div className="bg-white/5 border border-blue-400/30 rounded-xl p-4">
-                          <div className="flex items-center gap-2 mb-3">
-                            <Eye className="w-4 h-4 text-blue-400" />
-                            <span className="text-sm font-medium text-blue-300">Pré-visualização do arquivo</span>
-                          </div>
-                          {mediaType === 'image' ? (
-                            <img 
-                              src={mediaPreview} 
-                              alt="Pré-visualização" 
-                              className="max-h-48 max-w-full object-contain rounded-lg mx-auto"
-                            />
-                          ) : (
-                            <video 
-                              src={mediaPreview} 
-                              controls 
-                              className="max-h-48 max-w-full rounded-lg mx-auto"
-                            />
+                      ) : (
+                        // Sistema antigo para imagens (funciona bem dentro do limite de 4MB)
+                        <>
+                          {/* Progress bar durante upload */}
+                          {isUploading && (
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="text-blue-300">Enviando arquivo...</span>
+                                <span className="text-white">{uploadProgress}%</span>
+                              </div>
+                              <div className="w-full bg-white/10 rounded-full h-2">
+                                <div 
+                                  className="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full transition-all duration-300"
+                                  style={{ width: `${uploadProgress}%` }}
+                                ></div>
+                              </div>
+                            </div>
                           )}
-                        </div>
+                          
+                          <div className="border-2 border-dashed border-white/20 rounded-xl p-6 hover:border-blue-400/50 transition-colors duration-200">
+                            <input
+                              type="file"
+                              id="mediaFile"
+                              accept="image/*"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0] || null;
+                                setMediaFile(file);
+                                if (file) {
+                                  const reader = new FileReader();
+                                  reader.onloadend = () => {
+                                    setMediaPreview(reader.result as string);
+                                  };
+                                  reader.readAsDataURL(file);
+                                } else {
+                                  setMediaPreview(null);
+                                }
+                              }}
+                              className="block w-full text-sm text-white/70
+                                file:mr-4 file:py-2 file:px-4
+                                file:rounded-lg file:border-0
+                                file:text-sm file:font-medium
+                                file:bg-blue-500/20 file:text-blue-300
+                                hover:file:bg-blue-500/30 transition-all duration-200"
+                            />
+                            <div className="text-center mt-2">
+                              <p className="text-sm text-white/60">
+                                📸 Máximo 4MB - JPG, PNG, GIF, WebP
+                              </p>
+                            </div>
+                          </div>
+                          
+                          {/* Preview do arquivo de imagem */}
+                          {mediaPreview && (
+                            <div className="bg-white/5 border border-blue-400/30 rounded-xl p-4">
+                              <div className="flex items-center gap-2 mb-3">
+                                <Eye className="w-4 h-4 text-blue-400" />
+                                <span className="text-sm font-medium text-blue-300">Pré-visualização da imagem</span>
+                              </div>
+                              <img 
+                                src={mediaPreview} 
+                                alt="Pré-visualização" 
+                                className="max-h-48 max-w-full object-contain rounded-lg mx-auto"
+                              />
+                            </div>
+                          )}
+                        </>
                       )}
                     </div>
                   )}
@@ -1510,8 +1533,10 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
                     <div className="text-xs text-blue-300/70">
                       {mediaSource === 'url' && customMedia.trim() 
                         ? '🔗 URL de mídia configurada'
-                        : mediaSource === 'upload' && mediaFile
-                        ? '📎 Arquivo selecionado para upload'
+                        : mediaSource === 'upload' && mediaType === 'video' && customMedia.trim()
+                        ? '🎬 Vídeo enviado e pronto para uso'
+                        : mediaSource === 'upload' && mediaType === 'image' && mediaFile
+                        ? '📎 Imagem selecionada para upload'
                         : '📝 Mídia opcional - pode deixar em branco'
                       }
                     </div>

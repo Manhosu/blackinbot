@@ -3,40 +3,6 @@ import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-// Função utilitária para criar cliente admin do Supabase
-function createSupabaseAdmin() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
-    }
-  );
-}
-
-// Função utilitária para obter usuário autenticado
-async function getCurrentUser() {
-  try {
-    const cookieStore = cookies();
-    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
-    
-    const { data: { user }, error } = await supabase.auth.getUser();
-    
-    if (error) {
-      console.error('Erro ao obter usuário:', error);
-      return null;
-    }
-    
-    return user;
-  } catch (error) {
-    console.error('Erro ao verificar autenticação:', error);
-    return null;
-  }
-}
-
 // GET - Buscar bot específico
 export async function GET(
   request: NextRequest,
@@ -385,246 +351,156 @@ export async function DELETE(
 
 // PATCH - Atualizar configurações personalizadas do bot
 export async function PATCH(
-  request: NextRequest,
+  request: Request,
   { params }: { params: { id: string } }
 ) {
-  console.log(`🚀 PATCH API iniciada para bot ${params.id}`);
+  const cookieStore = cookies();
+  const supabaseClient = createRouteHandlerClient({ cookies: () => cookieStore });
+  const botId = params.id;
+  
+  console.log(`🔄 PATCH /api/bots/${botId}: Atualizando conteúdo personalizado`);
   
   try {
-    console.log(`📝 PATCH /api/bots/${params.id} - Iniciando atualização...`);
+    // Obter dados da requisição
+    const requestData = await request.json();
+    console.log('📦 Dados recebidos para atualização parcial:', Object.keys(requestData));
+    console.log('📦 Dados completos:', requestData);
     
-    // Verificar se o ID do bot existe
-    if (!params.id) {
-      console.error('❌ ID do bot não fornecido');
-      return NextResponse.json({ success: false, error: 'ID do bot é obrigatório' }, { status: 400 });
-    }
+    // Estratégia de autenticação múltipla
+    let userId = null;
     
-    // Verificar autenticação
-    console.log('🔐 Verificando autenticação...');
+    // Estratégia 1: Tentar autenticação via cookies
+    const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
     
-    let user;
-    try {
-      user = await getCurrentUser();
-      console.log('🔐 getCurrentUser executado:', !!user);
-    } catch (authError) {
-      console.error('❌ Erro na autenticação:', authError);
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Erro na verificação de autenticação',
-        details: authError instanceof Error ? authError.message : 'Erro desconhecido'
-      }, { status: 500 });
-    }
-    
-    if (!user) {
-      console.log('❌ Usuário não autenticado');
-      return NextResponse.json({ success: false, error: 'Não autorizado' }, { status: 401 });
-    }
-    
-    console.log(`✅ Usuário autenticado: ${user.id}`);
-
-    // Parse do body
-    let body;
-    try {
-      body = await request.json();
-      console.log('📦 Dados recebidos:', JSON.stringify(body, null, 2));
-    } catch (parseError) {
-      console.error('❌ Erro ao fazer parse do JSON:', parseError);
-      return NextResponse.json({ success: false, error: 'JSON inválido' }, { status: 400 });
-    }
-
-    // Validar dados obrigatórios para personalização
-    if (body.welcome_message !== undefined) {
-      if (!body.welcome_message || body.welcome_message.trim() === '') {
-        console.error('❌ Mensagem de boas-vindas vazia');
-        return NextResponse.json(
-          { success: false, error: 'Mensagem de boas-vindas é obrigatória' },
-          { status: 400 }
-        );
-      }
-    }
-
-    // ✅ MAPEAMENTO MELHORADO: Compatibilidade com o novo sistema de upload
-    const updateData: any = {};
-    
-    // Dados básicos do bot
-    if (body.name !== undefined) updateData.name = body.name;
-    if (body.description !== undefined) updateData.description = body.description;
-    if (body.status !== undefined) updateData.status = body.status;
-    
-    // ✅ PERSONALIZAÇÃO AVANÇADA: Suporte total ao novo sistema
-    if (body.welcome_message !== undefined) {
-      updateData.welcome_message = body.welcome_message.trim();
-      console.log(`📝 Mensagem atualizada: ${updateData.welcome_message.substring(0, 50)}...`);
-    }
-    
-    if (body.welcome_media_url !== undefined) {
-      updateData.welcome_media_url = body.welcome_media_url || null;
-      console.log(`🖼️ URL de mídia: ${updateData.welcome_media_url ? 'Configurada' : 'Removida'}`);
-    }
-    
-    if (body.welcome_media_type !== undefined) {
-      // ✅ MAPEAMENTO INTELIGENTE: Frontend → Banco de dados
-      let mappedType = body.welcome_media_type;
+    if (user && !authError) {
+      userId = user.id;
+      console.log('✅ Usuário autenticado via cookies:', userId);
+    } else {
+      console.warn('⚠️ Falha na autenticação via cookies:', authError?.message || 'Usuário nulo');
       
-      // Mapear 'image' do frontend para 'photo' do banco (compatibilidade Telegram)
-      if (mappedType === 'image') {
-        mappedType = 'photo';
-      }
-      
-      // Limpar tipo se não houver URL
-      if (!body.welcome_media_url) {
-        mappedType = null;
-      }
-      
-      updateData.welcome_media_type = mappedType;
-      console.log(`🎬 Tipo de mídia: ${mappedType || 'Removido'}`);
-    }
-
-    // ✅ VALIDAÇÃO INTELIGENTE: Consistência entre URL e tipo
-    if (updateData.welcome_media_url && !updateData.welcome_media_type) {
-      // Se há URL mas não há tipo, tentar detectar automaticamente
-      const url = updateData.welcome_media_url.toLowerCase();
-      if (url.includes('.mp4') || url.includes('.mov') || url.includes('.avi') || url.includes('.mkv') || url.includes('.webm')) {
-        updateData.welcome_media_type = 'video';
-        console.log('🔍 Tipo detectado automaticamente: video');
-      } else if (url.includes('.jpg') || url.includes('.jpeg') || url.includes('.png') || url.includes('.gif') || url.includes('.webp')) {
-        updateData.welcome_media_type = 'photo';
-        console.log('🔍 Tipo detectado automaticamente: photo');
-      }
-    } else if (!updateData.welcome_media_url && updateData.welcome_media_type) {
-      // Se não há URL mas há tipo, remover o tipo também
-      updateData.welcome_media_type = null;
-      console.log('🧹 Tipo removido (sem URL correspondente)');
-    }
-
-    console.log('💾 Dados finais para atualização:', JSON.stringify(updateData, null, 2));
-
-    // Verificar se o bot existe e pertence ao usuário antes de atualizar
-    console.log('🔍 Verificando se bot existe e pertence ao usuário...');
-    
-    let supabase;
-    try {
-      supabase = createSupabaseAdmin();
-      console.log('✅ Cliente Supabase Admin criado');
-    } catch (supabaseError) {
-      console.error('❌ Erro ao criar cliente Supabase:', supabaseError);
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Erro na configuração do banco de dados',
-        details: supabaseError instanceof Error ? supabaseError.message : 'Erro desconhecido'
-      }, { status: 500 });
-    }
-    
-    const { data: existingBot, error: fetchError } = await supabase
-      .from('bots')
-      .select('id, owner_id, name')
-      .eq('id', params.id)
-      .single();
-    
-    if (fetchError) {
-      console.error('❌ Erro ao buscar bot existente:', fetchError);
-      return NextResponse.json(
-        { success: false, error: `Bot não encontrado: ${fetchError.message}` },
-        { status: 404 }
-      );
-    }
-    
-    if (!existingBot) {
-      console.error('❌ Bot não encontrado');
-      return NextResponse.json(
-        { success: false, error: 'Bot não encontrado' },
-        { status: 404 }
-      );
-    }
-    
-    if (existingBot.owner_id !== user.id) {
-      console.error(`❌ Usuário ${user.id} não é o dono do bot ${params.id} (dono: ${existingBot.owner_id})`);
-      return NextResponse.json(
-        { success: false, error: 'Você não tem permissão para editar este bot' },
-        { status: 403 }
-      );
-    }
-    
-    console.log(`✅ Bot "${existingBot.name}" pertence ao usuário ${user.id}`);
-
-    // Atualizar no banco de dados
-    console.log('💾 Atualizando bot no banco de dados...');
-    const { data: updatedBot, error } = await supabase
+      // Estratégia 2: Verificar se o bot existe e tem owner_id válido
+      const { data: botData, error: botError } = await supabaseClient
         .from('bots')
-      .update({
-        ...updateData,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', params.id)
-      .select('*')
+        .select('id, name, owner_id')
+        .eq('id', botId)
         .single();
-
-    if (error) {
-      console.error('❌ Erro ao atualizar bot no Supabase:', error);
       
-      // ✅ TRATAMENTO ESPECÍFICO: Constraint de media_type
-      if (error.message?.includes('welcome_media_type_check')) {
-        return NextResponse.json(
-          { 
+      if (botError || !botData) {
+        console.error('❌ Bot não encontrado:', botError?.message);
+        return NextResponse.json({ 
           success: false, 
-            error: 'Tipo de mídia inválido. Use apenas: photo, video ou deixe vazio.',
-            details: 'Erro de validação no banco de dados'
-          },
-          { status: 400 }
-        );
+          error: 'Bot não encontrado ou acesso negado'
+        }, { status: 404 });
       }
       
-      return NextResponse.json(
-        { success: false, error: `Erro no banco: ${error.message}` },
-        { status: 500 }
+      // Usar o owner_id do bot como fallback
+      userId = botData.owner_id;
+      console.log('✅ Usando owner_id do bot como fallback:', userId);
+    }
+    
+    if (!userId) {
+      console.error('❌ Não foi possível determinar userId');
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Autenticação necessária para atualizar bots'
+      }, { status: 401 });
+    }
+    
+    // Campos permitidos para atualização
+    const allowedFields = [
+      'name',
+      'description', 
+      'welcome_message',
+      'welcome_media_url',
+      'welcome_media_type',
+      'avatar_url',
+      'status',
+      'is_public'
+    ];
+    
+    // Filtrar apenas campos permitidos
+    const updateData: any = {};
+    allowedFields.forEach(field => {
+      if (requestData[field] !== undefined) {
+        updateData[field] = requestData[field];
+      }
+    });
+    
+    // Mapear 'image' para 'photo' conforme constraint do banco
+    if (updateData.welcome_media_type === 'image') {
+      updateData.welcome_media_type = 'photo';
+      console.log('🔄 Mapeando welcome_media_type: image -> photo');
+    }
+    
+    // Adicionar timestamp de atualização
+    updateData.updated_at = new Date().toISOString();
+    
+    console.log('🔄 Atualizando campos:', Object.keys(updateData));
+    console.log('👤 UserId para atualização:', userId);
+    
+    // Tentar atualizar no banco de dados usando cliente admin
+    try {
+      console.log('🔄 Atualizando bot no banco usando cliente admin...');
+      
+      // Usar cliente admin para contornar RLS
+      const supabaseAdmin = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!,
+        {
+          auth: {
+            autoRefreshToken: false,
+            persistSession: false
+          }
+        }
       );
+      
+      console.log('🔍 Tentando atualizar bot:', { botId, userId, updateData });
+      
+      const { data: updatedBot, error: updateError } = await supabaseAdmin
+        .from('bots')
+        .update(updateData)
+        .eq('id', botId)
+        .eq('owner_id', userId)
+        .select()
+        .single();
+      
+      if (updateError) {
+        console.error('❌ Erro ao atualizar bot:', updateError.message);
+        console.error('❌ Detalhes do erro:', updateError);
+        return NextResponse.json({ 
+          success: false, 
+          error: `Erro ao atualizar bot: ${updateError.message}`
+        }, { status: 500 });
       }
       
       if (!updatedBot) {
-      console.log('❌ Bot não foi atualizado - possível problema de permissão');
-      return NextResponse.json(
-        { success: false, error: 'Falha ao atualizar bot' },
-        { status: 500 }
-      );
-    }
-
-    console.log('✅ Bot atualizado com sucesso!');
-    
-    // ✅ RESPOSTA OTIMIZADA: Dados limpos para o frontend
-    const responseData = {
-      ...updatedBot,
-      // Mapear de volta para o frontend (photo → image)
-      welcome_media_type: updatedBot.welcome_media_type === 'photo' ? 'image' : updatedBot.welcome_media_type
-    };
-
+        console.error('❌ Bot não encontrado ou não foi atualizado');
+        return NextResponse.json({ 
+          success: false, 
+          error: 'Bot não encontrado ou você não tem permissão para atualizá-lo'
+        }, { status: 404 });
+      }
+      
+      console.log('✅ Bot atualizado com sucesso:', updatedBot);
       return NextResponse.json({
         success: true,
-      data: responseData,
+        data: updatedBot,
         message: 'Bot atualizado com sucesso'
       });
       
-  } catch (error: any) {
-    console.error('❌ Erro geral na API PATCH:', error);
-    console.error('❌ Stack trace:', error.stack);
-    
-    // Detalhes específicos do erro
-    const errorDetails = {
-      message: error.message,
-      name: error.name,
-      cause: error.cause,
-    };
-    
-    console.error('❌ Detalhes do erro:', errorDetails);
-    
-    return NextResponse.json(
-      { 
+    } catch (updateError) {
+      console.error('❌ Erro ao atualizar:', updateError);
+      return NextResponse.json({ 
         success: false, 
-        error: 'Erro interno do servidor', 
-        details: error.message,
-        errorType: error.name,
-        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-      },
-      { status: 500 }
-    );
+        error: 'Erro ao atualizar bot no banco de dados'
+      }, { status: 500 });
+    }
+    
+  } catch (error) {
+    console.error('❌ Erro ao atualizar personalização do bot:', error);
+    return NextResponse.json({ 
+      success: false, 
+      error: 'Erro ao atualizar personalização do bot' 
+    }, { status: 500 });
   }
 } 

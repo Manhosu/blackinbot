@@ -17,8 +17,9 @@ import {
   MessageSquare 
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { ClientOnly } from '@/components/ClientOnly';
 
-export default function HomePage() {
+function HomeContent() {
   const [isScrolled, setIsScrolled] = React.useState(false);
   const router = useRouter();
 
@@ -553,5 +554,13 @@ export default function HomePage() {
         </div>
       </footer>
     </div>
+  );
+}
+
+export default function HomePage() {
+  return (
+    <ClientOnly>
+      <HomeContent />
+    </ClientOnly>
   );
 }

@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { BarChart3, DollarSign, Globe, ChevronDown, Loader2 } from 'lucide-react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
+import { ClientOnly } from '@/components/ClientOnly';
 import Link from 'next/link';
 import { toast } from "sonner";
 import { supabase } from '@/lib/supabase';
@@ -18,7 +19,7 @@ interface DashboardTransaction {
   created_at: string;
 }
 
-export default function DashboardPage() {
+function DashboardContent() {
   const router = useRouter();
   const { user, isAuthenticated, isLoading } = useAuth();
   const [period, setPeriod] = useState('7');
@@ -227,5 +228,13 @@ export default function DashboardPage() {
         </div>
       </div>
     </DashboardLayout>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <ClientOnly>
+      <DashboardContent />
+    </ClientOnly>
   );
 } 

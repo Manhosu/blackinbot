@@ -116,7 +116,7 @@ module.exports = {
   			'pulse-slow': 'pulse 3s ease-in-out infinite'
   		},
   		backdropBlur: {
-  			xs: '2px',
+  			none: 'none',
   			sm: '4px',
   			md: '8px',
   			lg: '12px',

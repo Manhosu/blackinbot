@@ -1,0 +1,29 @@
+# Ignorar arquivos de teste
+test-*.js
+*.test.js
+*.test.ts
+*.test.tsx
+
+# Ignorar arquivos de desenvolvimento
+test-webhook-*.json
+REMARKETING.md
+check-db.js
+performance-test.js
+
+# Cache e logs
+.next/cache
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Arquivos temporários
+tsconfig.tsbuildinfo
+.DS_Store
+.env.local.backup
+
+# Scripts PowerShell
+*.ps1
+
+# Documentação não essencial
+docs/ 
