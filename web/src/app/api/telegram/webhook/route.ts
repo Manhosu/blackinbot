@@ -70,9 +70,9 @@ interface Plan {
 const plansCache = new Map<string, { data: Plan[]; timestamp: number }>();
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutos
 
-// ✅ OTIMIZAÇÃO: Cache para bots também (cache por 10 minutos)
+// ✅ OTIMIZAÇÃO: Cache para bots também (cache reduzido para debug)
 const botsCache = new Map<string, { data: BotConfig; timestamp: number }>();
-const BOT_CACHE_DURATION = 10 * 60 * 1000; // 10 minutos
+const BOT_CACHE_DURATION = 30 * 1000; // 30 segundos para debug
 
 async function sendTelegramMessage(botToken: string, chatId: number, text: string, options: any = {}) {
   const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
@@ -344,19 +344,33 @@ Este bot ainda não foi ativado pelo proprietário.
 
 🔄 **Carregando planos disponíveis...**`;
 
+  // ✅ DEBUG: Log dados do bot
+  console.log(`🔍 DEBUG Bot:`, {
+    name: bot.name,
+    welcome_media_url: bot.welcome_media_url,
+    welcome_media_type: bot.welcome_media_type,
+    has_media: !!(bot.welcome_media_url && bot.welcome_media_type)
+  });
+
   // Enviar mensagem inicial sem esperar pelos planos
   let sentMessage;
   try {
     if (bot.welcome_media_url && bot.welcome_media_type === 'photo') {
+      console.log(`📸 Enviando FOTO: ${bot.welcome_media_url}`);
       sentMessage = await sendTelegramPhoto(bot.token, chatId, bot.welcome_media_url, loadingMessage);
     } else if (bot.welcome_media_url && bot.welcome_media_type === 'video') {
+      console.log(`🎬 Enviando VÍDEO: ${bot.welcome_media_url}`);
       sentMessage = await sendTelegramVideo(bot.token, chatId, bot.welcome_media_url, loadingMessage);
     } else {
+      console.log(`📝 Enviando apenas TEXTO (sem mídia)`);
       sentMessage = await sendTelegramMessage(bot.token, chatId, loadingMessage);
     }
+    
+    console.log(`✅ Mídia enviada com sucesso:`, sentMessage);
   } catch (error) {
     console.error('❌ Erro ao enviar mídia:', error);
     // Fallback para texto simples
+    console.log(`🔄 Fallback: enviando apenas texto`);
     sentMessage = await sendTelegramMessage(bot.token, chatId, loadingMessage);
   }
 
