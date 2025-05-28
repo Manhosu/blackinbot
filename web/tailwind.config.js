@@ -127,4 +127,7 @@ module.exports = {
   	}
   },
   plugins: [require("@tailwindcss/forms"), require("tailwindcss-animate")],
+  future: {
+    hoverOnlyWhenSupported: true,
+  }
 } 

@@ -48,8 +48,6 @@ const nextConfig = {
   // Experimental features
   experimental: {
     serverComponentsExternalPackages: ['@supabase/supabase-js'],
-    // Desabilitar SSG e habilitar somente SSR
-    appDir: true
   },
   
   // Forçar todas as páginas para serem dinâmicas

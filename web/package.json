@@ -51,8 +51,6 @@
   },
   "devDependencies": {
     "@tailwindcss/forms": "^0.5.10",
-    "@tailwindcss/nesting": "^0.0.0-insiders.565cd3e",
-    "@tailwindcss/postcss": "^4.1.7",
     "@tailwindcss/typography": "^0.5.16",
     "@types/node": "^20.17.50",
     "@types/react": "^18.3.22",
@@ -60,10 +58,10 @@
     "critters": "^0.0.23",
     "eslint": "^8.56.0",
     "eslint-config-next": "14.0.4",
-    "postcss-import": "^16.1.0",
-    "postcss-nesting": "^13.0.1",
-    "postcss-preset-env": "^10.1.6",
-    "tailwindcss-filters": "^3.0.0",
+    "postcss": "^8.4.35",
+    "autoprefixer": "^10.4.18",
+    "tailwindcss": "^3.4.1",
+    "tailwindcss-animate": "^1.0.7",
     "typescript": "^5.8.3"
   }
 }
