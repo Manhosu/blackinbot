@@ -1,11 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
-// Configuração para aceitar uploads de arquivos
+// Configuração para aceitar uploads de arquivos - usando formato correto para Next.js no Vercel
 export const runtime = 'nodejs';
-export const maxDuration = 60;
-
-// Configuração para Next.js App Router (sem export config - deprecated)
 
 export async function POST(request: NextRequest) {
   try {

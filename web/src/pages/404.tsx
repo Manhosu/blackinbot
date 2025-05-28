@@ -1,11 +1,6 @@
-'use client';
+import Link from 'next/link';
 
-import { useEffect } from 'react';
-
-// Forçar renderização dinâmica
-export const dynamic = 'force-dynamic';
-
-export default function NotFound() {
+export default function Custom404() {
   return (
     <div style={{
       minHeight: '100vh',
@@ -18,7 +13,7 @@ export default function NotFound() {
     }}>
       <h1 style={{ fontSize: '48px', fontWeight: 'bold', marginBottom: '16px' }}>404</h1>
       <p style={{ color: '#999999', marginBottom: '16px' }}>Página não encontrada</p>
-      <a
+      <Link 
         href="/"
         style={{
           display: 'inline-block',
@@ -30,7 +25,7 @@ export default function NotFound() {
         }}
       >
         Voltar ao início
-      </a>
+      </Link>
     </div>
   );
 } 

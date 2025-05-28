@@ -1,7 +1,16 @@
 {
   "functions": {
     "src/app/api/**/*.ts": {
-      "maxDuration": 30
+      "maxDuration": 30,
+      "memory": 1024
+    },
+    "src/app/api/media/**/*.ts": {
+      "maxDuration": 60,
+      "memory": 1024
+    },
+    "src/app/api/telegram/**/*.ts": {
+      "maxDuration": 30,
+      "memory": 1024
     }
   }
 } 

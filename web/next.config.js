@@ -14,8 +14,6 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
   
-
-  
   // Environment variables
   env: {
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL || 'https://blackinbot.vercel.app',
@@ -23,10 +21,10 @@ const nextConfig = {
   
   // Configurações para upload de arquivos
   serverRuntimeConfig: {
-    maxFileSize: 25 * 1024 * 1024, // 25MB para vídeos
+    maxFileSize: 4 * 1024 * 1024, // 4MB para Vercel
   },
   publicRuntimeConfig: {
-    maxFileSize: 25 * 1024 * 1024, // 25MB para vídeos
+    maxFileSize: 4 * 1024 * 1024, // 4MB para Vercel
   },
   
   // Images config
@@ -50,16 +48,14 @@ const nextConfig = {
   // Experimental features
   experimental: {
     serverComponentsExternalPackages: ['@supabase/supabase-js'],
+    // Desabilitar SSG e habilitar somente SSR
+    appDir: true
   },
   
   // Forçar todas as páginas para serem dinâmicas
   async redirects() {
     return [];
   },
-  
-  // Configurações para resolver problemas de SSR/SSG  
-  // Configurações de output para Vercel
-  // output: 'standalone', // Remover para Vercel
   
   // Desabilitar geração estática para páginas de erro
   generateBuildId: async () => {
@@ -111,7 +107,7 @@ const nextConfig = {
     maxInactiveAge: 25 * 1000,
     // Number of pages that should be kept simultaneously without being disposed
     pagesBufferLength: 2,
-  },
+  }
 }
 
 module.exports = nextConfig 

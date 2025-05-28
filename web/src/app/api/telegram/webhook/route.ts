@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
+// Configuração para Next.js App Router
+export const runtime = 'nodejs';
+
 // Função para criar cliente Supabase com Service Role Key
 function createSupabaseAdmin() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;

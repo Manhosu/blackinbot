@@ -1,5 +1,7 @@
 'use client';
 
+import { useEffect } from 'react';
+
 // Forçar renderização dinâmica
 export const dynamic = 'force-dynamic';
 
@@ -10,24 +12,51 @@ export default function Error({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  useEffect(() => {
+    // Log error no cliente
+    console.error('Page error:', error);
+  }, [error]);
+
   return (
-    <div className="min-h-screen bg-black text-white flex items-center justify-center">
-      <div className="max-w-md w-full mx-4 text-center space-y-6">
-        <div className="space-y-2">
-          <h1 className="text-6xl font-bold text-red-500">Erro</h1>
-          <h2 className="text-xl font-semibold">Algo deu errado!</h2>
-          <p className="text-gray-400">
-            Ocorreu um erro inesperado. Tente novamente.
-          </p>
-        </div>
-        
-        <button
-          onClick={reset}
-          className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-        >
-          Tentar novamente
-        </button>
-      </div>
+    <div style={{
+      minHeight: '100vh',
+      backgroundColor: '#000000',
+      color: '#ffffff',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexDirection: 'column'
+    }}>
+      <h1 style={{ fontSize: '48px', fontWeight: 'bold', marginBottom: '16px' }}>Erro</h1>
+      <p style={{ color: '#999999', marginBottom: '16px' }}>Algo deu errado na página</p>
+      <button 
+        onClick={reset}
+        style={{
+          display: 'inline-block',
+          padding: '8px 16px',
+          backgroundColor: '#3b5aef',
+          color: 'white',
+          borderRadius: '8px',
+          border: 'none',
+          cursor: 'pointer',
+          marginRight: '8px'
+        }}
+      >
+        Tentar novamente
+      </button>
+      <a 
+        href="/" 
+        style={{
+          display: 'inline-block',
+          padding: '8px 16px',
+          backgroundColor: '#666',
+          color: 'white',
+          borderRadius: '8px',
+          textDecoration: 'none'
+        }}
+      >
+        Voltar ao início
+      </a>
     </div>
   );
 } 

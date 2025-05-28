@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+// Configuração para Next.js App Router
+export const runtime = 'nodejs';
+
 export async function POST(request: NextRequest) {
   try {
     const { botToken, webhookUrl } = await request.json();
