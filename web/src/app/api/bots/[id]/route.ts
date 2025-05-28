@@ -550,14 +550,14 @@ export async function PATCH(
     // Atualizar no banco de dados
     console.log('💾 Atualizando bot no banco de dados...');
     const { data: updatedBot, error } = await supabase
-      .from('bots')
+        .from('bots')
       .update({
         ...updateData,
         updated_at: new Date().toISOString()
       })
       .eq('id', params.id)
       .select('*')
-      .single();
+        .single();
 
     if (error) {
       console.error('❌ Erro ao atualizar bot no Supabase:', error);
@@ -566,7 +566,7 @@ export async function PATCH(
       if (error.message?.includes('welcome_media_type_check')) {
         return NextResponse.json(
           { 
-            success: false, 
+          success: false, 
             error: 'Tipo de mídia inválido. Use apenas: photo, video ou deixe vazio.',
             details: 'Erro de validação no banco de dados'
           },
@@ -578,9 +578,9 @@ export async function PATCH(
         { success: false, error: `Erro no banco: ${error.message}` },
         { status: 500 }
       );
-    }
-
-    if (!updatedBot) {
+      }
+      
+      if (!updatedBot) {
       console.log('❌ Bot não foi atualizado - possível problema de permissão');
       return NextResponse.json(
         { success: false, error: 'Falha ao atualizar bot' },
@@ -597,12 +597,12 @@ export async function PATCH(
       welcome_media_type: updatedBot.welcome_media_type === 'photo' ? 'image' : updatedBot.welcome_media_type
     };
 
-    return NextResponse.json({
-      success: true,
+      return NextResponse.json({
+        success: true,
       data: responseData,
-      message: 'Bot atualizado com sucesso'
-    });
-
+        message: 'Bot atualizado com sucesso'
+      });
+      
   } catch (error: any) {
     console.error('❌ Erro geral na API PATCH:', error);
     console.error('❌ Stack trace:', error.stack);

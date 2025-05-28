@@ -3,7 +3,6 @@ const nextConfig = {
   // Configurações básicas
   trailingSlash: false,
   reactStrictMode: true,
-  swcMinify: true,
   poweredByHeader: false,
   
   // Build config
@@ -13,8 +12,6 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
-  
-
   
   // Environment variables
   env: {
@@ -47,25 +44,18 @@ const nextConfig = {
     removeConsole: process.env.NODE_ENV === 'production',
   },
   
-  // Experimental features
+  // Configuração atualizada para Next.js 15.x
+  serverExternalPackages: ['@supabase/supabase-js'],
+  
+  // Experimental features para resolver problemas de build
   experimental: {
-    serverComponentsExternalPackages: ['@supabase/supabase-js'],
+    // Desabilitar prerendering para páginas de erro
+    missingSuspenseWithCSRBailout: false,
   },
   
   // Forçar todas as páginas para serem dinâmicas
   async redirects() {
     return [];
-  },
-  
-  // Configurações para resolver problemas de SSR/SSG
-  transpilePackages: ['@supabase/supabase-js'],
-  
-  // Configurações de output para Vercel
-  // output: 'standalone', // Remover para Vercel
-  
-  // Desabilitar geração estática para páginas de erro
-  generateBuildId: async () => {
-    return 'build-' + Date.now();
   },
   
   // Configuração para ignorar problemas de prerendering
