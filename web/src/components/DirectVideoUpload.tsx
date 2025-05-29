@@ -375,10 +375,13 @@ export default function DirectVideoUpload({
       {/* Status de sucesso */}
       {uploadState.uploadedUrl && !currentIsUploading && (
         <div className="bg-green-500/20 border border-green-500/30 rounded-xl p-4">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 mb-2">
             <Check className="w-4 h-4 text-green-400" />
             <span className="text-sm font-medium text-green-300">Upload concluído com sucesso!</span>
           </div>
+          <p className="text-xs text-green-200/70">
+            {mediaType === 'image' ? 'Imagem' : 'Vídeo'} disponível em: {uploadState.uploadedUrl}
+          </p>
         </div>
       )}
 

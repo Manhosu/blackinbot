@@ -119,6 +119,15 @@ function DashboardContent() {
         </div>
       </div>
 
+      {/* Banner destaque */}
+      <div className="mb-6 p-6 bg-primary rounded-xl flex items-center gap-4">
+        <Globe size={32} className="text-accent" />
+        <div>
+          <h2 className="text-xl font-bold text-white">Quer vender internacionalmente?</h2>
+          <p className="text-white/70">Fale conosco no Instagram!</p>
+        </div>
+      </div>
+
       {/* Cards de estatísticas com loading independente */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6 mb-6">
         <div className="card-stat">

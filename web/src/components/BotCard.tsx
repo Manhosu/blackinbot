@@ -328,6 +328,12 @@ export default function BotCard({ bot, onUpdate }: BotCardProps) {
               <span className="text-white/60">Criado em:</span>
               <span className="text-white font-medium">{formatDate(bot.created_at)}</span>
             </div>
+            <div className="flex justify-between">
+              <span className="text-white/60">Webhook:</span>
+              <span className={`font-medium transition-colors duration-200 ${bot.webhook_url || bot.webhook_set_at ? 'text-green-400' : 'text-orange-400'}`}>
+                {bot.webhook_url ? 'Configurado' : bot.webhook_set_at ? 'Configurado (Dev)' : 'Não configurado'}
+              </span>
+            </div>
           </div>
         </div>
 
