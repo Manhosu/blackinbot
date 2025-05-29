@@ -123,8 +123,8 @@ export default function PlanManager({ plans, onPlansChange }: PlanManagerProps) 
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-medium text-gray-900">Planos de Pagamento</h3>
-          <p className="text-sm text-gray-600">
+          <h3 className="text-lg font-medium text-white">Planos de Pagamento</h3>
+          <p className="text-sm text-gray-300">
             Configure os planos que os usuários poderão comprar para acessar seu bot.
           </p>
         </div>
@@ -164,16 +164,16 @@ export default function PlanManager({ plans, onPlansChange }: PlanManagerProps) 
           >
             {/* Header do plano */}
             <div className="flex items-center justify-between">
-              <h4 className="font-medium text-gray-900">
+              <h4 className="font-medium text-white">
                 Plano {index + 1}
                 {plan.name && (
-                  <span className="text-blue-600 ml-2">- {plan.name}</span>
+                  <span className="text-blue-400 ml-2">- {plan.name}</span>
                 )}
               </h4>
               <button
                 type="button"
                 onClick={() => removePlan(index)}
-                className="text-red-600 hover:text-red-800 transition-colors"
+                className="text-red-400 hover:text-red-300 transition-colors"
                 title="Remover plano"
               >
                 <Trash2 className="w-4 h-4" />
@@ -182,7 +182,7 @@ export default function PlanManager({ plans, onPlansChange }: PlanManagerProps) 
 
             {/* Erro */}
             {errors[index] && (
-              <div className="flex items-center space-x-2 text-red-600 text-sm">
+              <div className="flex items-center space-x-2 text-red-400 text-sm">
                 <AlertCircle className="w-4 h-4" />
                 <span>{errors[index]}</span>
               </div>
@@ -192,7 +192,7 @@ export default function PlanManager({ plans, onPlansChange }: PlanManagerProps) 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Nome do plano */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-white mb-1">
                   Nome do Plano *
                 </label>
                 <input
@@ -200,13 +200,13 @@ export default function PlanManager({ plans, onPlansChange }: PlanManagerProps) 
                   value={plan.name}
                   onChange={(e) => updatePlan(index, 'name', e.target.value)}
                   placeholder="Ex: Plano Premium"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-600 rounded-lg bg-gray-800 text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
 
               {/* Valor */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-white mb-1">
                   Valor (R$) *
                 </label>
                 <input
@@ -215,18 +215,18 @@ export default function PlanManager({ plans, onPlansChange }: PlanManagerProps) 
                   value={plan.price === 0 ? '' : plan.price}
                   onChange={(e) => updatePlan(index, 'price', e.target.value)}
                   placeholder="Ex: 9,90"
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  className={`w-full px-3 py-2 border rounded-lg bg-gray-800 text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                     plan.price > 0 && plan.price < 4.90 
-                      ? 'border-red-300 bg-red-50' 
-                      : 'border-gray-300'
+                      ? 'border-red-400' 
+                      : 'border-gray-600'
                   }`}
                 />
                 <div className="flex items-center justify-between mt-1">
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-gray-400">
                     Mínimo: {formatPrice(4.90)}
                   </p>
                   {plan.price > 0 && plan.price < 4.90 && (
-                    <p className="text-xs text-red-600 flex items-center">
+                    <p className="text-xs text-red-400 flex items-center">
                       <AlertCircle className="w-3 h-3 mr-1" />
                       Abaixo do mínimo
                     </p>
@@ -236,16 +236,16 @@ export default function PlanManager({ plans, onPlansChange }: PlanManagerProps) 
 
               {/* Período */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-white mb-1">
                   Período de Acesso *
                 </label>
                 <select
                   value={plan.period}
                   onChange={(e) => updatePlan(index, 'period', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-600 rounded-lg bg-gray-800 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   {periodOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
+                    <option key={option.value} value={option.value} className="bg-gray-800 text-white">
                       {option.label}
                     </option>
                   ))}
@@ -255,7 +255,7 @@ export default function PlanManager({ plans, onPlansChange }: PlanManagerProps) 
               {/* Dias personalizados */}
               {plan.period === 'custom' && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-white mb-1">
                     Dias de Acesso *
                   </label>
                   <input
@@ -263,7 +263,7 @@ export default function PlanManager({ plans, onPlansChange }: PlanManagerProps) 
                     min="1"
                     value={plan.period_days}
                     onChange={(e) => updatePlan(index, 'period_days', parseInt(e.target.value) || 1)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-600 rounded-lg bg-gray-800 text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
               )}
@@ -271,14 +271,14 @@ export default function PlanManager({ plans, onPlansChange }: PlanManagerProps) 
               {/* Período calculado automaticamente */}
               {plan.period !== 'custom' && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-white mb-1">
                     Dias de Acesso
                   </label>
                   <input
                     type="text"
                     value={plan.period_days === 999999 ? 'Vitalício' : `${plan.period_days} dias`}
                     readOnly
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
+                    className="w-full px-3 py-2 border border-gray-600 rounded-lg bg-gray-700 text-gray-300"
                   />
                 </div>
               )}
@@ -286,7 +286,7 @@ export default function PlanManager({ plans, onPlansChange }: PlanManagerProps) 
 
             {/* Descrição */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-white mb-1">
                 Descrição (Opcional)
               </label>
               <textarea
@@ -294,7 +294,7 @@ export default function PlanManager({ plans, onPlansChange }: PlanManagerProps) 
                 onChange={(e) => updatePlan(index, 'description', e.target.value)}
                 placeholder="Descreva o que está incluído neste plano..."
                 rows={2}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-600 rounded-lg bg-gray-800 text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
 
@@ -307,7 +307,7 @@ export default function PlanManager({ plans, onPlansChange }: PlanManagerProps) 
                 onChange={(e) => updatePlan(index, 'is_active', e.target.checked)}
                 className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
               />
-              <label htmlFor={`plan-${index}-active`} className="text-sm text-gray-700">
+              <label htmlFor={`plan-${index}-active`} className="text-sm text-gray-300">
                 Plano ativo (disponível para compra)
               </label>
             </div>

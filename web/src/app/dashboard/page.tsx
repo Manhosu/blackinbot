@@ -119,15 +119,6 @@ function DashboardContent() {
         </div>
       </div>
 
-      {/* Banner destaque */}
-      <div className="mb-6 p-6 bg-primary rounded-xl flex items-center gap-4">
-        <Globe size={32} className="text-accent" />
-        <div>
-          <h2 className="text-xl font-bold text-white">Quer vender internacionalmente?</h2>
-          <p className="text-white/70">Fale conosco no Instagram!</p>
-        </div>
-      </div>
-
       {/* Cards de estatísticas com loading independente */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6 mb-6">
         <div className="card-stat">
@@ -184,47 +175,6 @@ function DashboardContent() {
           ) : (
             <p className="text-white/50">Sem dados para exibir neste período</p>
           )}
-        </div>
-      </div>
-      
-      {/* Cartões de saldo */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        <div className="bg-gradient-to-r from-accent/80 to-accent rounded-xl p-6 shadow-glow h-40 relative overflow-hidden">
-          <div className="flex justify-between">
-            <div>
-              <p className="text-white/70 mb-2">Aguardando</p>
-              <p className="text-3xl font-bold">R$ {stats.pendingBalance.toFixed(2).replace('.', ',')}</p>
-            </div>
-            
-            <button 
-              className="button-outline py-2 px-4 text-sm"
-              onClick={() => router.push('/dashboard/finance')}
-            >
-              Antecipar
-            </button>
-          </div>
-          
-          <div className="absolute -right-10 -bottom-10 w-40 h-40 bg-white/10 rounded-full blur-xl"></div>
-          <div className="absolute -left-5 -top-5 w-20 h-20 bg-white/5 rounded-full blur-md"></div>
-        </div>
-        
-        <div className="bg-gradient-to-r from-primary to-primary/80 rounded-xl p-6 shadow-md h-40 relative overflow-hidden">
-          <div className="flex justify-between">
-            <div>
-              <p className="text-white/70 mb-2">Saldo em conta</p>
-              <p className="text-3xl font-bold">R$ {stats.accountBalance.toFixed(2).replace('.', ',')}</p>
-            </div>
-            
-            <button 
-              className="button-primary py-2 px-4 text-sm"
-              onClick={() => router.push('/dashboard/finance')}
-            >
-              Saque
-            </button>
-          </div>
-
-          <div className="absolute -right-10 -bottom-10 w-40 h-40 bg-accent/5 rounded-full blur-xl"></div>
-          <div className="absolute -left-5 -top-5 w-20 h-20 bg-white/5 rounded-full blur-md"></div>
         </div>
       </div>
     </DashboardLayout>
