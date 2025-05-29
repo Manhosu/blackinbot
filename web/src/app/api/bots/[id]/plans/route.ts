@@ -14,14 +14,14 @@ function createSupabaseServiceClient() {
 }
 
 /**
- * GET - Buscar planos de um bot
+ * GET - Buscar planos de um bot específico
  */
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const botId = params.id;
+    const { id: botId } = await params; // Fix: await params no Next.js 15
     console.log('🔍 Buscando planos do bot:', botId);
 
     // Criar cliente Supabase
@@ -67,7 +67,7 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    const botId = params.id;
+    const { id: botId } = await params; // Fix: await params no Next.js 15
     const data = await request.json();
     
     console.log('📋 Criando plano para bot:', botId);
@@ -157,7 +157,7 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    const botId = params.id;
+    const { id: botId } = await params; // Fix: await params no Next.js 15
     const { plans } = await request.json();
     
     console.log(`📋 Atualizando planos do bot ${botId}:`, plans?.length);
@@ -180,13 +180,17 @@ export async function PUT(
       .single();
 
     if (botError || !bot) {
+      console.error('❌ Bot não encontrado:', botError);
       return NextResponse.json({
         success: false,
         error: 'Bot não encontrado'
       }, { status: 404 });
     }
 
-    // Desativar todos os planos existentes
+    console.log('✅ Bot encontrado, iniciando atualização de planos...');
+
+    // ESTRATÉGIA MAIS SEGURA: Marcar como inativo e depois deletar
+    console.log('🔄 Marcando planos existentes como inativos...');
     const { error: deactivateError } = await supabase
       .from('plans')
       .update({ is_active: false, updated_at: new Date().toISOString() })
@@ -196,74 +200,92 @@ export async function PUT(
       console.error('❌ Erro ao desativar planos:', deactivateError);
       return NextResponse.json({
         success: false,
-        error: 'Erro ao atualizar planos'
+        error: `Erro ao desativar planos: ${deactivateError.message}`
       }, { status: 500 });
     }
 
-    // Criar/atualizar novos planos
+    console.log('✅ Planos existentes marcados como inativos');
+
+    // Aguardar um pouco para evitar conflitos
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    // Agora deletar os planos inativos
+    console.log('🗑️ Removendo planos inativos...');
+    const { error: deleteError } = await supabase
+      .from('plans')
+      .delete()
+      .eq('bot_id', botId)
+      .eq('is_active', false);
+
+    if (deleteError) {
+      console.warn('⚠️ Aviso ao deletar planos:', deleteError.message);
+      // Não falhar aqui, continuar com inserção
+    } else {
+      console.log('✅ Planos antigos removidos');
+    }
+
+    // Criar novos planos
     const results = [];
+    console.log(`📝 Criando ${plans.length} novos planos...`);
     
-    for (const plan of plans) {
+    for (let i = 0; i < plans.length; i++) {
+      const plan = plans[i];
+      console.log(`📝 Processando plano ${i + 1}/${plans.length}: ${plan.name}`);
+      
       if (!plan.name || !plan.price || !plan.period_days) {
+        console.warn(`⚠️ Plano ${i + 1} inválido:`, { name: plan.name, price: plan.price, period_days: plan.period_days });
         continue; // Pular planos inválidos
       }
 
       if (parseFloat(plan.price) < 4.90) {
+        console.warn(`⚠️ Plano ${i + 1} com preço muito baixo:`, plan.price);
         continue; // Pular planos com valor baixo
       }
 
       const planData = {
         bot_id: botId,
-        name: plan.name,
+        name: plan.name.trim(),
         price: parseFloat(plan.price),
         period: plan.period || 'custom',
         period_days: parseInt(plan.period_days),
         days_access: parseInt(plan.period_days),
-        description: plan.description || '',
-        is_active: plan.is_active !== false,
+        description: (plan.description || '').trim(),
+        is_active: true, // Novos planos sempre ativos
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
 
-      if (plan.id) {
-        // Atualizar plano existente
-        const { data: updatedPlan, error: updateError } = await supabase
-          .from('plans')
-          .update(planData)
-          .eq('id', plan.id)
-          .eq('bot_id', botId)
-          .select()
-          .single();
+      console.log(`📋 Dados do plano ${i + 1}:`, planData);
 
-        if (!updateError && updatedPlan) {
-          results.push(updatedPlan);
-        }
-      } else {
-        // Criar novo plano
-        const { data: newPlan, error: insertError } = await supabase
-          .from('plans')
-          .insert(planData)
-          .select()
-          .single();
+      const { data: savedPlan, error: saveError } = await supabase
+        .from('plans')
+        .insert(planData)
+        .select()
+        .single();
 
-        if (!insertError && newPlan) {
-          results.push(newPlan);
-        }
+      if (saveError) {
+        console.error(`❌ Erro ao salvar plano ${i + 1}:`, saveError);
+        // Continuar com próximo plano ao invés de falhar tudo
+        continue;
       }
+
+      console.log(`✅ Plano ${i + 1} salvo com sucesso:`, savedPlan.id);
+      results.push(savedPlan);
     }
 
-    console.log(`✅ ${results.length} planos processados com sucesso`);
+    console.log(`✅ Processamento concluído: ${results.length}/${plans.length} planos salvos`);
 
     return NextResponse.json({
       success: true,
-      plans: results
+      plans: results,
+      message: `${results.length} planos salvos com sucesso`
     });
 
   } catch (error: any) {
     console.error('❌ Erro na atualização de planos:', error);
     return NextResponse.json({
       success: false,
-      error: 'Erro interno do servidor'
+      error: `Erro interno: ${error.message}`
     }, { status: 500 });
   }
 } 

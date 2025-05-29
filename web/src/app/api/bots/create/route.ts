@@ -134,16 +134,21 @@ export async function POST(request: NextRequest) {
           bot_id: botId,
           name: body.plan_name || 'Plano Básico',
           price: parseFloat(body.plan_price) || 0,
-          days_access: parseInt(body.plan_days_access) || 30,
+          period: 'custom',
+          period_days: parseInt(body.plan_days_access) || 30,
+          days_access: parseInt(body.plan_days_access) || 30, // Para compatibilidade
+          description: '',
           is_active: true,
           created_at: new Date().toISOString(),
-          sales: 0
+          updated_at: new Date().toISOString()
         };
         
         const { error: mainPlanError } = await supabaseAuth.from('plans').insert(mainPlan);
         
         if (mainPlanError) {
           console.error('❌ Erro ao salvar plano principal no Supabase:', mainPlanError.message);
+        } else {
+          console.log('✅ Plano principal salvo com sucesso');
         }
         
         // Inserir planos adicionais se houverem
@@ -152,16 +157,21 @@ export async function POST(request: NextRequest) {
             bot_id: botId,
             name: plan.name || 'Plano Adicional',
             price: parseFloat(plan.price) || 0,
-            days_access: parseInt(plan.days_access) || 30,
+            period: 'custom',
+            period_days: parseInt(plan.days_access) || 30,
+            days_access: parseInt(plan.days_access) || 30, // Para compatibilidade
+            description: plan.description || '',
             is_active: true,
             created_at: new Date().toISOString(),
-            sales: 0
+            updated_at: new Date().toISOString()
           }));
           
           const { error: additionalPlansError } = await supabaseAuth.from('plans').insert(additionalPlansData);
           
           if (additionalPlansError) {
             console.error('❌ Erro ao salvar planos adicionais no Supabase:', additionalPlansError.message);
+          } else {
+            console.log(`✅ ${additionalPlansData.length} planos adicionais salvos com sucesso`);
           }
         }
         

@@ -54,6 +54,8 @@ export default function BotSettingsPage({ params }: { params: { id: string } }) 
     name: '',
     description: '',
     welcome_message: '',
+    welcome_media_url: '',
+    welcome_media_type: '',
     status: 'active'
   });
 
@@ -101,10 +103,19 @@ export default function BotSettingsPage({ params }: { params: { id: string } }) 
         console.log('✅ Dados carregados:', { bot: botData.name, plans: plansData?.length || 0 });
         
         setBot(botData);
+        
+        // Mapear tipo de mídia do banco para o frontend
+        let frontendMediaType = botData.welcome_media_type || '';
+        if (frontendMediaType === 'photo') {
+          frontendMediaType = 'image'; // Frontend usa 'image' para fotos
+        }
+        
         setGeneralForm({
           name: botData.name || '',
           description: botData.description || '',
           welcome_message: botData.welcome_message || '',
+          welcome_media_url: botData.welcome_media_url || '',
+          welcome_media_type: frontendMediaType,
           status: botData.status || 'active'
         });
 
@@ -159,6 +170,15 @@ export default function BotSettingsPage({ params }: { params: { id: string } }) 
       
       console.log('💾 Salvando configurações gerais:', generalForm);
       
+      // Mapear tipo de mídia para o formato do banco
+      let welcomeMediaType = generalForm.welcome_media_type.trim();
+      if (welcomeMediaType === 'image') {
+        welcomeMediaType = 'photo'; // Banco usa 'photo' para imagens
+      }
+      if (welcomeMediaType === '' || welcomeMediaType === 'none') {
+        welcomeMediaType = null; // Banco aceita null
+      }
+      
       // Usar a API PATCH corrigida
       const response = await fetch(`/api/bots/${params.id}`, {
         method: 'PATCH',
@@ -169,6 +189,8 @@ export default function BotSettingsPage({ params }: { params: { id: string } }) 
           name: generalForm.name.trim(),
           description: generalForm.description.trim(),
           welcome_message: generalForm.welcome_message.trim(),
+          welcome_media_url: generalForm.welcome_media_url.trim() || null,
+          welcome_media_type: welcomeMediaType,
           status: generalForm.status
         })
       });
@@ -343,6 +365,33 @@ export default function BotSettingsPage({ params }: { params: { id: string } }) 
                     placeholder="Mensagem que será enviada quando um novo membro entrar no grupo..."
                     rows={4}
                   />
+                </div>
+
+                <div>
+                  <Label htmlFor="welcome_media_url">URL da Mídia de Boas-vindas</Label>
+                  <Input
+                    id="welcome_media_url"
+                    name="welcome_media_url"
+                    value={generalForm.welcome_media_url}
+                    onChange={handleGeneralChange}
+                    placeholder="URL da mídia de boas-vindas"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="welcome_media_type">Tipo da Mídia de Boas-vindas</Label>
+                  <select
+                    id="welcome_media_type"
+                    name="welcome_media_type"
+                    value={generalForm.welcome_media_type}
+                    onChange={handleGeneralChange}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  >
+                    <option value="">Selecione o tipo da mídia</option>
+                    <option value="image">Imagem</option>
+                    <option value="video">Vídeo</option>
+                    <option value="audio">Áudio</option>
+                  </select>
                 </div>
 
                 <div>
