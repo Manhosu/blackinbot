@@ -1,6 +1,5 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  trailingSlash: false,
   reactStrictMode: false,
   poweredByHeader: false,
   
@@ -17,8 +16,6 @@ const nextConfig = {
   
   images: {
     unoptimized: true,
-    formats: ['image/avif', 'image/webp'],
-    minimumCacheTTL: 60,
     remotePatterns: [
       {
         protocol: 'https',
@@ -27,34 +24,7 @@ const nextConfig = {
     ],
   },
   
-  compiler: {
-    removeConsole: process.env.NODE_ENV === 'production',
-  },
-  
   serverExternalPackages: ['@supabase/supabase-js'],
-  
-  webpack: (config, { isServer }) => {
-    if (!isServer) {
-      config.resolve.fallback = {
-        ...config.resolve.fallback,
-        fs: false,
-        net: false,
-        tls: false,
-        crypto: false,
-        stream: false,
-        http: false,
-        https: false,
-        os: false,
-        url: false,
-        zlib: false,
-        querystring: false,
-        path: false,
-        util: false
-      };
-    }
-    
-    return config;
-  },
   
   async headers() {
     return [
@@ -72,10 +42,6 @@ const nextConfig = {
           {
             key: 'Access-Control-Allow-Headers',
             value: 'Content-Type, Authorization, x-user-data',
-          },
-          {
-            key: 'Cache-Control',
-            value: 'no-store, no-cache, must-revalidate',
           },
         ],
       },
