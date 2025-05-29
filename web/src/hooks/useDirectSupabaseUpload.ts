@@ -286,6 +286,7 @@ export function useDirectSupabaseUpload() {
       setUploadProgress(100);
       
       console.log('✅ Upload direto concluído com sucesso:', publicUrl);
+      toast.success('Upload realizado com sucesso!');
       
       return {
         success: true,

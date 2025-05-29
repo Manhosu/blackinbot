@@ -379,9 +379,6 @@ export default function DirectVideoUpload({
             <Check className="w-4 h-4 text-green-400" />
             <span className="text-sm font-medium text-green-300">Upload concluído com sucesso!</span>
           </div>
-          <p className="text-xs text-green-200/70 mt-1">
-            {mediaType === 'image' ? 'Imagem' : 'Vídeo'} pronto para usar na mensagem de boas-vindas
-          </p>
         </div>
       )}
 
