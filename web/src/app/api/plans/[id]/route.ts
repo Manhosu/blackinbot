@@ -1,108 +1,202 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-// Função para criar cliente Supabase com validação
-function createSupabaseClient() {
+// Função para criar cliente Supabase com Service Role Key
+function createSupabaseServiceClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   
-  if (!url || !key) {
-    throw new Error('❌ Variáveis de ambiente do Supabase não configuradas');
+  if (!url || !serviceKey) {
+    throw new Error('❌ Variáveis de ambiente do Supabase não configuradas para Service Role');
   }
   
-  return createClient(url, key);
+  return createClient(url, serviceKey);
 }
 
-// PUT - Atualizar plano
-export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+/**
+ * GET - Buscar plano específico
+ */
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
-    const { id } = params;
-    const body = await req.json();
-    
-    const {
-      name,
-      description,
-      price,
-      period,
-      days_access,
-      active
-    } = body;
+    const planId = params.id;
+    console.log('🔍 Buscando plano:', planId);
 
-    const supabase = createSupabaseClient();
-    const { data: updatedPlan, error } = await supabase
+    const supabase = createSupabaseServiceClient();
+
+    const { data: plan, error } = await supabase
       .from('plans')
-      .update({
-        name,
-        description,
-        price: parseFloat(price),
-        period,
-        days_access: parseInt(days_access),
-        active,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', id)
-      .select()
+      .select('*')
+      .eq('id', planId)
       .single();
 
     if (error) {
-      console.error('Erro ao atualizar plano:', error);
-      return NextResponse.json({ error: 'Erro ao atualizar plano' }, { status: 500 });
+      console.error('❌ Erro ao buscar plano:', error);
+      return NextResponse.json({
+        success: false,
+        error: 'Plano não encontrado'
+      }, { status: 404 });
     }
 
-    return NextResponse.json({ success: true, plan: updatedPlan });
+    console.log('✅ Plano encontrado:', plan.name);
 
-  } catch (err: any) {
-    console.error('Erro ao atualizar plano:', err);
-    return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 });
+    return NextResponse.json({
+      success: true,
+      plan
+    });
+
+  } catch (error: any) {
+    console.error('❌ Erro na busca do plano:', error);
+    return NextResponse.json({
+      success: false,
+      error: 'Erro interno do servidor'
+    }, { status: 500 });
   }
 }
 
-// DELETE - Excluir plano
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+/**
+ * DELETE - Excluir plano específico
+ */
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
-    const { id } = params;
+    const planId = params.id;
+    console.log('🗑️ Excluindo plano:', planId);
 
-    const supabase = createSupabaseClient();
-    // Verificar se há transações ativas para este plano
-    const { data: activeTransactions, error: checkError } = await supabase
-      .from('transactions')
-      .select('id')
-      .eq('plan_id', id)
-      .eq('status', 'active')
-      .limit(1);
+    const supabase = createSupabaseServiceClient();
 
-    if (checkError) {
-      console.error('Erro ao verificar transações:', checkError);
-      return NextResponse.json({ error: 'Erro ao verificar transações' }, { status: 500 });
+    // Verificar se o plano existe
+    const { data: plan, error: fetchError } = await supabase
+      .from('plans')
+      .select('*')
+      .eq('id', planId)
+      .single();
+
+    if (fetchError || !plan) {
+      return NextResponse.json({
+        success: false,
+        error: 'Plano não encontrado'
+      }, { status: 404 });
     }
 
-    if (activeTransactions && activeTransactions.length > 0) {
-      return NextResponse.json({ 
-        error: 'Não é possível excluir plano com assinantes ativos' 
+    // Excluir o plano
+    const { error: deleteError } = await supabase
+      .from('plans')
+      .delete()
+      .eq('id', planId);
+
+    if (deleteError) {
+      console.error('❌ Erro ao excluir plano:', deleteError);
+      return NextResponse.json({
+        success: false,
+        error: 'Erro ao excluir plano'
+      }, { status: 500 });
+    }
+
+    console.log('✅ Plano excluído com sucesso:', plan.name);
+
+    return NextResponse.json({
+      success: true,
+      message: `Plano "${plan.name}" excluído com sucesso`
+    });
+
+  } catch (error: any) {
+    console.error('❌ Erro na exclusão do plano:', error);
+    return NextResponse.json({
+      success: false,
+      error: 'Erro interno do servidor'
+    }, { status: 500 });
+  }
+}
+
+/**
+ * PUT - Atualizar plano específico
+ */
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const planId = params.id;
+    const data = await request.json();
+    
+    console.log('📝 Atualizando plano:', planId);
+
+    // Validar dados obrigatórios
+    if (!data.name || !data.price || !data.period_days) {
+      return NextResponse.json({
+        success: false,
+        error: 'Nome, preço e período são obrigatórios'
       }, { status: 400 });
     }
 
-    // Deletar transações relacionadas primeiro
-    await supabase
-      .from('transactions')
-      .delete()
-      .eq('plan_id', id);
-
-    // Deletar o plano
-    const { error } = await supabase
-      .from('plans')
-      .delete()
-      .eq('id', id);
-
-    if (error) {
-      console.error('Erro ao deletar plano:', error);
-      return NextResponse.json({ error: 'Erro ao deletar plano' }, { status: 500 });
+    // Validar valor mínimo
+    if (parseFloat(data.price) < 4.90) {
+      return NextResponse.json({
+        success: false,
+        error: 'Valor mínimo é R$ 4,90'
+      }, { status: 400 });
     }
 
-    return NextResponse.json({ success: true, message: 'Plano excluído com sucesso' });
+    const supabase = createSupabaseServiceClient();
 
-  } catch (err: any) {
-    console.error('Erro ao deletar plano:', err);
-    return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 });
+    // Verificar se o plano existe
+    const { data: existingPlan, error: fetchError } = await supabase
+      .from('plans')
+      .select('*')
+      .eq('id', planId)
+      .single();
+
+    if (fetchError || !existingPlan) {
+      return NextResponse.json({
+        success: false,
+        error: 'Plano não encontrado'
+      }, { status: 404 });
+    }
+
+    // Atualizar plano
+    const updateData = {
+      name: data.name,
+      price: parseFloat(data.price),
+      period: data.period || 'custom',
+      period_days: parseInt(data.period_days),
+      days_access: parseInt(data.period_days), // Para compatibilidade
+      description: data.description || '',
+      is_active: data.is_active !== false,
+      updated_at: new Date().toISOString()
+    };
+
+    const { data: updatedPlan, error: updateError } = await supabase
+      .from('plans')
+      .update(updateData)
+      .eq('id', planId)
+      .select()
+      .single();
+
+    if (updateError) {
+      console.error('❌ Erro ao atualizar plano:', updateError);
+      return NextResponse.json({
+        success: false,
+        error: 'Erro ao atualizar plano'
+      }, { status: 500 });
+    }
+
+    console.log('✅ Plano atualizado com sucesso:', updatedPlan.name);
+
+    return NextResponse.json({
+      success: true,
+      plan: updatedPlan
+    });
+
+  } catch (error: any) {
+    console.error('❌ Erro na atualização do plano:', error);
+    return NextResponse.json({
+      success: false,
+      error: 'Erro interno do servidor'
+    }, { status: 500 });
   }
 } 

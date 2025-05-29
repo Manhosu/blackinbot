@@ -493,84 +493,40 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
 
   // Função para editar um plano
   const handleEditPlan = async (plan: any) => {
-    try {
-      // Implementação da edição do plano aqui
-      // Por enquanto, apenas um alerta
-      toast.info('Funcionalidade em desenvolvimento');
-      
-      // Atualizar o bot e a contagem de planos
-      await loadBot();
-    } catch (error) {
-      console.error('Erro ao editar plano:', error);
-      toast.error('Erro ao editar plano');
-    }
+    // Redirecionar para a página de configurações na aba de planos
+    router.push(`/dashboard/bots/${params.id}/settings?tab=plans`);
   };
 
   // Função para excluir um plano
   const handleDeletePlan = async (plan: any) => {
+    if (!confirm(`Tem certeza que deseja excluir o plano "${plan.name}"?`)) {
+      return;
+    }
+
     try {
-      // Confirmar exclusão
-      if (!confirm(`Tem certeza que deseja excluir o plano "${plan.name}"?`)) {
-        return;
+      console.log('🗑️ Excluindo plano:', plan.id);
+      
+      // Usar a API específica de planos para deletar
+      const response = await fetch(`/api/plans/${plan.id}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || 'Erro ao excluir plano');
       }
-      
-      // Se for o plano principal, não permitir exclusão
-      if (plan.id === 'main_plan') {
-        toast.error('Não é possível excluir o plano principal');
-        return;
-      }
-      
-      // Implementar exclusão
-      // 1. Remover plano do bot.plans ou bot.additional_plans
-      const updatedBot = {...bot};
-      
-      if (Array.isArray(updatedBot.plans)) {
-        updatedBot.plans = updatedBot.plans.filter((p: any) => p.id !== plan.id);
-      }
-      
-      if (Array.isArray(updatedBot.additional_plans)) {
-        updatedBot.additional_plans = updatedBot.additional_plans.filter((p: any) => p.id !== plan.id);
-      }
-      
-      // 2. Atualizar contagem de planos
-      const totalPlans = (Array.isArray(updatedBot.plans) ? updatedBot.plans.length : 0) || 
-                         (Array.isArray(updatedBot.additional_plans) ? updatedBot.additional_plans.length + 1 : 1);
-      
-      updatedBot._count_plans = [{ count: totalPlans }];
-      
-      // 3. Atualizar bot no estado
-      setBot(updatedBot);
-      
-      // 4. Preparar planos para exibição
-      const updatedPlans = getBotPlans();
-      setPlans(updatedPlans);
-      
-      // 5. Enviar para API
-      try {
-        const response = await fetch(`/api/bots/${bot.id}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          credentials: 'include',
-          body: JSON.stringify(updatedBot),
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-          console.log('Bot atualizado na API com sucesso');
-        } else {
-          console.error('Erro ao atualizar bot na API:', data.error);
-        }
-      } catch (apiError) {
-        console.error('Erro ao comunicar com API:', apiError);
-      }
-      
+
+      console.log('✅ Plano excluído com sucesso');
       toast.success('Plano excluído com sucesso');
-    } catch (error) {
-      console.error('Erro ao excluir plano:', error);
-      toast.error('Erro ao excluir plano');
+      
+      // Recarregar dados do bot
+      await fetchBotData(false);
+      
+    } catch (error: any) {
+      console.error('❌ Erro ao excluir plano:', error);
+      toast.error('Erro ao excluir plano: ' + error.message);
     }
   };
 
@@ -644,93 +600,8 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
 
   // Função para adicionar novo plano
   const handleAddPlan = async () => {
-    try {
-      // Dados do novo plano
-      const newPlanName = prompt('Nome do plano:');
-      if (!newPlanName) return;
-      
-      const newPlanPrice = prompt('Preço (R$):');
-      if (!newPlanPrice) return;
-      
-      // Validar preço
-      const price = parseFloat(newPlanPrice.replace(',', '.'));
-      if (isNaN(price) || price < 4.90) {
-        toast.error('O preço mínimo por plano é R$ 4,90');
-        return;
-      }
-      
-      // Período predefinido (30 dias)
-      const days_access = 30;
-      
-      // Criar novo plano
-      const newPlan = {
-        id: `plan_${Date.now()}`,
-        name: newPlanName,
-        price: price,
-        days_access: days_access,
-        period_label: `${days_access} dias`,
-        sales: 0,
-        is_active: true,
-        bot_id: bot.id,
-      };
-      
-      // Atualizar bot
-      const updatedBot = {...bot};
-      
-      // Adicionar à lista de planos apropriada
-      if (!Array.isArray(updatedBot.plans)) {
-        updatedBot.plans = [];
-      }
-      
-      updatedBot.plans.push(newPlan);
-      
-      // Adicionar à lista de planos adicionais também (compatibilidade)
-      if (!Array.isArray(updatedBot.additional_plans)) {
-        updatedBot.additional_plans = [];
-      }
-      
-      // Não adicionar o plano principal aos adicionais
-      if (updatedBot.plans.length > 1) {
-        updatedBot.additional_plans = updatedBot.plans.slice(1);
-      }
-      
-      // Atualizar contagem de planos
-      updatedBot._count_plans = [{ count: updatedBot.plans.length }];
-      
-      // Atualizar bot no estado
-      setBot(updatedBot);
-      
-      // Atualizar planos para exibição
-      const updatedPlans = getBotPlans();
-      setPlans(updatedPlans);
-      
-      // Enviar para API
-      try {
-        const response = await fetch(`/api/bots/${bot.id}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          credentials: 'include',
-          body: JSON.stringify(updatedBot),
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-          console.log('Bot atualizado na API com sucesso');
-        } else {
-          console.error('Erro ao atualizar bot na API:', data.error);
-        }
-      } catch (apiError) {
-        console.error('Erro ao comunicar com API:', apiError);
-      }
-      
-      toast.success('Plano adicionado com sucesso');
-    } catch (error) {
-      console.error('Erro ao adicionar plano:', error);
-      toast.error('Erro ao adicionar plano');
-    }
+    // Redirecionar para a página de configurações na aba de planos
+    router.push(`/dashboard/bots/${params.id}/settings?tab=plans`);
   };
 
   const handleShareBot = () => {
@@ -957,7 +828,10 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
         name: bot.plan_name,
         price: parseFloat(bot.plan_price) || 0,
         days_access: parseInt(bot.plan_days_access) || 30,
-        is_active: true
+        period_label: `${parseInt(bot.plan_days_access) || 30} dias`,
+        sales: parseInt(bot.totalSales || '0'),
+        is_active: true,
+        bot_id: bot.id
       });
     }
     

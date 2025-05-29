@@ -9,8 +9,8 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const { id } = params;
-    const cookieStore = cookies();
+    const { id } = await params;
+    const cookieStore = await cookies();
     const supabaseClient = createRouteHandlerClient({ cookies: () => cookieStore });
 
     if (!id) {
@@ -65,9 +65,9 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
     const body = await request.json();
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const supabaseClient = createRouteHandlerClient({ cookies: () => cookieStore });
 
     if (!id) {
@@ -148,7 +148,7 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
 
     if (!id) {
       return NextResponse.json({
@@ -354,9 +354,9 @@ export async function PATCH(
   request: Request,
   { params }: { params: { id: string } }
 ) {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const supabaseClient = createRouteHandlerClient({ cookies: () => cookieStore });
-  const botId = params.id;
+  const { id: botId } = await params;
   
   console.log(`🔄 PATCH /api/bots/${botId}: Atualizando conteúdo personalizado`);
   
@@ -432,6 +432,12 @@ export async function PATCH(
       console.log('🔄 Mapeando welcome_media_type: image -> photo');
     }
     
+    // Tratar valores null para welcome_media_type
+    if (updateData.welcome_media_type === null || updateData.welcome_media_type === 'none') {
+      updateData.welcome_media_type = null;
+      console.log('🔄 Definindo welcome_media_type como null');
+    }
+    
     // Adicionar timestamp de atualização
     updateData.updated_at = new Date().toISOString();
     
@@ -456,6 +462,7 @@ export async function PATCH(
       
       console.log('🔍 Tentando atualizar bot:', { botId, userId, updateData });
       
+      // Fazer update simples sem ON CONFLICT
       const { data: updatedBot, error: updateError } = await supabaseAdmin
         .from('bots')
         .update(updateData)

@@ -157,57 +157,37 @@ export default function BotSettingsPage({ params }: { params: { id: string } }) 
     try {
       setIsSaving(true);
       
-      const { error } = await supabase
-        .from('bots')
-        .update({
+      console.log('💾 Salvando configurações gerais:', generalForm);
+      
+      // Usar a API PATCH corrigida
+      const response = await fetch(`/api/bots/${params.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
           name: generalForm.name.trim(),
           description: generalForm.description.trim(),
           welcome_message: generalForm.welcome_message.trim(),
-          status: generalForm.status,
-          updated_at: new Date().toISOString()
+          status: generalForm.status
         })
-        .eq('id', params.id);
+      });
 
-      if (error) {
-        throw error;
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || 'Erro ao salvar configurações');
       }
 
-      // Atualizar estado local
-      setBot((prev: any) => ({ ...prev, ...generalForm }));
+      console.log('✅ Configurações salvas com sucesso');
       
-      // Se a mensagem de boas vindas foi alterada, atualizar no Telegram
-      if (generalForm.welcome_message.trim() !== bot?.welcome_message) {
-        try {
-          toast.loading('Atualizando bot no Telegram...', { id: 'telegram-update' });
-          
-          const telegramResponse = await fetch(`/api/telegram/welcome`, {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              bot_id: params.id,
-              welcome_message: generalForm.welcome_message.trim()
-            })
-          });
-
-          const telegramResult = await telegramResponse.json();
-          
-          if (telegramResult.success) {
-            toast.success('Bot atualizado no Telegram com sucesso!', { id: 'telegram-update' });
-          } else {
-            toast.warning('Configurações salvas, mas houve problema ao atualizar o Telegram', { id: 'telegram-update' });
-          }
-        } catch (telegramError) {
-          console.error('❌ Erro ao atualizar Telegram:', telegramError);
-          toast.warning('Configurações salvas, mas houve problema ao atualizar o Telegram', { id: 'telegram-update' });
-        }
-      } else {
-      toast.success('Configurações gerais salvas com sucesso!');
-      }
+      // Atualizar estado local
+      setBot((prev: any) => ({ ...prev, ...result.data }));
+      
+      toast.success('Configurações salvas com sucesso!');
       
     } catch (error: any) {
-      console.error('❌ Erro ao salvar configurações gerais:', error);
+      console.error('❌ Erro ao salvar configurações:', error);
       toast.error('Erro ao salvar configurações: ' + error.message);
     } finally {
       setIsSaving(false);
