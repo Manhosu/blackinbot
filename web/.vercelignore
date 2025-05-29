@@ -1,8 +1,34 @@
-# Ignorar arquivos de teste
+# Arquivos de desenvolvimento
+.env.local
+.env.development
+.env.test
+
+# Cache e builds locais
+.next/
+dist/
+node_modules/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Arquivos temporários
+.DS_Store
+Thumbs.db
+
+# Arquivos de teste
 test-*.js
 *.test.js
-*.test.ts
-*.test.tsx
+*.spec.js
+
+# Documentação
+README.md
+docs/
+
+# Scripts de setup
+setup-*.js
 
 # Ignorar arquivos de desenvolvimento
 test-webhook-*.json
@@ -19,11 +45,7 @@ yarn-error.log*
 
 # Arquivos temporários
 tsconfig.tsbuildinfo
-.DS_Store
 .env.local.backup
 
 # Scripts PowerShell
-*.ps1
-
-# Documentação não essencial
-docs/ 
+*.ps1 

@@ -1,8 +1,7 @@
 {
   "functions": {
     "src/app/api/**/*.ts": {
-      "maxDuration": 30,
-      "memory": 1024
+      "maxDuration": 60
     },
     "src/app/api/media/**/*.ts": {
       "maxDuration": 60,
@@ -12,5 +11,9 @@
       "maxDuration": 30,
       "memory": 1024
     }
-  }
+  },
+  "buildCommand": "npm run build",
+  "installCommand": "npm install --legacy-peer-deps",
+  "framework": "nextjs",
+  "crons": []
 } 
