@@ -152,18 +152,28 @@ async function handleStartCommand(message: any, bot: any) {
   // Verificar se o bot tem mídia configurada para a mensagem de boas-vindas
   if (bot.welcome_media_url) {
       console.log('🖼️ Mídia de boas-vindas detectada:', bot.welcome_media_url);
+      console.log('🎯 Tipo de mídia configurado:', bot.welcome_media_type);
       
       try {
-    const isVideo = bot.welcome_media_url.match(/\.(mp4|mov|avi|wmv|flv|mkv|webm)$/i);
-    
-    if (isVideo) {
-      // Enviar vídeo com a mensagem de boas-vindas
-          console.log('🎬 Enviando VÍDEO de boas-vindas');
-      await sendVideo(chatId, bot.welcome_media_url, welcomeMessage, bot.token, { parse_mode: 'Markdown' });
-    } else {
-      // Enviar foto com a mensagem de boas-vindas
-          console.log('📸 Enviando FOTO de boas-vindas');
-      await sendPhoto(chatId, bot.welcome_media_url, welcomeMessage, bot.token, { parse_mode: 'Markdown' });
+        // Usar o tipo de mídia do banco de dados ao invés de deduzir pela extensão
+        if (bot.welcome_media_type === 'video') {
+          console.log('🎬 Enviando VÍDEO de boas-vindas (tipo: video)');
+          await sendVideoWithFallbacks(chatId, bot.welcome_media_url, welcomeMessage, bot.token, { parse_mode: 'Markdown' });
+        } else if (bot.welcome_media_type === 'photo' || bot.welcome_media_type === 'image') {
+          console.log('📸 Enviando FOTO de boas-vindas (tipo: photo/image)');
+          await sendPhoto(chatId, bot.welcome_media_url, welcomeMessage, bot.token, { parse_mode: 'Markdown' });
+        } else {
+          // Fallback: tentar deduzir pela extensão se tipo não estiver definido
+          console.log('🤔 Tipo de mídia não definido, tentando deduzir pela extensão...');
+          const isVideo = bot.welcome_media_url.match(/\.(mp4|mov|avi|wmv|flv|mkv|webm)$/i);
+          
+          if (isVideo) {
+            console.log('🎬 Enviando VÍDEO de boas-vindas (deduzido por extensão)');
+            await sendVideoWithFallbacks(chatId, bot.welcome_media_url, welcomeMessage, bot.token, { parse_mode: 'Markdown' });
+          } else {
+            console.log('📸 Enviando FOTO de boas-vindas (deduzido por extensão)');
+            await sendPhoto(chatId, bot.welcome_media_url, welcomeMessage, bot.token, { parse_mode: 'Markdown' });
+          }
         }
         console.log('✅ Mídia de boas-vindas enviada com sucesso');
       } catch (error) {
@@ -701,6 +711,90 @@ async function sendVideo(chatId: number, video: string, caption: string, token: 
   } catch (error) {
     console.error('Erro ao enviar vídeo:', error);
     throw error;
+  }
+}
+
+/**
+ * Função para enviar vídeo como documento (para vídeos grandes)
+ */
+async function sendDocument(chatId: number, document: string, caption: string, token: string, options: any = {}) {
+  try {
+    const url = `https://api.telegram.org/bot${token}/sendDocument`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        chat_id: chatId,
+        document, // URL do documento ou file_id
+        caption, // Texto da legenda
+        parse_mode: options.parse_mode || 'Markdown',
+        ...options
+      }),
+    });
+    
+    const data = await response.json();
+    
+    if (!response.ok) {
+      console.error('Erro ao enviar documento:', data);
+      throw new Error(`Telegram API error: ${data.description}`);
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Erro ao enviar documento:', error);
+    throw error;
+  }
+}
+
+/**
+ * Função para enviar vídeos com fallbacks inteligentes
+ * Tenta enviar como vídeo, se falhar tenta como documento, se falhar envia como link
+ */
+async function sendVideoWithFallbacks(chatId: number, videoUrl: string, caption: string, token: string, options: any = {}) {
+  console.log(`🎬 Iniciando envio de vídeo com fallbacks: ${videoUrl.substring(0, 100)}...`);
+  
+  try {
+    // Primeiro: tentar como vídeo normal
+    console.log(`🎯 Tentativa 1: sendVideo`);
+    const videoResult = await sendVideo(chatId, videoUrl, caption, token, options);
+    console.log(`✅ Vídeo enviado com sucesso via sendVideo`);
+    return videoResult;
+    
+  } catch (videoError) {
+    console.log(`⚠️ sendVideo falhou:`, videoError.message);
+    
+    try {
+      // Segundo: tentar como documento
+      console.log(`📁 Tentativa 2: sendDocument (vídeo muito grande)`);
+      const docResult = await sendDocument(chatId, videoUrl, `🎬 **Vídeo**\n\n${caption}`, token, options);
+      console.log(`✅ Vídeo enviado como documento`);
+      return docResult;
+      
+    } catch (docError) {
+      console.log(`⚠️ sendDocument também falhou:`, docError.message);
+      
+      try {
+        // Terceiro: tentar como link de texto
+        console.log(`🔗 Tentativa 3: enviar como link de texto`);
+        const linkMessage = `🎬 **Vídeo de boas-vindas**
+
+${caption}
+
+🔗 **Link do vídeo:** ${videoUrl}
+
+_Clique no link acima para assistir ao vídeo_`;
+        
+        const textResult = await sendMessage(chatId, linkMessage, token, options);
+        console.log(`✅ Vídeo enviado como link de texto`);
+        return textResult;
+        
+      } catch (textError) {
+        console.error('❌ Todas as tentativas de envio falharam:', textError);
+        throw new Error('Falha ao enviar vídeo em todos os formatos');
+      }
+    }
   }
 }
 

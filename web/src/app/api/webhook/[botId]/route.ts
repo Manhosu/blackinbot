@@ -120,13 +120,51 @@ async function sendTelegramPhoto(botToken: string, chatId: number, photo: string
   
   const payload = {
     chat_id: chatId,
-    photo,
-    caption,
-    parse_mode: 'Markdown',
+    photo: photo,
+    parse_mode: 'Markdown' as const,
     ...options
   };
+  
+  if (caption) {
+    payload.caption = caption;
+  }
+  
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload)
+  });
+  
+  const result = await response.json();
+  
+  if (!result.ok) {
+    throw new Error(`Telegram API error: ${result.description}`);
+  }
+  
+  return result;
+}
 
+async function sendTelegramVideo(botToken: string, chatId: number, video: string, caption?: string, options: any = {}) {
+  console.log(`🎬 Tentando enviar vídeo: ${video.substring(0, 100)}...`);
+  
   try {
+    // Primeiro: tentar como vídeo normal
+    const url = `https://api.telegram.org/bot${botToken}/sendVideo`;
+    
+    const payload = {
+      chat_id: chatId,
+      video: video,
+      parse_mode: 'Markdown' as const,
+      supports_streaming: true,
+      ...options
+    };
+    
+    if (caption) {
+      payload.caption = caption;
+    }
+    
     const response = await fetch(url, {
       method: 'POST',
       headers: {
@@ -134,10 +172,53 @@ async function sendTelegramPhoto(botToken: string, chatId: number, photo: string
       },
       body: JSON.stringify(payload)
     });
+    
+    const result = await response.json();
+    
+    if (result.ok) {
+      console.log(`✅ Vídeo enviado com sucesso via sendVideo`);
+      return result;
+    }
+    
+    // Se falhou, tentar como documento
+    console.log(`⚠️ sendVideo falhou, tentando como documento:`, result);
+    const docUrl = `https://api.telegram.org/bot${botToken}/sendDocument`;
+    
+    const docResponse = await fetch(docUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        chat_id: chatId,
+        document: video,
+        caption: caption ? `🎬 **Vídeo**\n\n${caption}` : '🎬 **Vídeo**',
+        parse_mode: 'Markdown',
+        ...options
+      })
+    });
+    
+    const docResult = await docResponse.json();
+    
+    if (docResult.ok) {
+      console.log(`✅ Vídeo enviado como documento`);
+      return docResult;
+    }
+    
+    // Se ainda falhou, enviar como link
+    console.log(`⚠️ sendDocument também falhou, enviando como link:`, docResult);
+    const linkMessage = `🎬 **Vídeo de boas-vindas**
 
-    return await response.json();
+${caption || ''}
+
+🔗 **Link do vídeo:** ${video}
+
+_Clique no link acima para assistir ao vídeo_`;
+    
+    return await sendTelegramMessage(botToken, chatId, linkMessage, options);
+    
   } catch (error) {
-    console.error('❌ Erro ao enviar foto:', error);
+    console.error('❌ Erro no envio de vídeo:', error);
     throw error;
   }
 }
@@ -296,23 +377,41 @@ Escolha um dos nossos planos abaixo:`;
   if (bot.welcome_media_url) {
     try {
       console.log(`📸 Enviando mídia de boas-vindas: ${bot.welcome_media_type}`);
+      console.log(`🎯 URL da mídia: ${bot.welcome_media_url}`);
       
-      if (bot.welcome_media_type === 'photo') {
+      if (bot.welcome_media_type === 'photo' || bot.welcome_media_type === 'image') {
+        console.log('📸 Enviando FOTO de boas-vindas');
         await sendTelegramPhoto(bot.token, chatId, bot.welcome_media_url, welcomeText, {
           reply_markup: replyMarkup
         });
-      } else {
-        // Para vídeos ou outros tipos, enviar como documento ou usar sendVideo
-        await sendTelegramMessage(bot.token, chatId, welcomeText, {
+      } else if (bot.welcome_media_type === 'video') {
+        console.log('🎬 Enviando VÍDEO de boas-vindas');
+        await sendTelegramVideo(bot.token, chatId, bot.welcome_media_url, welcomeText, {
           reply_markup: replyMarkup
         });
+      } else {
+        // Fallback: tentar deduzir pela extensão se tipo não estiver definido
+        console.log('🤔 Tipo de mídia não definido, tentando deduzir pela extensão...');
+        const isVideo = bot.welcome_media_url.match(/\.(mp4|mov|avi|wmv|flv|mkv|webm)$/i);
+        
+        if (isVideo) {
+          console.log('🎬 Enviando VÍDEO de boas-vindas (deduzido por extensão)');
+          await sendTelegramVideo(bot.token, chatId, bot.welcome_media_url, welcomeText, {
+            reply_markup: replyMarkup
+          });
+        } else {
+          console.log('📸 Enviando FOTO de boas-vindas (deduzido por extensão)');
+          await sendTelegramPhoto(bot.token, chatId, bot.welcome_media_url, welcomeText, {
+            reply_markup: replyMarkup
+          });
+        }
       }
     } catch (mediaError) {
       console.warn(`⚠️ Erro ao enviar mídia: ${mediaError}`);
       // Fallback para mensagem de texto
       await sendTelegramMessage(bot.token, chatId, welcomeText, {
-    reply_markup: replyMarkup
-  });
+        reply_markup: replyMarkup
+      });
     }
   } else {
     // Enviar apenas mensagem de texto com planos
