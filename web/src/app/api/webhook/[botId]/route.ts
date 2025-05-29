@@ -10,9 +10,12 @@ interface RouteParams {
 // Função para criar cliente Supabase administrativo
 function createSupabaseAdmin() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
   if (!url || !key) {
+    console.error('❌ Variáveis de ambiente do Supabase não configuradas');
+    console.log('NEXT_PUBLIC_SUPABASE_URL:', url ? 'OK' : 'MISSING');
+    console.log('SUPABASE_SERVICE_ROLE_KEY:', key ? 'OK' : 'MISSING');
     throw new Error('Missing Supabase environment variables');
   }
   
@@ -519,7 +522,7 @@ ${plan.description ? `📝 **Descrição:** ${plan.description}` : ''}
 }
 
 export async function POST(request: NextRequest, { params }: RouteParams) {
-  const { botId } = params;
+  const { botId } = await params;
   
   // Validar botId
   if (!botId || typeof botId !== 'string') {
@@ -541,8 +544,30 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     console.log(`✅ Bot encontrado: ${bot.name}`);
 
-    // Processar update do Telegram
-    const update: TelegramUpdate = await request.json();
+    // Verificar se o body é válido antes de fazer parse
+    const contentType = request.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      console.error('❌ Content-Type inválido:', contentType);
+      return NextResponse.json({ success: false, error: 'Content-Type deve ser application/json' }, { status: 400 });
+    }
+
+    // Processar update do Telegram com tratamento de erro
+    let update: TelegramUpdate;
+    try {
+      const body = await request.text(); // Primeiro pegar como texto
+      console.log('📥 Body recebido:', body.substring(0, 100) + '...'); // Log do início do body
+      
+      if (!body || body.trim() === '') {
+        console.error('❌ Body vazio recebido');
+        return NextResponse.json({ success: false, error: 'Body vazio' }, { status: 400 });
+      }
+      
+      update = JSON.parse(body); // Depois fazer parse manual
+    } catch (parseError) {
+      console.error('❌ Erro ao fazer parse do JSON:', parseError);
+      console.log('📝 Body problemático:', await request.text());
+      return NextResponse.json({ success: false, error: 'JSON inválido' }, { status: 400 });
+    }
 
     if (update.message) {
       const message = update.message;
