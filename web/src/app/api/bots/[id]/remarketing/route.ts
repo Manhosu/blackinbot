@@ -6,13 +6,14 @@ import { supabase } from '@/lib/supabase';
  */
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const { remarketing_message } = await request.json();
     
     console.log('🔄 Atualizando mensagem de remarketing para bot:', {
-      bot_id: params.id,
+      bot_id: id,
       message_length: remarketing_message?.length || 0
     });
     
@@ -30,7 +31,7 @@ export async function PUT(
         remarketing_message: remarketing_message.trim(),
         updated_at: new Date().toISOString()
       })
-      .eq('id', params.id);
+      .eq('id', id);
     
     if (error) {
       console.error('❌ Erro ao atualizar mensagem de remarketing:', error);
@@ -62,15 +63,16 @@ export async function PUT(
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    console.log('🔍 Buscando mensagem de remarketing para bot:', params.id);
+    const { id } = await params;
+    console.log('🔍 Buscando mensagem de remarketing para bot:', id);
     
     const { data: bot, error } = await supabase
       .from('bots')
       .select('remarketing_message')
-      .eq('id', params.id)
+      .eq('id', id)
       .single();
     
     if (error || !bot) {
@@ -88,6 +90,48 @@ export async function GET(
     
   } catch (error: any) {
     console.error('❌ Erro ao buscar mensagem de remarketing:', error);
+    return NextResponse.json({
+      success: false,
+      error: 'Erro interno do servidor'
+    }, { status: 500 });
+  }
+}
+
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const body = await request.json();
+
+    // Salvar mensagem de remarketing
+    const { error } = await supabase
+      .from('bots')
+      .update({
+        remarketing_message: body.message,
+        remarketing_enabled: true,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id);
+    
+    if (error) {
+      console.error('❌ Erro ao salvar mensagem de remarketing:', error);
+      return NextResponse.json({
+        success: false,
+        error: 'Erro ao salvar mensagem de remarketing'
+      }, { status: 500 });
+    }
+    
+    console.log('✅ Mensagem de remarketing salva com sucesso');
+    
+    return NextResponse.json({
+      success: true,
+      message: 'Mensagem de remarketing salva com sucesso'
+    });
+    
+  } catch (error: any) {
+    console.error('❌ Erro ao salvar mensagem de remarketing:', error);
     return NextResponse.json({
       success: false,
       error: 'Erro interno do servidor'

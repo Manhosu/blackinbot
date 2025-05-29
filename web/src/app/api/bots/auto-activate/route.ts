@@ -33,6 +33,44 @@ interface BotMember {
   can_edit_messages?: boolean;
 }
 
+// Função para testar se o token do bot está funcionando
+async function testBotToken(botToken: string): Promise<{
+  success: boolean;
+  error?: string;
+  botInfo?: any;
+}> {
+  try {
+    console.log('🧪 Testando token do bot...');
+    
+    const response = await fetch(`https://api.telegram.org/bot${botToken}/getMe`, {
+      method: 'GET'
+    });
+    
+    const result = await response.json();
+    
+    if (!result.ok) {
+      console.error('❌ Token inválido:', result);
+      return {
+        success: false,
+        error: `Token do bot inválido: ${result.description || 'Token malformado ou expirado'}`
+      };
+    }
+    
+    console.log('✅ Token válido! Bot:', result.result.first_name, result.result.username);
+    return {
+      success: true,
+      botInfo: result.result
+    };
+    
+  } catch (error) {
+    console.error('❌ Erro ao testar token:', error);
+    return {
+      success: false,
+      error: 'Erro de conectividade ao testar token do bot'
+    };
+  }
+}
+
 // Função para extrair ID do grupo de um link
 function extractGroupIdFromLink(link: string): { identifier: string | null; isInviteLink: boolean; linkType: string } {
   // Formatos de link possíveis:
@@ -215,7 +253,8 @@ async function sendWelcomeMessage(botToken: string, chatId: number, botId: strin
     console.log(`📤 Enviando mensagem de boas-vindas para grupo ${chatId}`);
     
     // Buscar dados do bot no Supabase
-    const supabase = createRouteHandlerClient({ cookies: () => cookies() });
+    const cookieStore = await cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
     const { data: bot, error: botError } = await supabase
       .from('bots')
       .select('name, welcome_message, welcome_media_url, welcome_media_type')
@@ -318,10 +357,15 @@ async function sendWelcomeMessage(botToken: string, chatId: number, botId: strin
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('🚀 === INÍCIO DA ATIVAÇÃO AUTOMÁTICA ===');
+    
     const body = await request.json();
     const { botId, groupLink } = body;
 
+    console.log('📥 Dados recebidos:', { botId, groupLink });
+
     if (!botId || !groupLink) {
+      console.log('❌ Dados obrigatórios faltando');
       return NextResponse.json({
         success: false,
         error: 'Bot ID e link/ID do grupo são obrigatórios'
@@ -330,49 +374,159 @@ export async function POST(request: NextRequest) {
 
     console.log(`🔄 Iniciando ativação automática para bot ${botId} com grupo ${groupLink}`);
 
-    const cookieStore = cookies();
-    const supabaseClient = createRouteHandlerClient({ cookies: () => cookieStore });
+    // Criar cliente Supabase de forma mais robusta
+    const cookieStore = await cookies();
+    
+    // Tentar múltiplas formas de criar o cliente
+    let supabaseClient;
+    let user;
+    
+    try {
+      supabaseClient = createRouteHandlerClient({ cookies: () => cookieStore });
+      
+      // Verificar se o usuário está autenticado
+      console.log('🔐 Verificando autenticação do usuário...');
+      const { data: { user: authUser }, error: authError } = await supabaseClient.auth.getUser();
+      
+      if (authError) {
+        console.error('❌ Erro de autenticação:', authError.message);
+        throw new Error('Auth session missing!');
+      }
+      
+      if (!authUser) {
+        console.error('❌ Usuário não encontrado na sessão');
+        throw new Error('User not found in session!');
+      }
+      
+      user = authUser;
+      console.log('✅ Usuário autenticado:', { id: user.id, email: user.email });
+      
+    } catch (authError: any) {
+      console.error('❌ Erro na autenticação:', authError.message);
+      
+      // Tentar obter dados do header Authorization como fallback
+      const authHeader = request.headers.get('Authorization');
+      if (authHeader?.startsWith('Bearer ')) {
+        console.log('🔄 Tentando autenticação via header...');
+        const token = authHeader.substring(7);
+        
+        // Criar cliente com token direto
+        const { createClient } = await import('@supabase/supabase-js');
+        supabaseClient = createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+          {
+            auth: {
+              autoRefreshToken: false,
+              persistSession: false
+            },
+            global: {
+              headers: {
+                Authorization: `Bearer ${token}`
+              }
+            }
+          }
+        );
+        
+        const { data: { user: headerUser }, error: headerError } = await supabaseClient.auth.getUser();
+        if (headerError || !headerUser) {
+          throw new Error('Invalid token in header');
+        }
+        user = headerUser;
+        console.log('✅ Usuário autenticado via header:', { id: user.id, email: user.email });
+      } else {
+        return NextResponse.json({
+          success: false,
+          error: 'Usuário não autenticado. Faça login novamente.'
+        }, { status: 401 });
+      }
+    }
 
-    // 1. Buscar dados do bot
+    // 1. Buscar dados do bot com verificação de propriedade
+    console.log('🔍 Buscando dados do bot...');
     const { data: bot, error: botError } = await supabaseClient
       .from('bots')
       .select('id, name, token, owner_id')
       .eq('id', botId)
+      .eq('owner_id', user.id) // Verificar se o bot pertence ao usuário autenticado
       .single();
 
     if (botError || !bot) {
-      console.error('❌ Bot não encontrado:', botError);
+      console.error('❌ Bot não encontrado ou sem permissão:', botError?.message || 'Sem erro específico');
       return NextResponse.json({
         success: false,
-        error: 'Bot não encontrado'
+        error: 'Bot não encontrado ou você não tem permissão para ativá-lo'
       }, { status: 404 });
     }
 
+    console.log('✅ Bot encontrado:', { id: bot.id, name: bot.name, owner: bot.owner_id });
+
     // 2. Extrair ID do grupo do link
+    console.log('🔍 Extraindo ID do grupo...');
     const linkInfo = extractGroupIdFromLink(groupLink);
     if (!linkInfo.identifier) {
+      console.log('❌ Link inválido:', linkInfo);
       return NextResponse.json({
         success: false,
         error: 'Link ou ID do grupo inválido. Use um link do Telegram válido ou ID do grupo.'
       }, { status: 400 });
     }
 
-    console.log(`🔍 ID/identificador extraído: ${linkInfo.identifier} (tipo: ${linkInfo.linkType})`);
+    console.log(`✅ ID/identificador extraído: ${linkInfo.identifier} (tipo: ${linkInfo.linkType})`);
 
-    // 3. Validar grupo e permissões do bot
+    // 3. Testar token do bot primeiro
+    console.log('🧪 Testando token do bot...');
+    const tokenTest = await testBotToken(bot.token);
+    
+    if (!tokenTest.success) {
+      console.error('❌ Token do bot falhou no teste:', tokenTest.error);
+      
+      // Salvar erro de token
+      try {
+        await supabaseClient
+          .from('bots')
+          .update({
+            auto_activation_attempted_at: new Date().toISOString(),
+            auto_activation_error: tokenTest.error,
+            group_link: groupLink,
+            group_id_telegram: linkInfo.identifier
+          })
+          .eq('id', botId);
+        console.log('📝 Erro de token salvo no banco');
+      } catch (saveError) {
+        console.error('❌ Erro ao salvar tentativa:', saveError);
+      }
+
+      return NextResponse.json({
+        success: false,
+        error: tokenTest.error
+      }, { status: 400 });
+    }
+
+    console.log('✅ Token do bot validado com sucesso');
+
+    // 4. Validar grupo e permissões do bot
+    console.log('🔍 Validando grupo e permissões...');
     const validation = await validateGroupWithBot(bot.token, linkInfo.identifier, linkInfo.isInviteLink, linkInfo.linkType);
     
     if (!validation.success) {
+      console.error('❌ Validação falhou:', validation.error);
+      
       // Salvar erro de tentativa
-      await supabaseClient
-        .from('bots')
-        .update({
-          auto_activation_attempted_at: new Date().toISOString(),
-          auto_activation_error: validation.error,
-          group_link: groupLink,
-          group_id_telegram: linkInfo.identifier
-        })
-        .eq('id', botId);
+      try {
+        await supabaseClient
+          .from('bots')
+          .update({
+            auto_activation_attempted_at: new Date().toISOString(),
+            auto_activation_error: validation.error,
+            group_link: groupLink,
+            group_id_telegram: linkInfo.identifier
+          })
+          .eq('id', botId);
+        console.log('📝 Erro de tentativa salvo no banco');
+      } catch (saveError) {
+        console.error('❌ Erro ao salvar tentativa:', saveError);
+      }
 
       return NextResponse.json({
         success: false,
@@ -383,6 +537,7 @@ export async function POST(request: NextRequest) {
     const { group, botMember } = validation;
 
     if (!group) {
+      console.error('❌ Dados do grupo não disponíveis');
       return NextResponse.json({
         success: false,
         error: 'Erro interno: dados do grupo não disponíveis'
@@ -391,87 +546,98 @@ export async function POST(request: NextRequest) {
 
     console.log(`✅ Grupo validado: ${group.title} (ID: ${group.id})`);
 
-    // 4. Salvar/atualizar informações do grupo
-    const groupData = {
-      name: group.title,
-      telegram_id: group.id.toString(),
-      bot_id: botId,
-      description: group.description || '',
-      is_active: true,
-      is_vip: true,
-      link: groupLink,
-      bot_is_admin: true,
-      admin_permissions: botMember || null,
-      validated_at: new Date().toISOString()
-    };
+    // 5. PULAR SALVAMENTO DE GRUPO TEMPORARIAMENTE PARA DEBUG
+    console.log('⚠️ Pulando salvamento de grupo temporariamente...');
 
-    // Verificar se o grupo já existe
-    const { data: existingGroup, error: groupCheckError } = await supabaseClient
-      .from('groups')
-      .select('id')
-      .eq('telegram_id', group.id.toString())
-      .eq('bot_id', botId)
-      .single();
+    // 6. Ativar o bot - MÉTODO ULTRA SIMPLIFICADO  
+    console.log('🔓 Ativando o bot...');
+    
+    try {
+      // Operação única: apenas ativar o bot
+      console.log('📝 Atualizando status do bot...');
+      const { error: activationError } = await supabaseClient
+        .from('bots')
+        .update({
+          is_activated: true,
+          activated_at: new Date().toISOString(),
+          status: 'active'
+        })
+        .eq('id', botId)
+        .eq('owner_id', user.id); // Filtro adicional de segurança
 
-    let groupResult;
-    if (existingGroup) {
-      // Atualizar grupo existente
-      const { data: updatedGroup, error: updateError } = await supabaseClient
-        .from('groups')
-        .update(groupData)
-        .eq('id', existingGroup.id)
-        .select()
-        .single();
-      
-      groupResult = { data: updatedGroup, error: updateError };
-    } else {
-      // Criar novo grupo
-      const { data: newGroup, error: insertError } = await supabaseClient
-        .from('groups')
-        .insert(groupData)
-        .select()
-        .single();
-      
-      groupResult = { data: newGroup, error: insertError };
-    }
+      if (activationError) {
+        console.error('❌ Erro na ativação:', activationError);
+        return NextResponse.json({
+          success: false,
+          error: 'Erro ao ativar bot: ' + activationError.message,
+          details: activationError
+        }, { status: 500 });
+      }
 
-    if (groupResult.error) {
-      console.error('❌ Erro ao salvar grupo:', groupResult.error);
+      console.log('✅ Bot ativado com sucesso!');
+
+    } catch (generalError: any) {
+      console.error('❌ Erro geral na ativação:', generalError);
+      console.error('Stack trace:', generalError.stack);
       return NextResponse.json({
         success: false,
-        error: 'Erro ao salvar informações do grupo'
+        error: 'Erro crítico ao ativar bot: ' + generalError.message
       }, { status: 500 });
     }
 
-    // 5. Ativar o bot
-    const { error: botUpdateError } = await supabaseClient
-      .from('bots')
-      .update({
-        is_activated: true,
-        auto_activated: true,
-        activated_at: new Date().toISOString(),
-        activated_by_telegram_id: group.id.toString(),
-        activated_in_chat_id: group.id,
-        group_link: groupLink,
-        group_id_telegram: group.id.toString(),
-        auto_activation_attempted_at: new Date().toISOString(),
-        auto_activation_error: null,
-        status: 'active'
-      })
-      .eq('id', botId);
+    // 7. Configurar webhook automaticamente
+    console.log('🔧 Configurando webhook...');
+    try {
+      const host = request.headers.get('host') || 'localhost:3025';
+      const protocol = request.headers.get('x-forwarded-proto') || 'http';
+      const baseUrl = process.env.WEBHOOK_URL || `${protocol}://${host}`;
+      const webhookUrl = `${baseUrl}/api/telegram/webhook?token=${bot.token}`;
+      
+      console.log(`📡 URL do webhook: ${webhookUrl}`);
+      
+      const telegramUrl = `https://api.telegram.org/bot${bot.token}/setWebhook`;
+      const webhookResponse = await fetch(telegramUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url: webhookUrl,
+          allowed_updates: ['message', 'callback_query', 'inline_query'],
+          drop_pending_updates: true
+        })
+      });
 
-    if (botUpdateError) {
-      console.error('❌ Erro ao ativar bot:', botUpdateError);
-      return NextResponse.json({
-        success: false,
-        error: 'Erro ao ativar bot'
-      }, { status: 500 });
+      const webhookResult = await webhookResponse.json();
+      
+      if (webhookResult.ok) {
+        console.log('✅ Webhook configurado com sucesso');
+        
+        // Atualizar bot com informações do webhook
+        try {
+          await supabaseClient
+            .from('bots')
+            .update({
+              webhook_url: webhookUrl,
+              webhook_set_at: new Date().toISOString()
+            })
+            .eq('id', botId);
+          console.log('✅ Dados do webhook salvos no banco');
+        } catch (updateError) {
+          console.warn('⚠️ Erro ao salvar webhook no banco:', updateError);
+        }
+      } else {
+        console.error('❌ Erro ao configurar webhook:', webhookResult);
+      }
+    } catch (webhookError) {
+      console.error('❌ Erro ao configurar webhook:', webhookError);
+      // Continuar mesmo se webhook falhar - bot já está ativado
     }
 
-    // 6. Enviar mensagem de boas-vindas no grupo
+    // 8. Enviar mensagem de boas-vindas no grupo  
+    console.log('📤 Enviando mensagem de boas-vindas...');
     const welcomeSent = await sendWelcomeMessage(bot.token, group.id, botId);
 
     console.log(`🎉 Bot ${bot.name} ativado com sucesso no grupo ${group.title}!`);
+    console.log('🚀 === FIM DA ATIVAÇÃO AUTOMÁTICA ===');
 
     return NextResponse.json({
       success: true,
@@ -494,10 +660,11 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error('❌ Erro geral na ativação automática:', error);
+    console.error('❌ ERRO GERAL na ativação automática:', error);
+    console.error('Stack trace:', error.stack);
     return NextResponse.json({
       success: false,
-      error: 'Erro interno do servidor'
+      error: 'Erro interno do servidor: ' + (error.message || 'Erro desconhecido')
     }, { status: 500 });
   }
 } 

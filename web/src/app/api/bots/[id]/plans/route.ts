@@ -258,10 +258,10 @@ export async function PUT(
       console.log(`📋 Dados do plano ${i + 1}:`, planData);
 
       const { data: savedPlan, error: saveError } = await supabase
-        .from('plans')
-        .insert(planData)
-        .select()
-        .single();
+          .from('plans')
+          .insert(planData)
+          .select()
+          .single();
 
       if (saveError) {
         console.error(`❌ Erro ao salvar plano ${i + 1}:`, saveError);

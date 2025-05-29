@@ -16,11 +16,13 @@ function createSupabaseServiceClient() {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const paymentId = params.id;
-    console.log('🔍 Verificando status do pagamento:', paymentId);
+    console.log('🔍 Verificando status do pagamento...');
+    
+    const { id } = await params;
+    const paymentId = id;
 
     // Criar cliente Supabase
     const supabase = createSupabaseServiceClient();

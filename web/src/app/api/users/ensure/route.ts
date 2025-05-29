@@ -2,25 +2,27 @@ import { NextRequest, NextResponse } from "next/server";
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 
-export async function POST(req: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
-    const { user_id, email, name } = await req.json();
+    const { name, email, password, invitation_code } = await request.json();
 
-    if (!user_id || !email) {
-      return NextResponse.json(
-        { message: "user_id e email são obrigatórios" },
-        { status: 400 }
-      );
+    // Validações básicas
+    if (!name || !email || !password) {
+      return NextResponse.json({
+        success: false,
+        error: 'Campos obrigatórios: name, email, password'
+      }, { status: 400 });
     }
 
-    const cookieStore = cookies();
+    // Corrigir cookies para Next.js 15
+    const cookieStore = await cookies();
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
 
-    console.log('🔧 Garantindo que usuário existe:', { user_id, email, name });
+    console.log('🔧 Garantindo que usuário existe:', { name, email, password });
 
     // Usar a função do Supabase para garantir que o usuário existe
     const { data, error } = await supabase.rpc('ensure_user_profile', {
-      p_user_id: user_id,
+      p_user_id: name,
       p_user_email: email,
       p_user_name: name
     });

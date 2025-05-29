@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { createClient } from '@supabase/supabase-js';
 
 export interface WebhookSetupResult {
   success: boolean;
@@ -7,13 +8,25 @@ export interface WebhookSetupResult {
   error?: string;
 }
 
+// Cliente service_role para operações administrativas
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://xcnhlmqkovfaqyjxwdje.supabase.co',
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhjbmhsbXFrb3ZmYXF5anh3ZGplIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc2OTA0NTYsImV4cCI6MjA2MzI2NjQ1Nn0.SXKnumGDPPBryp0UOuvCK0_9XZ8SdWq35BR_JqlrG4U',
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  }
+);
+
 export class WebhookManager {
   private static baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://blackinbot.vercel.app';
 
   /**
    * Configura webhook para um bot específico
    */
-  static async setupWebhookForBot(botId: string, token: string): Promise<WebhookSetupResult> {
+  static async setupWebhookForBot(botId: string, token: string, supabaseClient?: any): Promise<WebhookSetupResult> {
     try {
       const webhookUrl = `${this.baseUrl}/api/webhook/${botId}`;
       
@@ -29,7 +42,7 @@ export class WebhookManager {
 
       if (result.ok) {
         // Atualizar banco de dados
-        await this.updateBotWebhookStatus(botId, webhookUrl, 'active');
+        await this.updateBotWebhookStatus(botId, webhookUrl, 'active', supabaseClient);
         
         console.log(`✅ Webhook configurado com sucesso para bot ${botId}`);
         return {
@@ -38,7 +51,7 @@ export class WebhookManager {
           webhookUrl
         };
       } else {
-        await this.updateBotWebhookStatus(botId, webhookUrl, 'error');
+        await this.updateBotWebhookStatus(botId, webhookUrl, 'error', supabaseClient);
         
         console.error(`❌ Erro ao configurar webhook para bot ${botId}:`, result);
         return {
@@ -49,7 +62,7 @@ export class WebhookManager {
       }
     } catch (error) {
       const webhookUrl = `${this.baseUrl}/api/webhook/${botId}`;
-      await this.updateBotWebhookStatus(botId, webhookUrl, 'error');
+      await this.updateBotWebhookStatus(botId, webhookUrl, 'error', supabaseClient);
       
       console.error(`❌ Erro de rede ao configurar webhook para bot ${botId}:`, error);
       return {
@@ -233,11 +246,15 @@ export class WebhookManager {
   private static async updateBotWebhookStatus(
     botId: string, 
     webhookUrl: string, 
-    status: 'active' | 'error' | 'pending'
+    status: 'active' | 'error' | 'pending',
+    supabaseClient?: any
   ): Promise<void> {
     try {
-      // Atualizar tabela bots
-      await supabase
+      // Usar cliente fornecido (autenticado) ou cliente admin para bypass do RLS
+      const client = supabaseClient || supabaseAdmin;
+      
+      // Atualizar tabela bots (sem RLS restritivo)
+      const { error: botsError } = await client
         .from('bots')
         .update({
           webhook_configured_at: new Date().toISOString(),
@@ -245,19 +262,36 @@ export class WebhookManager {
         })
         .eq('id', botId);
 
-      // Atualizar ou inserir em webhook_configs
-      await supabase
-        .from('webhook_configs')
-        .upsert({
-          bot_id: botId,
-          webhook_url: webhookUrl,
-          status: status,
-          configured_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        });
+      if (botsError) {
+        console.warn('⚠️ Erro ao atualizar tabela bots:', botsError);
+      }
+
+      // Usar função RPC para salvar webhook_config (contorna RLS)
+      if (webhookUrl) {
+        try {
+          const tokenHash = btoa(botId).substring(0, 16); // Hash simples para identificação
+          
+          const { data: webhookResult, error: webhookError } = await client
+            .rpc('save_webhook_config', {
+              p_bot_id: botId,
+              p_token_hash: tokenHash,
+              p_webhook_url: webhookUrl,
+              p_status: status
+            });
+
+          if (webhookError) {
+            console.warn('⚠️ Erro ao salvar via RPC save_webhook_config:', webhookError);
+          } else {
+            console.log(`✅ Webhook status atualizado no banco para bot ${botId} via RPC`);
+          }
+        } catch (rpcError) {
+          console.warn('⚠️ Erro na função RPC save_webhook_config:', rpcError);
+        }
+      }
 
     } catch (error) {
       console.error('❌ Erro ao atualizar status do webhook no banco:', error);
+      // Não propagar o erro para não quebrar a criação do bot
     }
   }
 

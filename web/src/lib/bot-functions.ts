@@ -298,46 +298,56 @@ export async function updateBot(id: string, botData: Partial<Bot>) {
 }
 
 /**
- * Salva configuração de webhook
+ * Salva a configuração do webhook no banco de dados
  */
 export async function saveWebhookConfig(botId: string, token: string, webhookUrl: string) {
   try {
-    // Atualizar o bot com a URL do webhook
+    console.log(`💾 Salvando configuração de webhook para bot ${botId}...`);
+    
+    // Buscar bot atual primeiro (para verificar se existe)
     const { data: botData, error: botError } = await supabase
+      .from('bots')
+      .select('*')
+      .eq('id', botId)
+      .single();
+    
+    if (botError || !botData) {
+      console.error('Bot não encontrado:', botError);
+      throw new Error('Bot não encontrado');
+    }
+    
+    // Atualizar bot com dados do webhook
+    const { error: updateError } = await supabase
       .from('bots')
       .update({
         webhook_url: webhookUrl,
-        webhook_set_at: new Date().toISOString()
+        webhook_set_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       })
-      .eq('id', botId)
-      .select()
-      .single();
+      .eq('id', botId);
     
-    if (botError) {
-      console.error('Erro ao atualizar webhook do bot:', botError);
-      throw new Error(botError.message);
+    if (updateError) {
+      console.error('Erro ao atualizar bot:', updateError);
+      throw new Error(updateError.message);
     }
     
-    // Salvar na tabela de configurações de webhook
+    // Usar função RPC para salvar webhook_config (contorna RLS)
     const tokenHash = btoa(token.slice(-10)); // Hash simples do token (últimos 10 caracteres)
     
     const { data: webhookData, error: webhookError } = await supabase
-      .from('webhook_configs')
-      .upsert({
-        bot_id: botId,
-        token_hash: tokenHash,
-        webhook_url: webhookUrl,
-        configured_at: new Date().toISOString(),
-        status: 'active'
-      })
-      .select()
-      .single();
+      .rpc('save_webhook_config', {
+        p_bot_id: botId,
+        p_token_hash: tokenHash,
+        p_webhook_url: webhookUrl,
+        p_status: 'active'
+      });
     
     if (webhookError) {
-      console.error('Erro ao salvar configuração de webhook:', webhookError);
+      console.error('Erro ao salvar configuração de webhook via RPC:', webhookError);
       throw new Error(webhookError.message);
     }
     
+    console.log('✅ Configuração de webhook salva via RPC');
     return { bot: botData, webhook: webhookData };
   } catch (error: any) {
     console.error('Erro ao salvar configuração de webhook:', error);
@@ -361,8 +371,9 @@ export async function setupBotWebhook(botId: string, token: string) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
+        botIds: [botId], // Enviando como array conforme esperado pela API
         token: token,
-        botId: botId
+        botId: botId // Mantendo para compatibilidade
       })
     });
     

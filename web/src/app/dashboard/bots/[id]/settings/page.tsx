@@ -40,7 +40,10 @@ interface RawPlan {
   is_active?: boolean;
 }
 
-export default function BotSettingsPage({ params }: { params: { id: string } }) {
+export default function BotSettingsPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  // 🔧 CORREÇÃO NEXT.JS 15: Unwrap params usando React.use()
+  const params = React.use(paramsPromise);
+  
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, isLoading: authLoading } = useAuth();
@@ -202,7 +205,7 @@ export default function BotSettingsPage({ params }: { params: { id: string } }) 
       }
 
       console.log('✅ Configurações salvas com sucesso');
-      
+
       // Atualizar estado local
       setBot((prev: any) => ({ ...prev, ...result.data }));
       

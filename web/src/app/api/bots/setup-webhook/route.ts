@@ -6,6 +6,23 @@ import { saveWebhookConfig } from '@/lib/bot-functions';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+    console.log('📥 Dados recebidos:', body);
+
+    const { botIds } = body;
+
+    if (!botIds || !Array.isArray(botIds) || botIds.length === 0) {
+      return NextResponse.json({
+        success: false,
+        error: 'Lista de IDs de bots é obrigatória'
+      }, { status: 400 });
+    }
+
+    console.log(`🔄 Configurando webhooks para ${botIds.length} bots...`);
+
+    // Corrigir cookies para Next.js 15
+    const cookieStore = await cookies();
+    const supabaseClient = createRouteHandlerClient({ cookies: () => cookieStore });
+    
     const { token, botId } = body;
     
     if (!token) {
@@ -64,7 +81,7 @@ export async function POST(request: NextRequest) {
       if (botId) {
         try {
           // Usar cliente Supabase autenticado
-          const cookieStore = cookies();
+          const cookieStore = await cookies();
           const supabaseClient = createRouteHandlerClient({ cookies: () => cookieStore });
           
           // Verificar autenticação
@@ -166,22 +183,21 @@ export async function POST(request: NextRequest) {
             try {
               const tokenHash = Buffer.from(token.slice(-10)).toString('base64');
               
-              const { data: webhookData, error: webhookError } = await supabaseClient
-                .from('webhook_configs')
-                .upsert({
-                  bot_id: botId,
-                  token_hash: tokenHash,
-                  webhook_url: webhookUrl,
-                  configured_at: new Date().toISOString(),
-                  status: 'active'
-                })
-                .select()
-                .single();
+              // Usar a função RPC que contorna RLS
+              console.log('💾 Salvando webhook config via função RPC...');
+              
+              const { data: webhookResult, error: webhookError } = await supabaseClient
+                .rpc('save_webhook_config', {
+                  p_bot_id: botId,
+                  p_token_hash: tokenHash,
+                  p_webhook_url: webhookUrl,
+                  p_status: 'active'
+                });
               
               if (webhookError) {
-                console.error('⚠️ Erro ao salvar configuração de webhook:', webhookError);
+                console.warn('⚠️ Erro ao salvar via RPC:', webhookError);
               } else {
-                console.log('✅ Configuração salva na tabela webhook_configs');
+                console.log('✅ Configuração salva via RPC:', webhookResult);
               }
             } catch (configError) {
               console.warn('⚠️ Erro ao salvar configuração adicional:', configError);
@@ -318,7 +334,7 @@ export async function DELETE(request: NextRequest) {
       
       try {
         // Criar um cliente Supabase para a rota
-        const cookieStore = cookies();
+        const cookieStore = await cookies();
         const supabaseClient = createRouteHandlerClient({ cookies: () => cookieStore });
         
         // Atualizar o registro do bot, se botId fornecido

@@ -1,41 +1,53 @@
-import { NextRequest, NextResponse } from "next/server";
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
+import { NextResponse } from 'next/server';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
+  const cookieStore = await cookies();
+  const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+  
   try {
-    const cookieStore = cookies();
-    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
-    
     const { data: { session }, error } = await supabase.auth.getSession();
     
     if (error) {
-      console.error('Erro ao obter sessão:', error);
-      return NextResponse.json({ session: null, error: error.message }, { status: 401 });
+      console.error('Erro ao verificar sessão:', error);
+      return NextResponse.json({ 
+        success: false, 
+        user: null, 
+        error: error.message 
+      });
     }
     
-    return NextResponse.json({ session, error: null });
+    return NextResponse.json({ 
+      success: true, 
+      user: session?.user || null 
+    });
   } catch (error) {
-    console.error('Erro interno na sessão:', error);
-    return NextResponse.json({ session: null, error: 'Erro interno' }, { status: 500 });
+    console.error('Erro ao verificar sessão:', error);
+    return NextResponse.json({ 
+      success: false, 
+      user: null, 
+      error: 'Erro interno do servidor' 
+    });
   }
 }
 
-export async function POST(request: NextRequest) {
+export async function POST() {
+  const cookieStore = await cookies();
+  const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+  
   try {
-    const cookieStore = cookies();
-    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+    await supabase.auth.signOut();
     
-    const { data: { session }, error } = await supabase.auth.getSession();
-    
-    if (error) {
-      console.error('Erro ao obter sessão:', error);
-      return NextResponse.json({ session: null, error: error.message }, { status: 401 });
-    }
-    
-    return NextResponse.json({ session, error: null });
+    return NextResponse.json({ 
+      success: true, 
+      message: 'Logout realizado com sucesso' 
+    });
   } catch (error) {
-    console.error('Erro interno na sessão:', error);
-    return NextResponse.json({ session: null, error: 'Erro interno' }, { status: 500 });
+    console.error('Erro ao fazer logout:', error);
+    return NextResponse.json({ 
+      success: false, 
+      error: 'Erro ao fazer logout' 
+    });
   }
 } 

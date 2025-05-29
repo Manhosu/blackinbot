@@ -3,21 +3,24 @@
 export const dynamic = 'force-dynamic';
 
 import { useState, useEffect } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import DashboardLayout from '@/components/layout/DashboardLayout';
+import { Button } from '@/components/ui/button';
 import { 
   ArrowLeft, 
-  Key, 
-  Clock, 
-  Copy, 
   CheckCircle, 
   AlertCircle,
-  RefreshCw,
   Bot,
   Users,
-  Shield
+  Shield,
+  ExternalLink,
+  Info
 } from 'lucide-react';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import React from 'react';
 
 interface BotData {
   id: string;
@@ -28,27 +31,14 @@ interface BotData {
   activated_by_telegram_id?: string;
 }
 
-interface ActivationCode {
-  activation_code: string;
-  expires_at: string;
-  expires_in_minutes: number;
-  instructions: string;
-}
-
-export default function ActivateBotPage() {
+export default function ActivateBotPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
-  const params = useParams();
+  const params = React.use(paramsPromise);
   const botId = params.id as string;
   
   const [loading, setLoading] = useState(true);
-  const [generating, setGenerating] = useState(false);
   const [bot, setBot] = useState<BotData | null>(null);
-  const [activationCode, setActivationCode] = useState<ActivationCode | null>(null);
-  const [timeRemaining, setTimeRemaining] = useState<number>(0);
-  const [copied, setCopied] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
-  const [autoRenewing, setAutoRenewing] = useState(false);
-  const [activationMethod, setActivationMethod] = useState<'code' | 'link'>('link');
   const [groupLink, setGroupLink] = useState('');
   const [validatingGroup, setValidatingGroup] = useState(false);
   const [groupValidationError, setGroupValidationError] = useState('');
@@ -78,70 +68,10 @@ export default function ActivateBotPage() {
 
       setBot(botData);
 
-      // Se bot não está ativado, verificar se há código ativo usando GET correto
-      if (!botData.is_activated) {
-        const response = await fetch(`/api/bots/generate-activation-code?bot_id=${botId}`, {
-          method: 'GET',
-          credentials: 'include'
-        });
-        const data = await response.json();
-        
-        if (data.success && data.active_code) {
-          setActivationCode({
-            activation_code: data.active_code.activation_code,
-            expires_at: data.active_code.expires_at,
-            expires_in_minutes: Math.max(0, Math.floor((new Date(data.active_code.expires_at).getTime() - Date.now()) / (1000 * 60))),
-            instructions: `Copie o código ${data.active_code.activation_code} e cole no grupo onde o bot está como administrador para ativá-lo.`
-          });
-        }
-      }
-
     } catch (error) {
       console.error('Erro ao carregar bot:', error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  // Gerar código de ativação
-  const generateActivationCode = async () => {
-    setGenerating(true);
-    try {
-      const response = await fetch('/api/bots/generate-activation-code', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({ bot_id: botId }),
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        setActivationCode(data);
-        setTimeRemaining(data.expires_in_minutes * 60); // em segundos
-      } else {
-        alert(`Erro: ${data.error}`);
-      }
-    } catch (error) {
-      console.error('Erro ao gerar código:', error);
-      alert('Erro ao gerar código de ativação');
-    } finally {
-      setGenerating(false);
-    }
-  };
-
-  // Copiar código
-  const copyCode = async () => {
-    if (activationCode) {
-      try {
-        await navigator.clipboard.writeText(activationCode.activation_code);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      } catch (error) {
-        console.error('Erro ao copiar:', error);
-      }
     }
   };
 
@@ -156,11 +86,22 @@ export default function ActivateBotPage() {
     setGroupValidationError('');
 
     try {
+      // Obter o token de acesso atual
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+
+      // Adicionar token no header se disponível
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       const response = await fetch('/api/bots/auto-activate', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         credentials: 'include',
         body: JSON.stringify({
           botId: botId,
@@ -199,20 +140,12 @@ export default function ActivateBotPage() {
         .select('id, name, is_activated, activated_at')
         .eq('id', botId)
         .single();
-      
-      if (error) {
-        console.error('Erro ao verificar status:', error);
-        return;
-      }
-      
-      if (botData && botData.is_activated) {
+
+      if (!error && botData && botData.is_activated) {
         setBot(prev => prev ? { ...prev, is_activated: true, activated_at: botData.activated_at } : null);
-        setActivationCode(null);
-        
-        // Mostrar mensagem de sucesso
         setShowSuccessMessage(true);
         
-        // Aguardar 2 segundos e redirecionar para a página de detalhes do bot
+        // Redirecionar após mostrar sucesso
         setTimeout(() => {
           router.push(`/dashboard/bots/${botId}?from=activation`);
         }, 2000);
@@ -222,414 +155,213 @@ export default function ActivateBotPage() {
     }
   };
 
-  // Timer para expiração com renovação automática
-  useEffect(() => {
-    if (activationCode && timeRemaining > 0) {
-      const timer = setInterval(() => {
-                  setTimeRemaining(prev => {
-            if (prev <= 1) {
-              // Código expirou - gerar novo automaticamente
-              console.log('🔄 Código expirado, gerando novo automaticamente...');
-              setAutoRenewing(true);
-              generateActivationCode();
-              setTimeout(() => setAutoRenewing(false), 2000); // Remover indicador após 2s
-              return 0;
-            }
-            return prev - 1;
-          });
-      }, 1000);
-
-      return () => clearInterval(timer);
-    }
-  }, [activationCode, timeRemaining]);
-
-  // Auto-verificar ativação a cada 3 segundos (mais frequente)
-  useEffect(() => {
-    if (bot && !bot.is_activated) {
-      const interval = setInterval(checkActivationStatus, 3000); // Mudado de 10000 para 3000
-      return () => clearInterval(interval);
-    }
-  }, [bot]);
-
   useEffect(() => {
     loadBotData();
   }, [botId]);
 
-  // Formatação de tempo
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
+  // Verificar status a cada 5 segundos se não estiver ativado
+  useEffect(() => {
+    if (bot && !bot.is_activated) {
+      const interval = setInterval(checkActivationStatus, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [bot?.is_activated]);
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-purple-500"></div>
-      </div>
+      <DashboardLayout>
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent mx-auto mb-4"></div>
+            <p className="text-white/60">Carregando dados do bot...</p>
+          </div>
+        </div>
+      </DashboardLayout>
     );
   }
 
   if (!bot) {
     return (
-      <div className="min-h-screen bg-gray-50 p-6">
-        <div className="max-w-2xl mx-auto text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">Bot não encontrado</h1>
-          <button
-            onClick={() => router.push('/dashboard/bots')}
-            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
-          >
+      <DashboardLayout>
+        <div className="text-center py-12">
+          <AlertCircle className="h-12 w-12 text-red-400 mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-white mb-2">Bot não encontrado</h2>
+          <p className="text-white/60 mb-6">O bot que você está procurando não existe ou foi removido.</p>
+          <Button onClick={() => router.push('/dashboard/bots')} variant="outline">
             Voltar aos Bots
-          </button>
+          </Button>
         </div>
-      </div>
+      </DashboardLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      {/* Notificação de Sucesso */}
-      {showSuccessMessage && (
-        <div className="fixed top-4 right-4 z-50 bg-green-500 text-white px-6 py-4 rounded-lg shadow-lg flex items-center gap-3 animate-bounce">
-          <CheckCircle className="w-6 h-6" />
+    <DashboardLayout>
+      <div className="max-w-4xl mx-auto py-8">
+        {/* Header */}
+        <div className="flex items-center gap-4 mb-8">
+          <Button
+            onClick={() => router.back()}
+            variant="ghost"
+            size="icon"
+            className="text-white/60 hover:text-white hover:bg-white/10"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
           <div>
-            <p className="font-semibold">🎉 Bot ativado com sucesso!</p>
-            <p className="text-sm opacity-90">Redirecionando para detalhes...</p>
+            <h1 className="text-3xl font-bold text-white">Ativar Bot</h1>
+            <p className="text-white/60">Configure seu bot {bot.name} para funcionar em grupos</p>
           </div>
         </div>
-      )}
-      
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <button
-            onClick={() => router.push(`/dashboard/bots/${botId}`)}
-            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4"
-          >
-            <ArrowLeft className="w-5 h-5" />
-            Voltar ao Bot
-          </button>
-          
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            🔑 Ativar Bot
-          </h1>
-          <p className="text-gray-600">
-            Gere um código de ativação para o bot "{bot.name}"
-          </p>
-        </div>
+
+        {/* Mensagem de sucesso */}
+        {showSuccessMessage && (
+          <Card className="mb-8 bg-green-500/10 border-green-500/30">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-3">
+                <CheckCircle className="h-6 w-6 text-green-400" />
+                <div>
+                  <h3 className="text-green-400 font-semibold">Bot Ativado com Sucesso!</h3>
+                  <p className="text-green-300 text-sm">Redirecionando para o painel do bot...</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Status do Bot */}
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200 mb-8">
-          <div className="flex items-center gap-4">
-            <div className="h-16 w-16 bg-blue-100 rounded-full flex items-center justify-center">
-              <Bot className="h-8 w-8 text-blue-600" />
-            </div>
-            <div className="flex-1">
-              <h3 className="text-xl font-semibold text-gray-900">{bot.name}</h3>
-              <p className="text-gray-600">Token: {bot.token.substring(0, 20)}...</p>
-            </div>
-            <div className="text-right">
-              {bot.is_activated ? (
-                <div className="flex items-center gap-2 text-green-600">
-                  <CheckCircle className="w-5 h-5" />
-                  <span className="font-medium">Ativado</span>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2 text-orange-600">
-                  <AlertCircle className="w-5 h-5" />
-                  <span className="font-medium">Não Ativado</span>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {bot.is_activated ? (
-          /* Bot Ativado */
-          <div className="bg-green-50 border border-green-200 rounded-xl p-6">
-            <div className="flex items-start gap-3">
-              <CheckCircle className="w-6 h-6 text-green-600 mt-0.5" />
-              <div>
-                <h3 className="font-semibold text-green-900 mb-2">✅ Bot Ativado com Sucesso!</h3>
-                <div className="text-sm text-green-800 space-y-1">
-                  <p>• Seu bot está funcionando e pode receber usuários</p>
-                  <p>• Usuários podem usar /start para ver os planos</p>
-                  <p>• Acompanhe as vendas no dashboard financeiro</p>
-                  {bot.activated_at && (
-                    <p>• Ativado em: {new Date(bot.activated_at).toLocaleString('pt-BR')}</p>
-                  )}
-                </div>
-                
-                <div className="mt-4 flex gap-3">
-                  <button
-                    onClick={() => router.push(`/dashboard/bots/${botId}`)}
-                    className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 text-sm font-medium"
-                  >
-                    Ver Configurações
-                  </button>
-                  <button
-                    onClick={() => router.push('/dashboard/financeiro')}
-                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium"
-                  >
-                    Ver Vendas
-                  </button>
+        <Card className="mb-8 bg-card border-border-light">
+          <CardContent className="p-6">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-accent/10 rounded-lg">
+                <Bot className="h-6 w-6 text-accent" />
+              </div>
+              <div className="flex-1">
+                <h2 className="text-xl font-semibold text-white">{bot.name}</h2>
+                <div className="flex items-center gap-2 mt-1">
+                  <div className={`w-2 h-2 rounded-full ${bot.is_activated ? 'bg-green-400' : 'bg-orange-400'}`}></div>
+                  <span className={`text-sm ${bot.is_activated ? 'text-green-400' : 'text-orange-400'}`}>
+                    {bot.is_activated ? 'Ativado' : 'Aguardando Ativação'}
+                  </span>
                 </div>
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        {!bot.is_activated ? (
+          <div className="space-y-6">
+            {/* Instruções */}
+            <Card className="bg-blue-500/10 border-blue-500/30">
+              <CardContent className="p-6">
+                <div className="flex items-start gap-3">
+                  <Info className="h-5 w-5 text-blue-400 mt-0.5" />
+                  <div>
+                    <h3 className="text-blue-400 font-semibold mb-2">Como ativar seu bot</h3>
+                    <ol className="text-blue-300 text-sm space-y-2">
+                      <li>1. Adicione seu bot ao grupo do Telegram como administrador</li>
+                      <li>2. Copie o link do grupo ou obtenha o ID do grupo</li>
+                      <li>3. Cole o link/ID no campo abaixo e clique em "Ativar Bot"</li>
+                    </ol>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Ativação via Link */}
+            <Card className="bg-card border-border-light">
+              <CardHeader className="pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-green-500/20 rounded-lg">
+                    <Users className="h-5 w-5 text-green-400" />
+                  </div>
+                  <CardTitle className="text-white">Ativar via Link do Grupo</CardTitle>
+                </div>
+              </CardHeader>
+
+              <CardContent className="space-y-4">
+                <div>
+                  <Label htmlFor="groupLink" className="text-white/80 mb-2 block">
+                    Link ou ID do Grupo
+                  </Label>
+                  <Input
+                    id="groupLink"
+                    type="text"
+                    value={groupLink}
+                    onChange={(e) => setGroupLink(e.target.value)}
+                    placeholder="https://t.me/seugrupo ou -100123456789"
+                    className="bg-white/5 border-white/20 text-white placeholder-white/50 focus:border-accent"
+                    disabled={validatingGroup}
+                  />
+                  <p className="text-white/50 text-sm mt-1">
+                    Aceita links públicos (t.me/grupo) ou IDs numéricos (-100123456789)
+                  </p>
+                </div>
+
+                {groupValidationError && (
+                  <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
+                    <div className="flex items-start gap-2">
+                      <AlertCircle className="h-4 w-4 text-red-400 mt-0.5" />
+                      <div className="text-red-300 text-sm whitespace-pre-line">
+                        {groupValidationError}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <Button
+                  onClick={activateViaLink}
+                  disabled={validatingGroup || !groupLink.trim()}
+                  className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 disabled:from-gray-500 disabled:to-gray-600"
+                >
+                  {validatingGroup ? (
+                    <div className="flex items-center justify-center gap-2">
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                      Validando e ativando...
+                    </div>
+                  ) : (
+                    'Ativar Bot'
+                  )}
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Dicas adicionais */}
+            <Card className="bg-yellow-500/10 border-yellow-500/30">
+              <CardContent className="p-6">
+                <div className="flex items-start gap-3">
+                  <Shield className="h-5 w-5 text-yellow-400 mt-0.5" />
+                  <div>
+                    <h3 className="text-yellow-400 font-semibold mb-2">Dicas importantes</h3>
+                    <ul className="text-yellow-300 text-sm space-y-1">
+                      <li>• O bot deve estar no grupo como administrador antes da ativação</li>
+                      <li>• Para grupos privados, use o ID numérico (ex: -100123456789)</li>
+                      <li>• Para obter o ID, adicione @userinfobot ao seu grupo</li>
+                      <li>• Links de convite privados (+ABC123) não são suportados</li>
+                    </ul>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         ) : (
-          /* Bot Não Ativado */
-          <div className="space-y-6">
-            {/* Seletor de Método de Ativação */}
-            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                🚀 Método de Ativação
-              </h3>
-              <div className="flex gap-4 mb-6">
-                <button
-                  onClick={() => setActivationMethod('link')}
-                  className={`flex-1 p-4 rounded-lg border-2 transition-all ${
-                    activationMethod === 'link' 
-                      ? 'border-blue-500 bg-blue-50 text-blue-700' 
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                >
-                  <div className="text-center">
-                    <Shield className="w-8 h-8 mx-auto mb-2" />
-                    <h4 className="font-semibold">Ativação Automática</h4>
-                    <p className="text-sm mt-1">Mais rápido e confiável</p>
-                  </div>
-                </button>
-                
-                <button
-                  onClick={() => setActivationMethod('code')}
-                  className={`flex-1 p-4 rounded-lg border-2 transition-all ${
-                    activationMethod === 'code' 
-                      ? 'border-blue-500 bg-blue-50 text-blue-700' 
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                >
-                  <div className="text-center">
-                    <Key className="w-8 h-8 mx-auto mb-2" />
-                    <h4 className="font-semibold">Código Temporário</h4>
-                    <p className="text-sm mt-1">Método tradicional</p>
-                  </div>
-                </button>
-              </div>
-            </div>
-
-            {/* Ativação via Link do Grupo */}
-            {activationMethod === 'link' && (
-              <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                  🔗 Ativação via Link do Grupo
-                </h3>
-                
-                {/* Instruções */}
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-                  <h4 className="font-semibold text-blue-900 mb-2">Como funciona:</h4>
-                  <div className="text-sm text-blue-800 space-y-1">
-                    <p>1. Adicione seu bot ao grupo como <strong>administrador</strong></p>
-                    <p>2. Copie o link ou ID do grupo</p>
-                    <p>3. Cole no campo abaixo e clique em "Ativar"</p>
-                    <p>4. O bot será ativado automaticamente!</p>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="groupLink" className="text-sm font-medium text-gray-700">
-                      Link ou ID do Grupo
-                    </Label>
-                    <input
-                      id="groupLink"
-                      type="text"
-                      value={groupLink}
-                      onChange={(e) => {
-                        setGroupLink(e.target.value);
-                        setGroupValidationError('');
-                      }}
-                      placeholder="https://t.me/+ABC123... ou -100123456789"
-                      className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    />
-                    {groupValidationError && (
-                      <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
-                        <AlertCircle className="w-4 h-4" />
-                        {groupValidationError}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                    <h5 className="font-semibold text-yellow-800 mb-2">💡 Formatos aceitos:</h5>
-                    <div className="text-sm text-yellow-700 space-y-1">
-                      <p>• Links de convite: <code>https://t.me/+ABC123...</code></p>
-                      <p>• Links antigos: <code>https://t.me/joinchat/ABC123...</code></p>
-                      <p>• Grupos públicos: <code>https://t.me/nomedogrupo</code></p>
-                      <p>• ID direto: <code>-100123456789</code></p>
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={activateViaLink}
-                    disabled={!groupLink.trim() || validatingGroup}
-                    className="w-full bg-blue-600 text-white px-4 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {validatingGroup ? (
-                      <div className="flex items-center justify-center gap-2">
-                        <RefreshCw className="w-4 h-4 animate-spin" />
-                        Validando e ativando...
-                      </div>
-                    ) : (
-                      'Ativar Bot Automaticamente'
-                    )}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Geração de Código */}
-            {activationMethod === 'code' && (
-              <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                  🔑 Código de Ativação
-                </h3>
-                
-                {/* Instruções para código */}
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-                  <h4 className="font-semibold text-blue-900 mb-2">Passos para ativação:</h4>
-                  <div className="text-sm text-blue-800 space-y-1">
-                    <p>1. Gere um código temporário</p>
-                    <p>2. Adicione o bot ao grupo como administrador</p>
-                    <p>3. Envie o código no grupo</p>
-                    <p>4. O bot será ativado automaticamente</p>
-                  </div>
-                  <div className="mt-3 p-2 bg-blue-100 rounded">
-                    <p className="text-xs text-blue-700">
-                      ⚠️ O código expira em 10 minutos
-                    </p>
-                  </div>
-                </div>
-
-              {activationCode ? (
-                /* Código Gerado */
-                <div className="space-y-4">
-                  <div className="bg-gray-50 rounded-lg p-4 border-2 border-dashed border-gray-300">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-gray-600 mb-1">Código de Ativação:</p>
-                        <p className="text-2xl font-mono font-bold text-gray-900 tracking-wider">
-                          {activationCode.activation_code}
-                        </p>
-                      </div>
-                      <button
-                        onClick={copyCode}
-                        className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-                      >
-                        {copied ? (
-                          <>
-                            <CheckCircle className="w-4 h-4" />
-                            Copiado!
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="w-4 h-4" />
-                            Copiar
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Timer */}
-                  <div className="flex items-center gap-2 text-orange-600">
-                    <Clock className="w-5 h-5" />
-                    <span className="font-medium">
-                      Expira em: {formatTime(timeRemaining)}
-                    </span>
-                    {autoRenewing && (
-                      <span className="text-blue-600 text-sm flex items-center gap-1">
-                        <RefreshCw className="w-4 h-4 animate-spin" />
-                        Renovando...
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Instruções */}
-                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                    <p className="text-sm text-yellow-800">
-                      📋 {activationCode.instructions}
-                    </p>
-                  </div>
-
-                  {/* Aviso sobre renovação automática */}
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                    <p className="text-sm text-green-800">
-                      🔄 <strong>Renovação Automática:</strong> Quando este código expirar, um novo será gerado automaticamente para sua conveniência.
-                    </p>
-                  </div>
-
-                  {/* Botão para gerar novo código */}
-                  <button
-                    onClick={generateActivationCode}
-                    disabled={generating}
-                    className="w-full bg-gray-600 text-white px-4 py-3 rounded-lg hover:bg-gray-700 transition-colors font-medium disabled:opacity-50"
-                  >
-                    {generating ? (
-                      <div className="flex items-center justify-center gap-2">
-                        <RefreshCw className="w-4 h-4 animate-spin" />
-                        Gerando...
-                      </div>
-                    ) : (
-                      'Gerar Novo Código'
-                    )}
-                  </button>
-                </div>
-              ) : (
-                /* Gerar Código */
-                <div className="text-center py-8">
-                  <Key className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-600 mb-6">
-                    Clique no botão abaixo para gerar um código de ativação temporário
-                  </p>
-                  
-                  <button
-                    onClick={generateActivationCode}
-                    disabled={generating}
-                    className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50"
-                  >
-                    {generating ? (
-                      <div className="flex items-center gap-2">
-                        <RefreshCw className="w-5 h-5 animate-spin" />
-                        Gerando Código...
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        <Key className="w-5 h-5" />
-                        Gerar Código de Ativação
-                      </div>
-                    )}
-                  </button>
-                </div>
-              )}
-            </div>
-            )}
-
-            {/* Dicas */}
-            <div className="bg-gray-50 rounded-xl p-6">
-              <h4 className="font-semibold text-gray-900 mb-3">💡 Dicas Importantes</h4>
-              <div className="text-sm text-gray-700 space-y-2">
-                <p>• <strong>Ativação automática:</strong> Use o link do grupo para ativação instantânea</p>
-                <p>• <strong>Grupos recomendados:</strong> Use grupos ou supergrupos para melhor funcionamento</p>
-                <p>• <strong>Permissões:</strong> O bot deve ser administrador do grupo</p>
-                <p>• <strong>Renovação automática:</strong> Novos códigos são gerados automaticamente quando expiram (método código)</p>
-                <p>• <strong>Verificação:</strong> O status é atualizado automaticamente</p>
-                <p>• <strong>Redirecionamento:</strong> Após ativar, você será redirecionado automaticamente</p>
-              </div>
-            </div>
-          </div>
+          <Card className="bg-card border-border-light">
+            <CardContent className="text-center py-12">
+              <CheckCircle className="h-16 w-16 text-green-400 mx-auto mb-4" />
+              <h2 className="text-2xl font-bold text-white mb-2">Bot Ativado!</h2>
+              <p className="text-white/60 mb-6">
+                Seu bot está funcionando e pronto para receber comandos no grupo.
+              </p>
+              <Button
+                onClick={() => router.push(`/dashboard/bots/${botId}`)}
+                className="bg-gradient-to-r from-accent to-purple-600 hover:from-accent/90 hover:to-purple-600/90"
+              >
+                Ir para o Painel do Bot
+              </Button>
+            </CardContent>
+          </Card>
         )}
       </div>
-    </div>
+    </DashboardLayout>
   );
 } 

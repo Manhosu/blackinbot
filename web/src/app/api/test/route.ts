@@ -37,8 +37,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       { 
         message: "POST funcionando corretamente",
-        received: body,
-        timestamp: new Date().toISOString()
+    received: body,
+    timestamp: new Date().toISOString()
       },
       { status: 200 }
     );

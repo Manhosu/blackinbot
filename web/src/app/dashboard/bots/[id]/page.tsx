@@ -167,7 +167,10 @@ const PageSkeleton = () => (
 );
 
 // Página principal OTIMIZADA
-export default function BotDashboardPage({ params }: { params: { id: string } }) {
+export default function BotDashboardPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  // 🔧 CORREÇÃO NEXT.JS 15: Unwrap params usando React.use()
+  const params = React.use(paramsPromise);
+  
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, isLoading: authLoading } = useAuth();
@@ -499,10 +502,10 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
 
   // Função para excluir um plano
   const handleDeletePlan = async (plan: any) => {
-    if (!confirm(`Tem certeza que deseja excluir o plano "${plan.name}"?`)) {
-      return;
-    }
-
+      if (!confirm(`Tem certeza que deseja excluir o plano "${plan.name}"?`)) {
+        return;
+      }
+      
     try {
       console.log('🗑️ Excluindo plano:', plan.id);
       
@@ -510,13 +513,13 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
       const response = await fetch(`/api/plans/${plan.id}`, {
         method: 'DELETE',
         credentials: 'include'
-      });
-
+        });
+        
       const result = await response.json();
-
+        
       if (!result.success) {
         throw new Error(result.error || 'Erro ao excluir plano');
-      }
+        }
 
       console.log('✅ Plano excluído com sucesso');
       toast.success('Plano excluído com sucesso');
@@ -1003,7 +1006,7 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
                       variant="default" 
                       className="flex items-center gap-2 bg-green-600 hover:bg-green-700 transition-all"
                     >
-                      <Key size={16} />
+                      <Users size={16} />
                       Ativar Bot
                     </Button>
                   )}
@@ -1068,17 +1071,17 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
                 <AlertCircle className="text-orange-500 w-4 h-4" />
               </div>
               <div className="flex-1">
-                <h3 className="text-orange-500 font-medium mb-1">🔑 Bot Não Ativado</h3>
+                <h3 className="text-orange-500 font-medium mb-1">🔗 Bot Não Ativado</h3>
                 <p className="text-orange-500/80 text-sm mb-3">
                   Seu bot foi criado com sucesso, mas ainda precisa ser ativado para começar a funcionar. 
-                  A ativação é feita através de um código temporário que deve ser enviado em um grupo do Telegram.
+                  A ativação é feita através do link do grupo onde o bot será usado.
                 </p>
                 <Button 
                   onClick={() => router.push(`/dashboard/bots/${params.id}/activate`)}
                   size="sm"
                   className="bg-orange-600 hover:bg-orange-700 text-white"
                 >
-                  <Key className="w-4 h-4 mr-2" />
+                  <Users className="w-4 h-4 mr-2" />
                   Ativar Agora
                 </Button>
               </div>
@@ -1256,29 +1259,29 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
                       }}
                       className="border-2 border-dashed border-white/20 rounded-xl hover:border-blue-400/50 transition-colors duration-200"
                     />
-                    
-                    {/* Preview do arquivo */}
-                    {mediaPreview && (
-                      <div className="bg-white/5 border border-blue-400/30 rounded-xl p-4">
-                        <div className="flex items-center gap-2 mb-3">
-                          <Eye className="w-4 h-4 text-blue-400" />
-                          <span className="text-sm font-medium text-blue-300">Pré-visualização do arquivo</span>
+                      
+                      {/* Preview do arquivo */}
+                      {mediaPreview && (
+                        <div className="bg-white/5 border border-blue-400/30 rounded-xl p-4">
+                          <div className="flex items-center gap-2 mb-3">
+                            <Eye className="w-4 h-4 text-blue-400" />
+                            <span className="text-sm font-medium text-blue-300">Pré-visualização do arquivo</span>
+                          </div>
+                          {mediaType === 'image' ? (
+                            <img 
+                              src={mediaPreview} 
+                              alt="Pré-visualização" 
+                              className="max-h-48 max-w-full object-contain rounded-lg mx-auto"
+                            />
+                          ) : (
+                            <video 
+                              src={mediaPreview} 
+                              controls 
+                              className="max-h-48 max-w-full rounded-lg mx-auto"
+                            />
+                          )}
                         </div>
-                        {mediaType === 'image' ? (
-                          <img 
-                            src={mediaPreview} 
-                            alt="Pré-visualização" 
-                            className="max-h-48 max-w-full object-contain rounded-lg mx-auto"
-                          />
-                        ) : (
-                          <video 
-                            src={mediaPreview} 
-                            controls 
-                            className="max-h-48 max-w-full rounded-lg mx-auto"
-                          />
-                        )}
-                      </div>
-                    )}
+                      )}
                     
                     <p className="text-sm text-blue-200/70">
                       {mediaType === 'image' 
@@ -1286,7 +1289,7 @@ export default function BotDashboardPage({ params }: { params: { id: string } })
                         : '🎬 Formatos aceitos: MP4, MOV, AVI, MKV, WebM'
                       }
                     </p>
-                  </div>
+                    </div>
                 </div>
               )}
 

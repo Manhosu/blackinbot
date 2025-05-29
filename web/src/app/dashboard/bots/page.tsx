@@ -2,17 +2,17 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useEffect, useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { FiPlus, FiRefreshCw } from 'react-icons/fi';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { Bot, getMyBots, setupMissingWebhooks } from '@/lib/bot-functions';
+import { Bot, getMyBots } from '@/lib/bot-functions';
 import BotCard from '@/components/BotCard';
 import PageLoading from '@/components/PageLoading';
 import EmptyState from '@/components/EmptyState';
 import { Button } from '@/components/ui/button';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { toast } from 'sonner';
+import { toast } from 'react-hot-toast';
 import { Loader2 } from 'lucide-react';
 
 // 🚀 Loading otimizado para página de bots
@@ -46,7 +46,6 @@ export default function BotsPage() {
   const [error, setError] = useState<string | null>(null);
   const { user, isAuthenticated, refreshAuth, isLoading: authLoading } = useAuth();
   const router = useRouter();
-  const hasSetupWebhooks = useRef(false);
 
   // 🚀 OTIMIZAÇÃO: Carregamento instantâneo com cache
   useEffect(() => {
@@ -121,14 +120,6 @@ export default function BotsPage() {
       setBots(userBots);
       saveBotsToCache(userBots);
       
-      // Configurar webhooks automaticamente apenas uma vez
-      if (!hasSetupWebhooks.current && userBots.length > 0) {
-        hasSetupWebhooks.current = true;
-        setTimeout(() => {
-          setupWebhooksInBackground();
-        }, 1000);
-      }
-      
     } catch (error: any) {
       console.error('❌ Erro ao buscar bots:', error);
       setError('Erro ao carregar bots. Tente novamente.');
@@ -136,17 +127,6 @@ export default function BotsPage() {
     } finally {
       setLoading(false);
       setRefreshing(false);
-    }
-  };
-
-  // 🚀 Configuração de webhooks em background
-  const setupWebhooksInBackground = async () => {
-    try {
-      console.log('🔧 Configurando webhooks em background...');
-      await setupMissingWebhooks();
-      console.log('✅ Webhooks configurados');
-    } catch (error) {
-      console.error('❌ Erro na configuração de webhooks:', error);
     }
   };
 

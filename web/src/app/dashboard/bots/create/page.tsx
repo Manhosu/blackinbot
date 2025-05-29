@@ -106,8 +106,45 @@ export default function CreateBotPage() {
     if (!isAuthenticated) {
       // Redirecionar para login se não houver usuário autenticado
       router.push("/login");
+    } else if (user?.id && !user.id.startsWith('local_user_')) {
+      // Para usuários reais do Supabase, verificar se a sessão é válida
+      const checkSupabaseSession = async () => {
+        try {
+          const { data: { user: supaUser }, error } = await supabase.auth.getUser();
+          
+          if (error || !supaUser) {
+            console.log('🔓 Usuário local sem sessão Supabase válida - forçando logout imediato');
+            // Limpar dados e redirecionar para login
+            if (typeof window !== 'undefined') {
+              localStorage.removeItem('blackinpay_user');
+            }
+            router.push('/login');
+          }
+        } catch (error) {
+          console.error('Erro ao verificar sessão Supabase:', error);
+          // Em caso de erro, também forçar logout
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('blackinpay_user');
+          }
+          router.push('/login');
+        }
+      };
+      
+      // Verificar após um pequeno delay
+      setTimeout(checkSupabaseSession, 500);
     }
   }, [user, isAuthenticated, router]);
+
+  // 🆕 Função para forçar novo login quando há problemas de autenticação
+  const forceLogin = () => {
+    console.log('🔄 Forçando novo login...');
+    // Limpar dados locais
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('blackinpay_user');
+    }
+    // Redirecionar para login
+    router.push('/login');
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -433,7 +470,19 @@ export default function CreateBotPage() {
                   <div className="w-5 h-5 rounded-full bg-red-500 flex items-center justify-center flex-shrink-0 mt-0.5">
                     <X size={12} className="text-white" />
                   </div>
-                  <p className="text-red-300 text-sm">{error}</p>
+                  <div className="flex-1">
+                    <p className="text-red-300 text-sm">{error}</p>
+                    {(error.includes('autenticação') || error.includes('login') || error.includes('sessão')) && (
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={forceLogin}
+                        className="mt-2 text-xs"
+                      >
+                        Fazer Login Novamente
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
@@ -552,7 +601,7 @@ export default function CreateBotPage() {
     }
   };
 
-  // Enviar formulário para criar bot - ATUALIZADA PARA INCLUIR PLANOS
+  // Enviar formulário para criar bot - MELHORADA
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     
@@ -567,6 +616,11 @@ export default function CreateBotPage() {
 
       console.log('🔐 Usuário autenticado via contexto:', user?.id);
 
+      // Verificar se realmente há um usuário autenticado
+      if (!user?.id) {
+        throw new Error('Usuário não autenticado');
+      }
+
       // Preparar dados do bot com planos
       const botData = {
         name: form.name,
@@ -574,7 +628,7 @@ export default function CreateBotPage() {
         description: form.description || '',
         telegram_id: validationResult?.id,
         username: validationResult?.username,
-        owner_id: user?.id,
+        owner_id: user.id,
         is_public: false,
         status: 'active' as const,
         plans: plans // INCLUIR PLANOS
@@ -609,11 +663,38 @@ export default function CreateBotPage() {
         // Ir para o passo final (resumo)
         setActiveStep(3);
       } else {
+        // Verificar se é erro de autenticação específico
+        if (response.status === 401 || response.status === 403) {
+          console.log('❌ Erro de autenticação detectado (status:', response.status, ')');
+          
+          // Verificar se a sessão realmente expirou
+          try {
+            const sessionResponse = await fetch('/api/auth/session');
+            const sessionResult = await sessionResponse.json();
+            
+            if (!sessionResult.success || !sessionResult.user) {
+              setError('Sessão expirada. Redirecionando para login...');
+              setTimeout(() => forceLogin(), 2000);
+              return;
+            }
+          } catch (sessionError) {
+            console.error('Erro ao verificar sessão:', sessionError);
+          }
+        }
+        
         throw new Error(result.error || 'Erro ao criar bot');
       }
     } catch (error: any) {
       console.error('❌ Erro ao criar bot:', error);
-      setError(error.message || 'Ocorreu um erro ao criar o bot.');
+      
+      // Só forçar logout se realmente houver problema de autenticação confirmado
+      if (error.message?.includes('Usuário não autenticado')) {
+        setError('Sessão expirada. Redirecionando para login...');
+        setTimeout(() => forceLogin(), 2000);
+      } else {
+        setError(error.message || 'Ocorreu um erro ao criar o bot.');
+      }
+      
       showToast('Erro ao criar bot', error.message || 'Ocorreu um erro ao criar o bot.', 'error');
     } finally {
       setIsCreating(false);

@@ -2,7 +2,6 @@
 const nextConfig = {
   trailingSlash: false,
   reactStrictMode: false,
-  swcMinify: true,
   poweredByHeader: false,
   
   typescript: {
@@ -32,9 +31,7 @@ const nextConfig = {
     removeConsole: process.env.NODE_ENV === 'production',
   },
   
-  experimental: {
-    serverComponentsExternalPackages: ['@supabase/supabase-js'],
-  },
+  serverExternalPackages: ['@supabase/supabase-js'],
   
   webpack: (config, { isServer }) => {
     if (!isServer) {
@@ -43,8 +40,24 @@ const nextConfig = {
         fs: false,
         net: false,
         tls: false,
+        crypto: false,
+        stream: false,
+        http: false,
+        https: false,
+        os: false,
+        url: false,
+        zlib: false,
+        querystring: false,
+        path: false,
+        util: false
       };
     }
+    
+    config.optimization = {
+      ...config.optimization,
+      moduleIds: 'deterministic',
+    };
+    
     return config;
   },
   
@@ -65,7 +78,21 @@ const nextConfig = {
             key: 'Access-Control-Allow-Headers',
             value: 'Content-Type, Authorization, x-user-data',
           },
+          {
+            key: 'Cache-Control',
+            value: 'no-store, no-cache, must-revalidate',
+          },
         ],
+      },
+    ];
+  },
+  
+  async redirects() {
+    return [
+      {
+        source: '/dashboard/bots/:id/activate/:path*',
+        destination: '/dashboard/bots/:id/activate',
+        permanent: false,
       },
     ];
   },

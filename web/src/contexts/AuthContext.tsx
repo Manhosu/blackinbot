@@ -82,12 +82,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       setIsLoading(true);
       
+      console.log('🔄 Iniciando refreshAuth...');
+      
       // 1. Tentar obter sessão do Supabase
       const { data, error } = await supabase.auth.getSession();
       
       if (error) {
-        console.error('Erro ao obter sessão:', error.message);
-        // Cair para fallback local
+        console.error('❌ Erro ao obter sessão:', error.message);
+        // Verificar se é erro de sessão expirada
+        if (error.message.includes('session') || error.message.includes('expired')) {
+          console.log('🔓 Sessão expirada detectada, tentando renovar...');
+          
+          // Tentar renovar a sessão
+          const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+          
+          if (!refreshError && refreshData?.session?.user) {
+            const userData: AuthUser = {
+              id: refreshData.session.user.id,
+              email: refreshData.session.user.email || '',
+              name: refreshData.session.user.user_metadata?.name || refreshData.session.user.email?.split('@')[0] || 'Usuário'
+            };
+            
+            setUser(userData);
+            saveLocalUser(userData);
+            console.log('✅ Sessão renovada com sucesso:', userData.id);
+            setIsLoading(false);
+            return true;
+          } else {
+            console.log('❌ Falha ao renovar sessão, limpando dados locais');
+            setUser(null);
+            if (typeof window !== 'undefined') {
+              localStorage.removeItem('blackinpay_user');
+            }
+            setIsLoading(false);
+            return false;
+          }
+        }
       } else if (data?.session?.user) {
         // Sessão válida no Supabase
         const supaUser = data.session.user;
@@ -99,7 +129,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         setUser(userData);
         saveLocalUser(userData);
-        console.log('✅ Autenticado via Supabase:', userData.id);
+        console.log('✅ Sessão válida confirmada:', userData.id);
         setIsLoading(false);
         return true;
       }
@@ -107,12 +137,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // 2. Fallback: verificar localStorage se Supabase falhou
       const localUser = loadLocalUser();
       if (localUser) {
-        // Se encontrou usuário local, validar com o Supabase
-        // ou simplesmente confiar no local se não puder validar
-        setUser(localUser);
-        console.log('✅ Usando autenticação local:', localUser.id);
-        setIsLoading(false);
-        return true;
+        console.log('⚠️ Usando usuário local (sem sessão Supabase):', localUser.id);
+        
+        // Verificar se o usuário local é um usuário real do Supabase
+        if (localUser.id.startsWith('local_user_')) {
+          console.log('📝 Usuário local temporário detectado');
+          setUser(localUser);
+          setIsLoading(false);
+          return true;
+        } else {
+          // Usuário do Supabase sem sessão válida - forçar novo login
+          console.log('🔓 Usuário Supabase sem sessão válida, limpando dados');
+          setUser(null);
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('blackinpay_user');
+          }
+          setIsLoading(false);
+          return false;
+        }
       }
       
       // 3. Último recurso: criar um usuário local temporário para emergência
@@ -134,7 +176,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsLoading(false);
       return false;
     } catch (error) {
-      console.error('Erro ao atualizar autenticação:', error);
+      console.error('❌ Erro ao atualizar autenticação:', error);
       setIsLoading(false);
       return false;
     }
@@ -210,15 +252,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Função para validar usuário em background (não bloqueia UI)
     const validateUserInBackground = async (localUser: AuthUser) => {
       try {
+        // Tentar obter usuário autenticado do Supabase
         const { data: { user }, error } = await supabase.auth.getUser();
         
         if (error || !user) {
-          console.warn('⚠️ Usuário local pode estar desatualizado');
-          // Manter usuário local por enquanto, não forçar logout
+          console.warn('⚠️ Usuário local sem sessão Supabase válida');
+          
+          // 🔧 NOVA LÓGICA: Não forçar logout para usuários reais do Supabase
+          // Permitir que funcionem mesmo sem sessão ativa
+          if (!localUser.id.startsWith('local_user_')) {
+            console.log('⚠️ Usuário real do Supabase sem sessão ativa - mantendo autenticado localmente');
+            // Não forçar logout - apenas logar o aviso
+            return;
+          }
           return;
         }
         
-        // Atualizar dados se mudaram
+        // Sessão válida - atualizar dados se mudaram
         const updatedUser: AuthUser = {
           id: user.id,
           email: user.email || localUser.email,
@@ -235,7 +285,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       } catch (error) {
         console.warn('⚠️ Erro na validação em background:', error);
-        // Não fazer nada, manter usuário local
+        // 🔧 NOVA LÓGICA: Não forçar logout em caso de erro
+        // Manter usuário autenticado localmente
+        console.log('⚠️ Mantendo usuário autenticado localmente apesar do erro');
       }
     };
 

@@ -7,10 +7,11 @@ import { checkPushinPaymentStatus } from '@/lib/pushinpay';
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const paymentId = params.id;
+    const { id } = await params;
+    const paymentId = id;
     
     console.log('🔄 Verificando status do pagamento:', paymentId);
     

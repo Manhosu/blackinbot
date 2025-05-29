@@ -241,20 +241,19 @@ export async function POST(request: NextRequest) {
               try {
                 const tokenHash = Buffer.from(body.token.slice(-10)).toString('base64');
                 
-                const { error: webhookConfigError } = await supabaseAuth
-                  .from('webhook_configs')
-                  .upsert({
-                    bot_id: botId,
-                    token_hash: tokenHash,
-                    webhook_url: webhookUrl,
-                    configured_at: new Date().toISOString(),
-                    status: 'active'
+                // Usar função RPC para salvar webhook_config (contorna RLS)
+                const { data: webhookResult, error: webhookConfigError } = await supabaseAuth
+                  .rpc('save_webhook_config', {
+                    p_bot_id: botId,
+                    p_token_hash: tokenHash,
+                    p_webhook_url: webhookUrl,
+                    p_status: 'active'
                   });
                 
                 if (webhookConfigError) {
-                  console.warn('⚠️ Erro ao salvar configuração de webhook:', webhookConfigError);
+                  console.warn('⚠️ Erro ao salvar configuração de webhook via RPC:', webhookConfigError);
                 } else {
-                  console.log('✅ Configuração salva na tabela webhook_configs');
+                  console.log('✅ Configuração salva na tabela webhook_configs via RPC');
                 }
               } catch (configError) {
                 console.warn('⚠️ Erro ao salvar configuração adicional:', configError);

@@ -75,11 +75,11 @@ export function RegisterForm() {
       console.log('📊 Dados validados:', {
         name: data.name,
         email: data.email,
-        phone: data.phone,
+            phone: data.phone,
         cpf: data.cpf,
         hasPassword: !!data.password
       });
-      
+
       // Fazer requisição para a API de registro
       const response = await fetch('/api/auth/register', {
         method: 'POST',

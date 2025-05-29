@@ -4,10 +4,14 @@ import { supabase } from '@/lib/supabase';
 /**
  * API para buscar informações reais do dono do grupo via Telegram
  */
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  const groupId = id;
+  
   try {
-    const groupId = params.id;
-    
     console.log('🔍 Buscando informações do dono do grupo:', groupId);
     
     // Buscar grupo e bot
@@ -188,9 +192,10 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 /**
  * POST - Forçar atualização do perfil do dono
  */
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const groupId = params.id;
+    const { id } = await params;
+    const groupId = id;
     
     // Chamar GET para atualizar
     const response = await GET(request, { params });

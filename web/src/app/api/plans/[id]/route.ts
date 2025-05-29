@@ -1,4 +1,7 @@
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
+import { supabase } from '@/lib/supabase';
 import { createClient } from '@supabase/supabase-js';
 
 // Função para criar cliente Supabase com Service Role Key
@@ -18,10 +21,11 @@ function createSupabaseServiceClient() {
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const planId = params.id;
+    const { id } = await params;
+    const planId = id;
     console.log('🔍 Buscando plano:', planId);
 
     const supabase = createSupabaseServiceClient();
@@ -61,10 +65,11 @@ export async function GET(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const planId = params.id;
+    const { id } = await params;
+    const planId = id;
     console.log('🗑️ Excluindo plano:', planId);
 
     const supabase = createSupabaseServiceClient();
@@ -110,24 +115,25 @@ export async function DELETE(
       success: false,
       error: 'Erro interno do servidor'
     }, { status: 500 });
-  }
+    }
 }
 
 /**
- * PUT - Atualizar plano específico
+ * PUT - Atualizar plano
  */
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const planId = params.id;
-    const data = await request.json();
+    const { id } = await params;
+    const planId = id;
+    const body = await request.json();
     
     console.log('📝 Atualizando plano:', planId);
 
     // Validar dados obrigatórios
-    if (!data.name || !data.price || !data.period_days) {
+    if (!body.name || !body.price || !body.period_days) {
       return NextResponse.json({
         success: false,
         error: 'Nome, preço e período são obrigatórios'
@@ -135,8 +141,8 @@ export async function PUT(
     }
 
     // Validar valor mínimo
-    if (parseFloat(data.price) < 4.90) {
-      return NextResponse.json({
+    if (parseFloat(body.price) < 4.90) {
+      return NextResponse.json({ 
         success: false,
         error: 'Valor mínimo é R$ 4,90'
       }, { status: 400 });
@@ -160,13 +166,13 @@ export async function PUT(
 
     // Atualizar plano
     const updateData = {
-      name: data.name,
-      price: parseFloat(data.price),
-      period: data.period || 'custom',
-      period_days: parseInt(data.period_days),
-      days_access: parseInt(data.period_days), // Para compatibilidade
-      description: data.description || '',
-      is_active: data.is_active !== false,
+      name: body.name,
+      price: parseFloat(body.price),
+      period: body.period || 'custom',
+      period_days: parseInt(body.period_days),
+      days_access: parseInt(body.period_days), // Para compatibilidade
+      description: body.description || '',
+      is_active: body.is_active !== false,
       updated_at: new Date().toISOString()
     };
 
