@@ -4,13 +4,17 @@
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { ArrowLeft, CheckCircle, Sparkles } from 'lucide-react';
 import { RegisterForm } from '@/components/RegisterForm';
 
 export default function RegisterPage() {
+  useEffect(() => {
+    console.log('🚀 Página de registro carregada com sucesso!');
+  }, []);
+
   return (
     <div className="flex min-h-screen flex-col bg-gradient-dark">
       {/* Botão de voltar */}

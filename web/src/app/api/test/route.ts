@@ -17,52 +17,36 @@ function createSupabaseAdmin() {
 }
 
 export async function GET() {
-  try {
-    console.log('🧪 Testando conexão com Supabase...');
-    
-    const supabase = createSupabaseAdmin();
-    
-    // Testar conexão básica
-    const { data: bots, error } = await supabase
-      .from('bots')
-      .select('id, name')
-      .limit(3);
-
-    if (error) {
-      console.error('❌ Erro no Supabase:', error);
-      return NextResponse.json({
-        success: false,
-        error: 'Erro na conexão com Supabase',
-        details: error.message
-      }, { status: 500 });
-    }
-
-    console.log('✅ Conexão com Supabase OK');
-    console.log('📋 Bots encontrados:', bots?.length || 0);
-
-    return NextResponse.json({
-      success: true,
-      message: 'Conexão com Supabase funcionando',
-      bots_count: bots?.length || 0,
-      bots: bots
-    });
-
-  } catch (error: any) {
-    console.error('❌ Erro no teste:', error);
-    return NextResponse.json({
-      success: false,
-      error: 'Erro interno',
-      details: error.message
-    }, { status: 500 });
-  }
+  console.log('🧪 API de teste chamada');
+  
+  return NextResponse.json(
+    { 
+      message: "API funcionando corretamente",
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV
+    },
+    { status: 200 }
+  );
 }
 
-export async function POST(request: NextRequest) {
-  const body = await request.json();
-  return NextResponse.json({
-    success: true,
-    message: 'POST funcionando!',
-    received: body,
-    timestamp: new Date().toISOString()
-  });
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json();
+    console.log('🧪 POST de teste recebido:', body);
+    
+    return NextResponse.json(
+      { 
+        message: "POST funcionando corretamente",
+        received: body,
+        timestamp: new Date().toISOString()
+      },
+      { status: 200 }
+    );
+  } catch (error) {
+    console.error('❌ Erro no teste POST:', error);
+    return NextResponse.json(
+      { message: "Erro no teste POST", error: error },
+      { status: 500 }
+    );
+  }
 } 

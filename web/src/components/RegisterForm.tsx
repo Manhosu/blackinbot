@@ -2,7 +2,6 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -32,8 +31,8 @@ const registerSchema = z.object({
   name: z.string().min(3, "Nome deve ter pelo menos 3 caracteres"),
   email: z.string().email("Email inválido").min(1, "Email é obrigatório"),
   password: z.string().min(6, "Senha deve ter pelo menos 6 caracteres"),
-  phone: z.string().min(14, "Telefone inválido"),
-  cpf: z.string().min(11, "CPF inválido"),
+  phone: z.string().min(10, "Telefone deve ter pelo menos 10 dígitos"),
+  cpf: z.string().min(11, "CPF deve ter 11 dígitos"),
 });
 
 type RegisterForm = z.infer<typeof registerSchema>;
@@ -42,6 +41,12 @@ export function RegisterForm() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState("");
+  const [error, setError] = useState("");
+  
+  // Debug log
+  React.useEffect(() => {
+    console.log('🔧 RegisterForm inicializado com sucesso!');
+  }, []);
   
   const {
     register,
@@ -64,74 +69,52 @@ export function RegisterForm() {
     try {
       setLoading(true);
       setSuccess("");
+      setError("");
       
-      console.log('📝 Iniciando processo de registro...');
-      
-      // 1. Cria usuário no Supabase Auth
-      const { data: userData, error } = await supabase.auth.signUp({
+      console.log('📝 Enviando dados para API de registro...');
+      console.log('📊 Dados validados:', {
+        name: data.name,
         email: data.email,
-        password: data.password,
-        options: {
-          data: {
-            name: data.name,
-            phone: data.phone,
-            cpf: data.cpf.replace(/\D/g, ""),
-          },
+        phone: data.phone,
+        cpf: data.cpf,
+        hasPassword: !!data.password
+      });
+      
+      // Fazer requisição para a API de registro
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
+        body: JSON.stringify({
+          name: data.name,
+          email: data.email,
+          password: data.password,
+          phone: data.phone,
+          cpf: data.cpf,
+        }),
       });
 
-      if (error) {
-        console.error('❌ Erro no registro Supabase Auth:', error);
-        throw error;
+      console.log('📡 Resposta da API status:', response.status);
+      
+      const result = await response.json();
+      console.log('📥 Resultado da API:', result);
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Erro ao criar conta');
       }
 
-      console.log('✅ Usuário criado no Auth:', userData.user?.id);
-
-      // 2. Aguardar um momento para o trigger processar
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // 3. Atualizar dados adicionais na tabela users (telefone e telegram_id)
-      if (userData.user?.id) {
-        console.log('📞 Atualizando dados adicionais do usuário...');
-        
-        const { error: updateError } = await supabase
-          .from('users')
-          .update({
-            telegram_id: data.phone.replace(/\D/g, ""), // Usar telefone como telegram_id temporário
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', userData.user.id);
-
-        if (updateError) {
-          console.warn('⚠️ Erro ao atualizar dados adicionais:', updateError.message);
-        } else {
-          console.log('✅ Dados adicionais atualizados');
-        }
-
-        // 4. Criar perfil do usuário com dados completos
-        const { error: profileError } = await supabase
-          .from('user_profiles')
-          .insert({
-            id: userData.user.id,
-            full_name: data.name,
-            phone: data.phone.replace(/\D/g, ""),
-            cpf: data.cpf.replace(/\D/g, ""),
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          });
-
-        if (profileError && profileError.code !== '23505') { // Ignorar erro de duplicata
-          console.warn('⚠️ Erro ao criar perfil:', profileError.message);
-        } else {
-          console.log('✅ Perfil criado com sucesso');
-        }
-      }
-
+      console.log('✅ Conta criada com sucesso:', result);
       setSuccess("Cadastro realizado com sucesso! Redirecionando para login...");
-      setTimeout(() => router.push("/login"), 2000);
+      
+      // Redirecionar após 2 segundos
+      setTimeout(() => {
+        router.push("/login");
+      }, 2000);
+
     } catch (err: any) {
       console.error("❌ Erro ao cadastrar:", err);
-      alert(err?.message || "Erro ao cadastrar. Tente novamente.");
+      setError(err?.message || "Erro ao cadastrar. Tente novamente.");
     } finally {
       setLoading(false);
     }
@@ -191,7 +174,8 @@ export function RegisterForm() {
               {loading ? "Cadastrando..." : "Cadastrar"}
             </button>
             
-            {success && <div className="text-green-500 mt-2">{success}</div>}
+            {success && <div className="text-green-500 mt-2 text-sm">{success}</div>}
+            {error && <div className="text-red-500 mt-2 text-sm">{error}</div>}
           </form>
         </div>
       </div>

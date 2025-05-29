@@ -154,7 +154,7 @@ export default function DirectVideoUpload({
       setUploadState(prev => ({ ...prev, isUploading: true, error: null }));
       
       console.log('🚀 Iniciando upload direto para Supabase Storage...');
-      
+
       toast.info('📤 Enviando arquivo...', {
         description: 'Upload direto para Supabase Storage (sem limite de 4MB)',
         duration: 3000
@@ -171,21 +171,21 @@ export default function DirectVideoUpload({
       if (result.success && result.url) {
         console.log('✅ Upload concluído com sucesso:', result.url);
         
-        setUploadState(prev => ({
-          ...prev,
-          isUploading: false,
-          progress: 100,
+      setUploadState(prev => ({
+        ...prev,
+        isUploading: false,
+        progress: 100,
           uploadedUrl: result.url!,
-          error: null
-        }));
+        error: null
+      }));
 
         // Notificar sucesso
         onUploadSuccess(result.url);
-        
+      
         toast.success('✅ Upload concluído!', {
           description: `${mediaType === 'image' ? 'Imagem' : 'Vídeo'} enviado com sucesso`,
           duration: 4000
-        });
+      });
 
       } else {
         throw new Error(result.error || 'Falha no upload');
@@ -225,7 +225,7 @@ export default function DirectVideoUpload({
       uploadedUrl: null
     });
     setMediaPreview(null);
-    
+
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -259,7 +259,7 @@ export default function DirectVideoUpload({
           id="file-upload"
         />
         
-        <label 
+        <label
           htmlFor="file-upload" 
           className={`block cursor-pointer ${disabled || currentIsUploading ? 'cursor-not-allowed opacity-50' : ''}`}
         >
@@ -267,9 +267,9 @@ export default function DirectVideoUpload({
             <div className="mx-auto w-12 h-12 mb-4 flex items-center justify-center rounded-full bg-blue-500/20">
               {mediaType === 'image' ? (
                 <Upload className="w-6 h-6 text-blue-400" />
-              ) : (
+            ) : (
                 <Film className="w-6 h-6 text-blue-400" />
-              )}
+            )}
             </div>
             
             <h3 className="text-lg font-medium text-white mb-2">
@@ -304,14 +304,14 @@ export default function DirectVideoUpload({
             </div>
             
             {!currentIsUploading && (
-              <button
-                onClick={handleRemoveFile}
+                <button
+                  onClick={handleRemoveFile}
                 className="text-red-400 hover:text-red-300 transition-colors"
-                title="Remover arquivo"
-              >
+                  title="Remover arquivo"
+                >
                 <X className="w-4 h-4" />
-              </button>
-            )}
+                </button>
+              )}
           </div>
           
           <div className="space-y-2">
@@ -363,9 +363,9 @@ export default function DirectVideoUpload({
               className="max-h-48 max-w-full object-contain rounded-lg mx-auto"
             />
           ) : (
-            <video 
+          <video
               src={mediaPreview} 
-              controls 
+            controls
               className="max-h-48 max-w-full rounded-lg mx-auto"
             />
           )}
