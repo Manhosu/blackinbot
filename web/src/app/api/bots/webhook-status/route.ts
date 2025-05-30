@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { cookies } from 'next/headers';
 
 export async function GET(request: NextRequest) {
@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     console.log(`🔍 Verificando status do webhook para bot ${botId}...`);
 
     const cookieStore = cookies();
-    const supabaseClient = createRouteHandlerClient({ cookies: () => cookieStore });
+    const supabaseClient = createSupabaseServerClient();
 
     // Buscar dados do bot
     const { data: bot, error: botError } = await supabaseClient
@@ -127,7 +127,7 @@ export async function POST(request: NextRequest) {
     console.log(`🔧 Ação no webhook: ${action} para bot ${botId}`);
 
     const cookieStore = cookies();
-    const supabaseClient = createRouteHandlerClient({ cookies: () => cookieStore });
+    const supabaseClient = createSupabaseServerClient();
 
     // Buscar dados do bot
     const { data: bot, error: botError } = await supabaseClient

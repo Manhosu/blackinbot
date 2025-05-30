@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { cookies } from 'next/headers';
 
 interface GroupInfo {
@@ -254,7 +254,7 @@ async function sendWelcomeMessage(botToken: string, chatId: number, botId: strin
     
     // Buscar dados do bot no Supabase
     const cookieStore = await cookies();
-    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+    const supabase = createSupabaseServerClient();
     const { data: bot, error: botError } = await supabase
       .from('bots')
       .select('name, welcome_message, welcome_media_url, welcome_media_type')
@@ -382,7 +382,7 @@ export async function POST(request: NextRequest) {
     let user;
     
     try {
-      supabaseClient = createRouteHandlerClient({ cookies: () => cookieStore });
+      supabaseClient = createSupabaseServerClient();
       
       // Verificar se o usuário está autenticado
       console.log('🔐 Verificando autenticação do usuário...');

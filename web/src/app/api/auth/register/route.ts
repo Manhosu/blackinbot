@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
+import { createSupabaseServerClient } from '@/lib/supabase-server';
 
 export async function POST(req: NextRequest) {
   console.log('🚀 API de registro iniciada');
@@ -35,8 +34,7 @@ export async function POST(req: NextRequest) {
     console.log('✅ Validações básicas passaram');
 
     // Criar cliente Supabase
-    const cookieStore = cookies();
-    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+    const supabase = createSupabaseServerClient();
 
     console.log('📝 Criando usuário no Supabase Auth...');
 

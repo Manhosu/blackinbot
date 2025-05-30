@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { cookies } from 'next/headers';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
   try {
     // Obter cliente autenticado do Supabase com cookies
     const cookieStore = cookies();
-    const supabaseAuth = createRouteHandlerClient({ cookies: () => cookieStore });
+    const supabaseAuth = createSupabaseServerClient();
     
     // Verificar autenticação
     const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();

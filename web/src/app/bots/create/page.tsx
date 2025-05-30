@@ -9,8 +9,14 @@ import { ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@supabase/supabase-js';
 import PlanManager from '@/components/PlanManager';
+
+// Cliente Supabase para componentes
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 // Interface para os planos (atualizada para compatibilidade com PlanManager)
 interface Plan {
@@ -39,7 +45,6 @@ export default function CreateBotPage() {
   useEffect(() => {
     async function fetchUserData() {
       try {
-        const supabase = createClientComponentClient();
         const { data: { user }, error } = await supabase.auth.getUser();
         
         if (error) {

@@ -1,4 +1,4 @@
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
@@ -10,8 +10,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const cookieStore = await cookies();
-    const supabaseClient = createRouteHandlerClient({ cookies: () => cookieStore });
+    const supabaseClient = createSupabaseServerClient();
 
     if (!id) {
       return NextResponse.json({
@@ -67,8 +66,7 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
-    const cookieStore = await cookies();
-    const supabaseClient = createRouteHandlerClient({ cookies: () => cookieStore });
+    const supabaseClient = createSupabaseServerClient();
 
     if (!id) {
       return NextResponse.json({
@@ -355,7 +353,7 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   const cookieStore = await cookies();
-  const supabaseClient = createRouteHandlerClient({ cookies: () => cookieStore });
+  const supabaseClient = createSupabaseServerClient();
   const { id: botId } = await params;
   
   console.log(`🔄 PATCH /api/bots/${botId}: Atualizando conteúdo personalizado`);

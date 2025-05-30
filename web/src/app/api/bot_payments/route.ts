@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { cookies } from 'next/headers';
 import { v4 as uuidv4 } from 'uuid';
+
+export const dynamic = 'force-dynamic';
 
 // Armazenamento temporário de pagamentos
 let serverPayments: any[] = [];
@@ -15,8 +17,7 @@ const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3025';
  */
 export async function GET(request: NextRequest) {
   try {
-    const cookieStore = cookies();
-    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+    const supabase = createSupabaseServerClient();
     
     // Buscar pagamentos dos bots
     const { data: payments, error } = await supabase
@@ -47,8 +48,7 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const cookieStore = cookies();
-    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+    const supabase = createSupabaseServerClient();
     
     const body = await request.json();
     const { bot_id, amount, payment_method, customer_data } = body;

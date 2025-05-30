@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { cookies } from 'next/headers';
 import { saveWebhookConfig } from '@/lib/bot-functions';
 
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
 
     // Corrigir cookies para Next.js 15
     const cookieStore = await cookies();
-    const supabaseClient = createRouteHandlerClient({ cookies: () => cookieStore });
+    const supabaseClient = createSupabaseServerClient();
     
     const { token, botId } = body;
     
@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
         try {
           // Usar cliente Supabase autenticado
           const cookieStore = await cookies();
-          const supabaseClient = createRouteHandlerClient({ cookies: () => cookieStore });
+          const supabaseClient = createSupabaseServerClient();
           
           // Verificar autenticação
           const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
@@ -335,7 +335,7 @@ export async function DELETE(request: NextRequest) {
       try {
         // Criar um cliente Supabase para a rota
         const cookieStore = await cookies();
-        const supabaseClient = createRouteHandlerClient({ cookies: () => cookieStore });
+        const supabaseClient = createSupabaseServerClient();
         
         // Atualizar o registro do bot, se botId fornecido
         if (botId) {
