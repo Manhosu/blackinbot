@@ -12,8 +12,11 @@
       "memory": 1024
     }
   },
-  "buildCommand": "npm run build",
-  "installCommand": "npm install --legacy-peer-deps",
+  "buildCommand": "npm install && npm run build",
+  "installCommand": "npm install --production=false",
   "framework": "nextjs",
+  "env": {
+    "NODE_ENV": "production"
+  },
   "crons": []
 } 
