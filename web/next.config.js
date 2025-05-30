@@ -55,6 +55,11 @@ const nextConfig = {
         destination: '/dashboard/bots/:id/activate',
         permanent: false,
       },
+      {
+        source: '/.identity',
+        destination: '/identity',
+        permanent: true,
+      },
     ];
   },
 }
