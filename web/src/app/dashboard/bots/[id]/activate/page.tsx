@@ -140,7 +140,7 @@ export default function ActivateBotPage({ params: paramsPromise }: { params: Pro
         .select('id, name, is_activated, activated_at')
         .eq('id', botId)
         .single();
-
+      
       if (!error && botData && botData.is_activated) {
         setBot(prev => prev ? { ...prev, is_activated: true, activated_at: botData.activated_at } : null);
         setShowSuccessMessage(true);
@@ -175,7 +175,7 @@ export default function ActivateBotPage({ params: paramsPromise }: { params: Pro
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent mx-auto mb-4"></div>
             <p className="text-white/60">Carregando dados do bot...</p>
           </div>
-        </div>
+      </div>
       </DashboardLayout>
     );
   }
@@ -220,7 +220,7 @@ export default function ActivateBotPage({ params: paramsPromise }: { params: Pro
             <CardContent className="p-6">
               <div className="flex items-center gap-3">
                 <CheckCircle className="h-6 w-6 text-green-400" />
-                <div>
+              <div>
                   <h3 className="text-green-400 font-semibold">Bot Ativado com Sucesso!</h3>
                   <p className="text-green-300 text-sm">Redirecionando para o painel do bot...</p>
                 </div>
@@ -264,7 +264,7 @@ export default function ActivateBotPage({ params: paramsPromise }: { params: Pro
                       <li>3. Cole o link/ID no campo abaixo e clique em "Ativar Bot"</li>
                     </ol>
                   </div>
-                </div>
+                  </div>
               </CardContent>
             </Card>
 
@@ -280,14 +280,14 @@ export default function ActivateBotPage({ params: paramsPromise }: { params: Pro
               </CardHeader>
 
               <CardContent className="space-y-4">
-                <div>
+                  <div>
                   <Label htmlFor="groupLink" className="text-white/80 mb-2 block">
-                    Link ou ID do Grupo
-                  </Label>
+                      Link ou ID do Grupo
+                    </Label>
                   <Input
-                    id="groupLink"
-                    type="text"
-                    value={groupLink}
+                      id="groupLink"
+                      type="text"
+                      value={groupLink}
                     onChange={(e) => setGroupLink(e.target.value)}
                     placeholder="https://t.me/seugrupo ou -100123456789"
                     className="bg-white/5 border-white/20 text-white placeholder-white/50 focus:border-accent"
@@ -298,28 +298,28 @@ export default function ActivateBotPage({ params: paramsPromise }: { params: Pro
                   </p>
                 </div>
 
-                {groupValidationError && (
+                    {groupValidationError && (
                   <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
                     <div className="flex items-start gap-2">
                       <AlertCircle className="h-4 w-4 text-red-400 mt-0.5" />
                       <div className="text-red-300 text-sm whitespace-pre-line">
                         {groupValidationError}
-                      </div>
+                  </div>
                     </div>
                   </div>
                 )}
 
                 <Button
-                  onClick={activateViaLink}
+                    onClick={activateViaLink}
                   disabled={validatingGroup || !groupLink.trim()}
                   className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 disabled:from-gray-500 disabled:to-gray-600"
-                >
-                  {validatingGroup ? (
-                    <div className="flex items-center justify-center gap-2">
+                  >
+                    {validatingGroup ? (
+                      <div className="flex items-center justify-center gap-2">
                       <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                      Validando e ativando...
-                    </div>
-                  ) : (
+                        Validando e ativando...
+                      </div>
+                    ) : (
                     'Ativar Bot'
                   )}
                 </Button>
@@ -343,8 +343,8 @@ export default function ActivateBotPage({ params: paramsPromise }: { params: Pro
                 </div>
               </CardContent>
             </Card>
-          </div>
-        ) : (
+                      </div>
+                    ) : (
           <Card className="bg-card border-border-light">
             <CardContent className="text-center py-12">
               <CheckCircle className="h-16 w-16 text-green-400 mx-auto mb-4" />

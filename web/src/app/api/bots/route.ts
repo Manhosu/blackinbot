@@ -70,14 +70,26 @@ export async function POST(req: NextRequest) {
     const { data: { session }, error: authError } = await supabaseClient.auth.getSession();
     
     if (authError || !session?.user) {
+      console.log('❌ Erro de autenticação ou usuário não encontrado');
       return NextResponse.json({ 
         success: false, 
         error: 'Usuário não autenticado' 
       }, { status: 401 });
     }
 
+    console.log('✅ Usuário autenticado:', session.user.id);
+
     const body = await req.json();
-    const { name, token, description, telegram_id, username, webhook_url, is_public, status } = body;
+    const { name, token, description, telegram_id, username, webhook_url, is_public, status, plans } = body;
+
+    console.log('📝 Dados recebidos:', { 
+      name, 
+      token: token ? '***OCULTO***' : 'não fornecido', 
+      description, 
+      telegram_id, 
+      username, 
+      plansCount: plans?.length || 0 
+    });
 
     // Validações
     if (!name || !token) {
@@ -113,21 +125,55 @@ export async function POST(req: NextRequest) {
       console.error('❌ Erro ao criar bot:', error);
       return NextResponse.json({ 
         success: false, 
-        error: 'Erro ao criar bot' 
+        error: 'Erro ao criar bot: ' + error.message 
       }, { status: 500 });
     }
 
     console.log('✅ Bot criado com sucesso:', bot.id);
+
+    // Processar planos se fornecidos
+    let createdPlans = [];
+    if (plans && Array.isArray(plans) && plans.length > 0) {
+      console.log(`📋 Processando ${plans.length} planos...`);
+      
+      const plansData = plans.map(plan => ({
+        name: plan.name,
+        price: parseFloat(plan.price),
+        period: plan.period || 'monthly',
+        period_days: parseInt(plan.period_days) || 30,
+        description: plan.description || '',
+        is_active: plan.is_active !== false,
+        days_access: parseInt(plan.period_days) || 30,
+        bot_id: bot.id
+      }));
+
+      const { data: plansResult, error: plansError } = await supabaseClient
+        .from('plans')
+        .insert(plansData)
+        .select();
+
+      if (plansError) {
+        console.error('⚠️ Erro ao criar planos:', plansError);
+        // Não falhar a criação do bot por causa dos planos
+        console.log('⚠️ Bot criado, mas sem planos. Continuando...');
+      } else {
+        createdPlans = plansResult || [];
+        console.log(`✅ ${createdPlans.length} planos criados com sucesso`);
+      }
+    }
+
     return NextResponse.json({ 
       success: true, 
-      bot 
+      bot,
+      plans: createdPlans,
+      data: bot // Para compatibilidade
     });
 
   } catch (error: any) {
     console.error('❌ Erro geral na criação:', error);
     return NextResponse.json({ 
       success: false, 
-      error: 'Erro interno do servidor' 
+      error: 'Erro interno do servidor: ' + error.message 
     }, { status: 500 });
   }
 } 

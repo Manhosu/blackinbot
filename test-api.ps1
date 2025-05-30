@@ -2,32 +2,36 @@
 Write-Host "Testando API de criação de bots (Versão simplificada)" -ForegroundColor Cyan
 
 # Criar um arquivo JSON com os dados de teste
-$testData = @{
-    name = "Bot de Teste PowerShell v2"
-    description = "Bot criado via script PowerShell para teste da API simplificada"
-    token = "7018128699:AAEZTpUtMSLc83PHMPwqNamIwiZ5P8lCvq4"
-    plan_info = @{
-        name = "Plano Mensal"
-        price = 9.90
-        days = 30
-    }
-} | ConvertTo-Json -Depth 10
+$body = @{
+    name = "Test Bot"
+    token = "123:abc"
+    description = "Teste"
+    owner_id = "test-user"
+    plans = @(
+        @{
+            name = "VIP"
+            price = 9.90
+            period = "monthly"
+            period_days = 30
+            is_active = $true
+        }
+    )
+} | ConvertTo-Json -Depth 3
 
 # Salvar em arquivo
-$testData | Out-File -FilePath "test-bot-data.json" -Encoding utf8
+$body | Out-File -FilePath "test-bot-data.json" -Encoding utf8
 
 # Mostrar os dados de teste
 Write-Host "Dados de teste criados:" -ForegroundColor Yellow
-Write-Host $testData
+Write-Host $body
 
 # Fazer a requisição usando Invoke-RestMethod para processamento em PowerShell
 Write-Host "`nEnviando requisição para API usando Invoke-RestMethod:" -ForegroundColor Green
 try {
-    $response = Invoke-RestMethod -Uri "http://localhost:3025/api/bots" -Method Post -ContentType "application/json" -Body $testData -ErrorAction Stop
-    
-    Write-Host "Resposta de sucesso:" -ForegroundColor Green
-    $responseJson = $response | ConvertTo-Json -Depth 10
-    Write-Host $responseJson
+    Write-Host "Testando API de criação de bot..."
+    $response = Invoke-RestMethod -Uri "http://localhost:3025/api/bots" -Method Post -Headers @{"Content-Type"="application/json"} -Body $body
+    Write-Host "✅ Resposta:" -ForegroundColor Green
+    $response | ConvertTo-Json -Depth 3
     
     # Extrair e mostrar informações importantes do bot
     Write-Host "`nDetalhes do bot criado:" -ForegroundColor Cyan
@@ -43,19 +47,21 @@ try {
         Write-Host "Tipo: Bot real inserido no banco" -ForegroundColor Green
     }
 } catch {
-    Write-Host "Erro na requisição:" -ForegroundColor Red
-    Write-Host "Status: $($_.Exception.Response.StatusCode.value__)" -ForegroundColor Red
-    Write-Host "Mensagem: $($_.Exception.Message)" -ForegroundColor Red
-    
-    # Tentar obter o corpo da resposta de erro
-    try {
-        $reader = New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream())
-        $errorResponse = $reader.ReadToEnd()
-        $reader.Close()
-        Write-Host "Detalhes do erro:" -ForegroundColor Red
-        Write-Host $errorResponse
-    } catch {
-        Write-Host "Não foi possível obter detalhes do erro" -ForegroundColor Red
+    Write-Host "❌ Erro:" -ForegroundColor Red
+    Write-Host $_.Exception.Message
+    if ($_.Exception.Response) {
+        $statusCode = $_.Exception.Response.StatusCode.value__
+        Write-Host "Status Code: $statusCode"
+        
+        # Tentar ler o corpo da resposta de erro
+        try {
+            $streamReader = [System.IO.StreamReader]::new($_.Exception.Response.GetResponseStream())
+            $errorBody = $streamReader.ReadToEnd()
+            Write-Host "Erro detalhado:"
+            Write-Host $errorBody
+        } catch {
+            Write-Host "Não foi possível ler o corpo da resposta de erro"
+        }
     }
 }
 

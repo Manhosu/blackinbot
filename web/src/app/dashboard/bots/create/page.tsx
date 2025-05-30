@@ -288,6 +288,7 @@ export default function CreateBotPage() {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify({ token }),
       });
       
@@ -621,7 +622,9 @@ export default function CreateBotPage() {
         console.log('⚠️ Usuário não encontrado no contexto, verificando sessão...');
         
         try {
-          const sessionResponse = await fetch('/api/auth/session');
+          const sessionResponse = await fetch('/api/auth/session', {
+            credentials: 'include'
+          });
           const sessionResult = await sessionResponse.json();
           
           if (!sessionResult.success || !sessionResult.user) {
@@ -669,6 +672,7 @@ export default function CreateBotPage() {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify(botData)
       });
 
@@ -688,7 +692,9 @@ export default function CreateBotPage() {
           
           // Verificar se a sessão realmente expirou
           try {
-            const sessionResponse = await fetch('/api/auth/session');
+            const sessionResponse = await fetch('/api/auth/session', {
+              credentials: 'include'
+            });
             const sessionResult = await sessionResponse.json();
             
             if (!sessionResult.success || !sessionResult.user) {
