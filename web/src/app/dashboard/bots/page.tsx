@@ -114,11 +114,27 @@ export default function BotsPage() {
         setRefreshing(true);
       }
       
-      const userBots = await getMyBots();
-      console.log(`✅ ${userBots.length} bots encontrados para o usuário`);
+      // 🔧 CORREÇÃO: Usar fetch direto para a API corrigida
+      const response = await fetch('/api/bots', {
+        method: 'GET',
+        credentials: 'include', // Incluir cookies de sessão
+      });
       
-      setBots(userBots);
-      saveBotsToCache(userBots);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      console.log('📦 Resposta da API bots:', data);
+      
+      if (data.success) {
+        const userBots = data.bots || [];
+        console.log(`✅ ${userBots.length} bots encontrados para o usuário`);
+        setBots(userBots);
+        saveBotsToCache(userBots);
+      } else {
+        throw new Error(data.error || 'Erro desconhecido ao buscar bots');
+      }
       
     } catch (error: any) {
       console.error('❌ Erro ao buscar bots:', error);
@@ -144,10 +160,26 @@ export default function BotsPage() {
       // Aguardar um pouco para garantir que o banco processou
       await new Promise(resolve => setTimeout(resolve, 200));
       
-      const userBots = await getMyBots(true); // Forçar refresh
-      console.log(`✅ ${userBots.length} bots encontrados após atualização`);
-      setBots(userBots);
-      saveBotsToCache(userBots);
+      // 🔧 CORREÇÃO: Usar fetch direto para a API corrigida
+      const response = await fetch('/api/bots', {
+        method: 'GET',
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        const userBots = data.bots || [];
+        console.log(`✅ ${userBots.length} bots encontrados após atualização`);
+        setBots(userBots);
+        saveBotsToCache(userBots);
+      } else {
+        throw new Error(data.error || 'Erro desconhecido ao buscar bots');
+      }
     } catch (error: any) {
       console.error('❌ Erro ao buscar bots:', error);
       setError('Erro ao carregar bots. Tente novamente.');
