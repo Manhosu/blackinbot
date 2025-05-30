@@ -10,7 +10,7 @@ export async function GET(
 ) {
   const { id } = await params;
   const groupId = id;
-  
+    
   try {
     console.log('🔍 Buscando informações do dono do grupo:', groupId);
     

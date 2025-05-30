@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
         error: error.message 
       }, { status: 401 });
     }
-
+    
     if (!session || !session.user) {
       return NextResponse.json({ 
         success: false, 
@@ -56,12 +56,12 @@ export async function POST(req: NextRequest) {
       email,
       password,
     });
-
+    
     if (error) {
       console.error("Erro no login:", error);
       return NextResponse.json({ error: error.message }, { status: 401 });
     }
-
+    
     return NextResponse.json({ 
       success: true, 
       session: data.session, 

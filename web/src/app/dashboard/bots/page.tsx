@@ -6,7 +6,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { FiPlus, FiRefreshCw } from 'react-icons/fi';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { Bot, getMyBots } from '@/lib/bot-functions';
+import { Bot } from '@/lib/bot-functions';
 import BotCard from '@/components/BotCard';
 import PageLoading from '@/components/PageLoading';
 import EmptyState from '@/components/EmptyState';

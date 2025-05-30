@@ -48,4 +48,4 @@ tsconfig.tsbuildinfo
 .env.local.backup
 
 # Scripts PowerShell
-*.ps1 
+*.ps1

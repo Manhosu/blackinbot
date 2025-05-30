@@ -514,15 +514,15 @@ export async function POST(request: NextRequest) {
       
       // Salvar erro de tentativa
       try {
-        await supabaseClient
-          .from('bots')
-          .update({
-            auto_activation_attempted_at: new Date().toISOString(),
-            auto_activation_error: validation.error,
-            group_link: groupLink,
-            group_id_telegram: linkInfo.identifier
-          })
-          .eq('id', botId);
+      await supabaseClient
+        .from('bots')
+        .update({
+          auto_activation_attempted_at: new Date().toISOString(),
+          auto_activation_error: validation.error,
+          group_link: groupLink,
+          group_id_telegram: linkInfo.identifier
+        })
+        .eq('id', botId);
         console.log('📝 Erro de tentativa salvo no banco');
       } catch (saveError) {
         console.error('❌ Erro ao salvar tentativa:', saveError);
@@ -614,12 +614,12 @@ export async function POST(request: NextRequest) {
         // Atualizar bot com informações do webhook
         try {
           await supabaseClient
-            .from('bots')
-            .update({
+      .from('bots')
+      .update({
               webhook_url: webhookUrl,
               webhook_set_at: new Date().toISOString()
-            })
-            .eq('id', botId);
+      })
+      .eq('id', botId);
           console.log('✅ Dados do webhook salvos no banco');
         } catch (updateError) {
           console.warn('⚠️ Erro ao salvar webhook no banco:', updateError);

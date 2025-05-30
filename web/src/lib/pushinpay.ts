@@ -115,25 +115,31 @@ export async function validatePushinPayKey(apiKey: string): Promise<PushinPayRes
   }
 
   try {
-    // Fazer uma chamada simples para verificar se a chave é válida
-    // Vamos tentar buscar o perfil da conta (endpoint que requer autenticação)
-    const result = await makeRequest('/profile', 'GET', undefined, apiKey.trim());
+    // 🔧 CORREÇÃO: Testar criando um pagamento pequeno para validar a chave
+    // Isso é mais confiável que endpoints de perfil que podem não existir
+    const testPaymentData = {
+      value: 100, // R$ 1,00 em centavos - valor mínimo para teste
+      webhook_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3025'}/api/webhooks/pushinpay-test`
+    };
+    
+    console.log('🧪 Testando chave com criação de pagamento de teste...');
+    const result = await makeRequest('/pix/cashIn', 'POST', testPaymentData, apiKey.trim());
     
     if (result.success) {
-      console.log('✅ Chave PushinPay válida');
+      console.log('✅ Chave PushinPay válida - pagamento de teste criado');
       return {
         success: true,
         data: {
           valid: true,
-          profile: result.data || {},
-          message: 'Chave PushinPay válida e conectada com sucesso'
+          message: 'Chave PushinPay válida e conectada com sucesso',
+          test_payment_id: result.data?.id || null
         }
       };
     } else {
       console.log('❌ Chave PushinPay inválida:', result.error);
       return {
         success: false,
-        error: result.error || 'Chave PushinPay inválida'
+        error: result.error || 'Chave PushinPay inválida ou sem permissões'
       };
     }
   } catch (error: any) {
