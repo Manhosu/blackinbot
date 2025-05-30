@@ -618,7 +618,26 @@ export default function CreateBotPage() {
 
       // Verificar se realmente há um usuário autenticado
       if (!user?.id) {
-        throw new Error('Usuário não autenticado');
+        console.log('⚠️ Usuário não encontrado no contexto, verificando sessão...');
+        
+        try {
+          const sessionResponse = await fetch('/api/auth/session');
+          const sessionResult = await sessionResponse.json();
+          
+          if (!sessionResult.success || !sessionResult.user) {
+            setError('Sessão expirada. Redirecionando para login...');
+            setTimeout(() => forceLogin(), 2000);
+            return;
+          }
+          
+          // Se chegou aqui, há uma sessão válida mas o contexto não está atualizado
+          console.log('✅ Sessão válida encontrada, continuando...');
+        } catch (sessionError) {
+          console.error('Erro ao verificar sessão:', sessionError);
+          setError('Erro de autenticação. Redirecionando para login...');
+          setTimeout(() => forceLogin(), 2000);
+          return;
+        }
       }
 
       // Preparar dados do bot com planos
@@ -628,7 +647,7 @@ export default function CreateBotPage() {
         description: form.description || '',
         telegram_id: validationResult?.id,
         username: validationResult?.username,
-        owner_id: user.id,
+        owner_id: user?.id,
         is_public: false,
         status: 'active' as const,
         plans: plans // INCLUIR PLANOS
@@ -679,6 +698,10 @@ export default function CreateBotPage() {
             }
           } catch (sessionError) {
             console.error('Erro ao verificar sessão:', sessionError);
+            // Se não conseguiu verificar a sessão, assumir que expirou
+            setError('Sessão expirada. Redirecionando para login...');
+            setTimeout(() => forceLogin(), 2000);
+            return;
           }
         }
         

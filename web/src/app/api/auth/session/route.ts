@@ -9,13 +9,35 @@ export async function GET(req: NextRequest) {
     
     if (error) {
       console.error("Erro ao buscar sessão:", error);
-      return NextResponse.json({ session: null, error: error.message }, { status: 401 });
+      return NextResponse.json({ 
+        success: false, 
+        session: null, 
+        user: null, 
+        error: error.message 
+      }, { status: 401 });
     }
 
-    return NextResponse.json({ session });
+    if (!session || !session.user) {
+      return NextResponse.json({ 
+        success: false, 
+        session: null, 
+        user: null 
+      }, { status: 401 });
+    }
+
+    return NextResponse.json({ 
+      success: true, 
+      session, 
+      user: session.user 
+    });
   } catch (error: any) {
     console.error("Erro geral na sessão:", error);
-    return NextResponse.json({ session: null, error: "Erro interno" }, { status: 500 });
+    return NextResponse.json({ 
+      success: false, 
+      session: null, 
+      user: null, 
+      error: "Erro interno" 
+    }, { status: 500 });
   }
 }
 
@@ -40,7 +62,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 401 });
     }
 
-    return NextResponse.json({ session: data.session, user: data.user });
+    return NextResponse.json({ 
+      success: true, 
+      session: data.session, 
+      user: data.user 
+    });
   } catch (error: any) {
     console.error("Erro geral no login:", error);
     return NextResponse.json({ error: "Erro interno" }, { status: 500 });
