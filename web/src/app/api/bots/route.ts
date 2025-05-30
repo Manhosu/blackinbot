@@ -5,7 +5,7 @@ export async function GET(req: NextRequest) {
   try {
     console.log('🔍 Iniciando busca de bots...');
     
-    const supabaseClient = createSupabaseServerClient();
+    const supabaseClient = await createSupabaseServerClient();
     
     // Verificar autenticação
     const { data: { session }, error: authError } = await supabaseClient.auth.getSession();
@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
   try {
     console.log('🚀 Iniciando criação de bot...');
     
-    const supabaseClient = createSupabaseServerClient();
+    const supabaseClient = await createSupabaseServerClient();
     
     // Verificar autenticação
     const { data: { session }, error: authError } = await supabaseClient.auth.getSession();

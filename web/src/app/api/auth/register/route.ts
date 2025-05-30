@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
     console.log('✅ Validações básicas passaram');
 
     // Criar cliente Supabase
-    const supabase = createSupabaseServerClient();
+    const supabase = await createSupabaseServerClient();
 
     console.log('📝 Criando usuário no Supabase Auth...');
 

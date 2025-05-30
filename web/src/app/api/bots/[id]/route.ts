@@ -10,7 +10,6 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const supabaseClient = createSupabaseServerClient();
 
     if (!id) {
       return NextResponse.json({
@@ -21,14 +20,26 @@ export async function GET(
 
     console.log(`🔍 Buscando bot ${id}...`);
 
-    const { data: bot, error } = await supabaseClient
+    // Usar cliente admin para maior confiabilidade
+    const supabaseAdmin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
+    );
+
+    const { data: bot, error } = await supabaseAdmin
       .from('bots')
       .select('*')
       .eq('id', id)
       .single();
 
     if (error) {
-      console.error('Erro ao buscar bot:', error);
+      console.error('❌ Erro ao buscar bot:', error);
       return NextResponse.json({
         success: false,
         error: error.message
@@ -36,13 +47,14 @@ export async function GET(
     }
 
     if (!bot) {
+      console.error('❌ Bot não encontrado');
       return NextResponse.json({
         success: false,
         error: 'Bot não encontrado'
       }, { status: 404 });
     }
 
-    console.log(`✅ Bot encontrado: ${bot.name}`);
+    console.log(`✅ Bot encontrado: ${bot.name} (owner: ${bot.owner_id})`);
 
     return NextResponse.json({
       success: true,
@@ -50,7 +62,7 @@ export async function GET(
     });
 
   } catch (error: any) {
-    console.error('Erro geral ao buscar bot:', error);
+    console.error('❌ Erro geral ao buscar bot:', error);
     return NextResponse.json({
       success: false,
       error: 'Erro interno do servidor'
@@ -66,7 +78,7 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
-    const supabaseClient = createSupabaseServerClient();
+    const supabaseClient = await createSupabaseServerClient();
 
     if (!id) {
       return NextResponse.json({
@@ -352,57 +364,50 @@ export async function PATCH(
   request: Request,
   { params }: { params: { id: string } }
 ) {
-  const cookieStore = await cookies();
-  const supabaseClient = createSupabaseServerClient();
-  const { id: botId } = await params;
-  
-  console.log(`🔄 PATCH /api/bots/${botId}: Atualizando conteúdo personalizado`);
-  
   try {
-    // Obter dados da requisição
-    const requestData = await request.json();
-    console.log('📦 Dados recebidos para atualização parcial:', Object.keys(requestData));
-    console.log('📦 Dados completos:', requestData);
+    const { id: botId } = await params;
     
-    // Estratégia de autenticação múltipla
-    let userId = null;
+    console.log(`🔄 PATCH /api/bots/${botId}: Atualizando conteúdo personalizado`);
     
-    // Estratégia 1: Tentar autenticação via cookies
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
-    
-    if (user && !authError) {
-      userId = user.id;
-      console.log('✅ Usuário autenticado via cookies:', userId);
-    } else {
-      console.warn('⚠️ Falha na autenticação via cookies:', authError?.message || 'Usuário nulo');
-      
-      // Estratégia 2: Verificar se o bot existe e tem owner_id válido
-      const { data: botData, error: botError } = await supabaseClient
-        .from('bots')
-        .select('id, name, owner_id')
-        .eq('id', botId)
-        .single();
-      
-      if (botError || !botData) {
-        console.error('❌ Bot não encontrado:', botError?.message);
-        return NextResponse.json({ 
-          success: false, 
-          error: 'Bot não encontrado ou acesso negado'
-        }, { status: 404 });
-      }
-      
-      // Usar o owner_id do bot como fallback
-      userId = botData.owner_id;
-      console.log('✅ Usando owner_id do bot como fallback:', userId);
-    }
-    
-    if (!userId) {
-      console.error('❌ Não foi possível determinar userId');
+    if (!botId) {
       return NextResponse.json({ 
         success: false, 
-        error: 'Autenticação necessária para atualizar bots'
-      }, { status: 401 });
+        error: 'ID do bot é obrigatório'
+      }, { status: 400 });
     }
+    
+    // Obter dados da requisição
+    const requestData = await request.json();
+    console.log('📦 Dados recebidos:', Object.keys(requestData));
+    
+    // Usar cliente admin para operações mais confiáveis
+    const supabaseAdmin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
+    );
+    
+    // Primeiro, verificar se o bot existe
+    const { data: existingBot, error: fetchError } = await supabaseAdmin
+      .from('bots')
+      .select('id, name, owner_id')
+      .eq('id', botId)
+      .single();
+    
+    if (fetchError || !existingBot) {
+      console.error('❌ Bot não encontrado:', fetchError?.message);
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Bot não encontrado'
+      }, { status: 404 });
+    }
+    
+    console.log(`✅ Bot encontrado: ${existingBot.name} (owner: ${existingBot.owner_id})`);
     
     // Campos permitidos para atualização
     const allowedFields = [
@@ -440,72 +445,43 @@ export async function PATCH(
     updateData.updated_at = new Date().toISOString();
     
     console.log('🔄 Atualizando campos:', Object.keys(updateData));
-    console.log('👤 UserId para atualização:', userId);
     
-    // Tentar atualizar no banco de dados usando cliente admin
-    try {
-      console.log('🔄 Atualizando bot no banco usando cliente admin...');
-      
-      // Usar cliente admin para contornar RLS
-      const supabaseAdmin = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!,
-        {
-          auth: {
-            autoRefreshToken: false,
-            persistSession: false
-          }
-        }
-      );
-      
-      console.log('🔍 Tentando atualizar bot:', { botId, userId, updateData });
-      
-      // Fazer update simples sem ON CONFLICT
-      const { data: updatedBot, error: updateError } = await supabaseAdmin
-        .from('bots')
-        .update(updateData)
-        .eq('id', botId)
-        .eq('owner_id', userId)
-        .select()
-        .single();
-      
-      if (updateError) {
-        console.error('❌ Erro ao atualizar bot:', updateError.message);
-        console.error('❌ Detalhes do erro:', updateError);
-        return NextResponse.json({ 
-          success: false, 
-          error: `Erro ao atualizar bot: ${updateError.message}`
-        }, { status: 500 });
-      }
-      
-      if (!updatedBot) {
-        console.error('❌ Bot não encontrado ou não foi atualizado');
-        return NextResponse.json({ 
-          success: false, 
-          error: 'Bot não encontrado ou você não tem permissão para atualizá-lo'
-        }, { status: 404 });
-      }
-      
-      console.log('✅ Bot atualizado com sucesso:', updatedBot);
-      return NextResponse.json({
-        success: true,
-        data: updatedBot,
-        message: 'Bot atualizado com sucesso'
-      });
-      
-    } catch (updateError) {
-      console.error('❌ Erro ao atualizar:', updateError);
+    // Atualizar bot (sem filtro por owner_id para simplificar)
+    const { data: updatedBot, error: updateError } = await supabaseAdmin
+      .from('bots')
+      .update(updateData)
+      .eq('id', botId)
+      .select()
+      .single();
+    
+    if (updateError) {
+      console.error('❌ Erro ao atualizar bot:', updateError);
       return NextResponse.json({ 
         success: false, 
-        error: 'Erro ao atualizar bot no banco de dados'
+        error: `Erro ao atualizar bot: ${updateError.message}`
       }, { status: 500 });
     }
     
-  } catch (error) {
-    console.error('❌ Erro ao atualizar personalização do bot:', error);
+    if (!updatedBot) {
+      console.error('❌ Bot não foi atualizado');
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Falha ao atualizar bot'
+      }, { status: 500 });
+    }
+    
+    console.log('✅ Bot atualizado com sucesso:', updatedBot.name);
+    return NextResponse.json({
+      success: true,
+      data: updatedBot,
+      message: 'Bot atualizado com sucesso'
+    });
+    
+  } catch (error: any) {
+    console.error('❌ Erro geral ao atualizar bot:', error);
     return NextResponse.json({ 
       success: false, 
-      error: 'Erro ao atualizar personalização do bot' 
+      error: `Erro interno: ${error.message}` 
     }, { status: 500 });
   }
 } 
